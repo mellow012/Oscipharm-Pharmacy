@@ -20,16 +20,26 @@ export default async function IngredientPage({
   }
 
   return (
-    <main className="p-4">
-      <div className="flex items-center mb-4 gap-2 text-sm text-muted">
-        <Link href="/catalog" className="hover:underline">Catalog</Link>
+    <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8">
+      <div className="flex items-center gap-2 border-b border-border pb-5 text-sm text-muted">
+        <Link href="/catalog" className="hover:text-primary">Catalog</Link>
         <span>/</span>
-        <Link href={`/catalog/${categoryId}`} className="hover:underline">{ingredient.category.name}</Link>
+        <Link href={`/catalog/${categoryId}`} className="hover:text-primary">{ingredient.category.name}</Link>
         <span>/</span>
         <span className="font-medium text-fg">{ingredient.name}</span>
       </div>
-      <h1 className="text-2xl font-bold mb-4">{ingredient.name} Variants</h1>
-      <VariantList variants={variants} />
+      <header className="border-b border-border py-12">
+        <p className="mb-4 font-mono text-xs uppercase tracking-[0.18em] text-warn">Available products</p>
+        <h1 className="text-5xl text-ink">{ingredient.name}</h1>
+        <p className="mt-4 max-w-xl text-lg leading-8 text-muted">Compare brands and strengths currently listed in the OsciPharm catalog.</p>
+      </header>
+      <section className="py-10">
+        <div className="mb-5 flex items-end justify-between border-b border-border pb-4">
+          <h2 className="text-2xl text-ink">Variants</h2>
+          <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">{variants.length.toString().padStart(2, "0")} found</span>
+        </div>
+        <VariantList variants={variants} />
+      </section>
     </main>
   );
 }

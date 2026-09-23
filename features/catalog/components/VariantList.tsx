@@ -6,19 +6,19 @@ export function VariantList({ variants }: { variants: Variant[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {variants.map((v) => (
+    <div className="border-y border-border">
+      {variants.map((v, index) => (
         <div
           key={v.id}
-          className="p-4 rounded-xl border border-border bg-surface flex justify-between items-center"
+          className="grid gap-4 border-b border-border py-5 last:border-b-0 sm:grid-cols-[3rem_1fr_auto] sm:items-center"
         >
+          <span className="font-mono text-xs text-warn">0{index + 1}</span>
           <div>
-            <p className="font-medium text-fg">{v.brandName}</p>
-            <p className="text-sm text-muted">{v.strength}</p>
+            <p className="font-display text-2xl text-ink">{v.brandName}</p>
+            <p className="mt-1 text-sm text-muted">{v.strength ?? "Standard strength"} · {v.packSize} per pack</p>
           </div>
-          {/* Branch pricing would go here */}
-          <div className="text-right">
-            <span className="text-sm text-muted">View pricing</span>
+          <div className="text-left sm:text-right">
+            <span className="font-mono text-xs uppercase tracking-[0.12em] text-warn">Available in branches</span>
           </div>
         </div>
       ))}
