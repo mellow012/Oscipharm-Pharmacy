@@ -76,7 +76,7 @@ export default async function HomePage() {
                             <a href="https://oscipharm.com" className="block hover:text-primary">oscipharm.com</a>
                         </div>
                         <p className="mt-6 border-l-2 border-warn bg-surface px-4 py-3 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-                            Blantyre / St George Street
+                            Blantyre / Town and Lunzu
                         </p>
                     </div>
                 </div>

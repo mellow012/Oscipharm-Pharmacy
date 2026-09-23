@@ -9,7 +9,7 @@ async function main() {
         data: { name: "Lilongwe - Area 25", location: "Lilongwe, Malawi" },
     });
     const blantyre = await prisma.branch.create({
-        data: { name: "Blantyre - Limbe", location: "Blantyre, Malawi" },
+        data: { name: "Blantyre - Town and Lunzu", location: "Blantyre, Malawi" },
     });
     const mzuzu = await prisma.branch.create({
         data: { name: "Mzuzu - Hope Square", location: "Mzuzu, Malawi" },
