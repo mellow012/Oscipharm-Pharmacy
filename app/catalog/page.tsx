@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
 
@@ -9,7 +10,9 @@ export default async function CatalogPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
       <nav className="flex items-center justify-between border-b border-border pb-5">
-        <Link href="/" className="font-display text-2xl text-ink">OsciPharm</Link>
+        <Link href="/" aria-label="OsciPharm home">
+          <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={154} height={62} className="h-14 w-auto object-contain" />
+        </Link>
         <span className="font-mono text-xs uppercase tracking-[0.14em] text-warn">Product catalog</span>
       </nav>
       <header className="grid gap-8 border-b border-border py-12 md:grid-cols-[1fr_0.7fr] md:items-end md:py-16">

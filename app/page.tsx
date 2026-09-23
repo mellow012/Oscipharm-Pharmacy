@@ -15,7 +15,9 @@ export default async function HomePage() {
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <nav className="flex items-center justify-between border-b border-border pb-5">
-                <Link href="/" className="font-display text-2xl text-ink">OsciPharm</Link>
+                <Link href="/" aria-label="OsciPharm home">
+                    <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={154} height={62} className="h-14 w-auto object-contain" priority />
+                </Link>
                 <div className="flex items-center gap-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">
                     <Link href="/catalog" className="transition hover:text-primary">Catalog</Link>
                     <Link href="/login" className="border-b border-warn pb-1 transition hover:text-primary">Staff sign in</Link>
@@ -43,31 +45,46 @@ export default async function HomePage() {
                 </div>
             </header>
             <ProductBrowser categories={categories} products={products} />
-            <section className="grid gap-8 py-10 md:grid-cols-[0.7fr_1.3fr] md:py-14">
-                <div>
-                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Where to find us</p>
-                    <h2 className="max-w-xs text-3xl leading-tight text-ink">Three branches, one familiar standard.</h2>
-                    <p className="mt-4 max-w-xs text-sm leading-6 text-muted">Visit the OsciPharm team in Lilongwe, Blantyre, or Mzuzu.</p>
+            <footer className="mt-10 border-t border-border pt-10 sm:mt-14 sm:pt-14">
+                <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr_0.9fr]">
+                    <div>
+                        <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={126} height={50} className="h-10 w-auto object-contain object-left" />
+                        <p className="mt-5 max-w-xs text-sm leading-6 text-muted">Good Chemistry. Good Health. Everyday care, thoughtfully stocked.</p>
+                    </div>
+                    <div>
+                        <div className="mb-4 flex items-baseline justify-between gap-4">
+                            <h2 className="text-2xl text-ink">Our branches</h2>
+                            <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">{branches.length.toString().padStart(2, "0")} locations</span>
+                        </div>
+                        {branches.length > 0 ? (
+                            <ul className="border-y border-border">
+                                {branches.map((branch, index) => (
+                                    <li key={branch.name} className="grid grid-cols-[2rem_1fr] gap-3 border-b border-border py-3 last:border-b-0">
+                                        <span className="font-mono text-xs text-warn">0{index + 1}</span>
+                                        <div>
+                                            <p className="font-medium text-ink">{branch.name}</p>
+                                            {branch.location ? <p className="mt-1 text-sm text-muted">{branch.location}</p> : null}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="border border-dashed border-border px-5 py-6 text-muted">Branch information is not available yet.</p>
+                        )}
+                    </div>
+                    <div>
+                        <p className="mb-4 font-mono text-xs uppercase tracking-[0.16em] text-warn">Contact</p>
+                        <div className="space-y-3 text-sm text-muted">
+                            <a href="tel:+265996621085" className="block hover:text-primary">0996 62 10 85</a>
+                            <a href="mailto:oscipharm@gmail.com" className="block hover:text-primary">oscipharm@gmail.com</a>
+                            <a href="https://oscipharm.com" className="block hover:text-primary">oscipharm.com</a>
+                        </div>
+                        <p className="mt-6 border-l-2 border-warn bg-surface px-4 py-3 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+                            Blantyre / St George Street
+                        </p>
+                    </div>
                 </div>
-                {branches.length > 0 ? (
-                    <ul className="border-y border-border">
-                        {branches.map((branch, index) => (
-                            <li key={branch.name} className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 border-b border-border py-5 last:border-b-0">
-                                <span className="font-mono text-xs text-warn">0{index + 1}</span>
-                                <div>
-                                    <p className="font-display text-2xl text-ink">{branch.name}</p>
-                                    {branch.location ? <p className="mt-1 text-sm text-muted">{branch.location}</p> : null}
-                                </div>
-                                <span aria-hidden="true" className="text-lg text-warn">-&gt;</span>
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="border border-dashed border-border px-5 py-6 text-muted">Branch information is not available yet.</p>
-                )}
-            </section>
-            <footer className="border-t border-border py-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-                OsciPharm / Everyday care, thoughtfully stocked
+                <div className="mt-10 border-t border-border py-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">OsciPharm / Good Chemistry. Good Health.</div>
             </footer>
         </main>
     );
