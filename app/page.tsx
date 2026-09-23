@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { getBranches } from "@/features/marketing/lib/queries";
+import { HomepageCatalog } from "@/features/marketing/components/HomepageCatalog";
+import { getBranches, getHomepageCatalog } from "@/features/marketing/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-    const branches = await getBranches();
+    const [{ categories, variants }, branches] = await Promise.all([
+        getHomepageCatalog(),
+        getBranches(),
+    ]);
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
@@ -29,6 +33,7 @@ export default async function HomePage() {
                     </Link>
                 </div>
             </header>
+            <HomepageCatalog categories={categories} products={variants} />
             <section className="grid gap-8 py-10 md:grid-cols-[0.7fr_1.3fr] md:py-14">
                 <div>
                     <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Where to find us</p>
