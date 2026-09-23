@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/features/auth/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Pharmacy Catalog – Find Products by Category",
-  description: "Browse our pharmacy's full catalog of medicines, staples, and household items, with branch‑specific pricing.",
+  title: "OsciPharm – Catalog",
+  description: "Browse OsciPharm's full catalog of medicines, staples, and household items, with branch-specific pricing.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-bg text-fg">{children}</body>
+      <body className="antialiased bg-bg text-fg">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
