@@ -32,7 +32,7 @@ export default async function HomePage() {
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,35,23,0.88)_0%,rgba(10,35,23,0.58)_42%,rgba(10,35,23,0.08)_78%)]" />
                 <div className="relative flex min-h-[34rem] max-w-xl flex-col justify-end p-7 pb-9 sm:min-h-[38rem] sm:p-12 sm:pb-14">
-                    <p className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-warn">Independent pharmacy network</p>
+                    <p className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-warn">Good Chemistry. Good Health.</p>
                     <h1 className="max-w-3xl text-5xl leading-[0.98] text-white sm:text-7xl">The right care, close to home.</h1>
                     <p className="mt-5 max-w-sm text-lg leading-8 text-white/85">
                         Find everyday medicines and trusted essentials across the OsciPharm branch network.
