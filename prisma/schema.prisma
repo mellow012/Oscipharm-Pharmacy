@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN           // cross-branch oversight, user management, reporting
+  BRANCH_MANAGER  // stock/batch management, branch pricing, POS, branch-level reports — covers inventory duties, no separate inventory role
+  POS             // checkout only
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+}
+
+enum AuditAction {
+  STOCK_RECEIVED
+  STOCK_ADJUSTED
+  PRICE_CHANGED
+  SALE_COMPLETED
+  SALE_VOIDED
+}
+
+// ---------------------------------------------------------------------------
+// CORE ORG STRUCTURE
+// ---------------------------------------------------------------------------
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  location  String?
+  createdAt DateTime @default(now())
+
+  users         User[]
+  batches       Batch[]
+  prices        BranchPrice[]
+  sales         Sale[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  passwordHash String
+  role      Role
+  branchId  String?           // null for Admin (cross-branch); required for Branch Manager/POS
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  createdAt DateTime @default(now())
+
+  sales     Sale[]
+  auditLogs AuditLog[]
+}
+
+// ---------------------------------------------------------------------------
+// CATALOG HIERARCHY: Category -> Ingredient -> Variant (SKU)
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique   // e.g. "Pain Relief", "Antibiotics", "Vitamins"
+  description String?
+
+  ingredients Ingredient[]
+}
+
+model Ingredient {
+  id         String   @id @default(cuid())
+  name       String              // e.g. "Paracetamol", "Amoxicillin"
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  variants   Variant[]
+
+  @@unique([name, categoryId])
+}
+
+model Variant {
+  id             String   @id @default(cuid())
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+
+  brandName      String              // e.g. "Panadol", "Amoxil"
+  strength       String?             // e.g. "500mg"
+  packSize       Int                 // units per pack, e.g. 20 (tablets per strip/box)
+  unitLabel      String   @default("unit") // e.g. "tablet", "capsule", "ml" — for loose-item sales
+  allowsLooseSale Boolean @default(true)   // can this be sold as individual units, not just full packs
+
+  createdAt      DateTime @default(now())
+
+  batches        Batch[]
+  branchPrices   BranchPrice[]
+  saleItems      SaleItem[]
+
+  @@unique([ingredientId, brandName, strength])
+}
+
+// ---------------------------------------------------------------------------
+// PRICING — per branch, per variant
+// ---------------------------------------------------------------------------
+
+model BranchPrice {
+  id         String   @id @default(cuid())
+  variantId  String
+  variant    Variant  @relation(fields: [variantId], references: [id])
+  branchId   String
+  branch     Branch   @relation(fields: [branchId], references: [id])
+
+  pricePerPack  Decimal @db.Decimal(10, 2)  // price for a full pack
+  pricePerUnit  Decimal @db.Decimal(10, 2)  // derived/settable price for a single loose unit
+  reorderThreshold Int? // low-stock alert trigger, in units, for this variant at this branch. Null = no alert configured.
+
+  updatedAt  DateTime @updatedAt
+  updatedById String?
+
+  @@unique([variantId, branchId])
+}
+
+// ---------------------------------------------------------------------------
+// STOCK — batches received per branch, with expiry
+// ---------------------------------------------------------------------------
+
+model Batch {
+  id           String   @id @default(cuid())
+  variantId    String
+  variant      Variant  @relation(fields: [variantId], references: [id])
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id])
+
+  batchNumber  String?             // supplier's batch/lot number, if provided
+  quantityReceived Int             // in whole packs
+  quantityRemaining Int            // in whole units (packSize * packs - units sold loose), decremented on sale
+  expiryDate   DateTime
+  receivedAt   DateTime @default(now())
+  receivedById String
+
+  saleItems    SaleItem[]
+
+  @@index([branchId, variantId])
+  @@index([expiryDate])
+}
+
+// ---------------------------------------------------------------------------
+// SALES — POS checkout
+// ---------------------------------------------------------------------------
+
+model Sale {
+  id            String   @id @default(cuid())
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  soldById      String
+  soldBy        User     @relation(fields: [soldById], references: [id])
+
+  paymentMethod PaymentMethod
+  totalAmount   Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  voidedAt      DateTime?
+
+  items         SaleItem[]
+  auditLogs     AuditLog[]
+}
+
+model SaleItem {
+  id         String   @id @default(cuid())
+  saleId     String
+  sale       Sale     @relation(fields: [saleId], references: [id])
+  variantId  String
+  variant    Variant  @relation(fields: [variantId], references: [id])
+  batchId    String
+  batch      Batch    @relation(fields: [batchId], references: [id])
+
+  quantityUnits Int              // sold quantity, in units (not packs) — supports loose-item sales
+  unitPriceAtSale Decimal @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(10, 2)
+}
+
+// ---------------------------------------------------------------------------
+// AUDIT TRAIL — who changed stock/price/sales, and when
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  action    AuditAction
+  branchId  String
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+
+  saleId    String?
+  sale      Sale?       @relation(fields: [saleId], references: [id])
+
+  details   Json        // free-form: e.g. { variantId, oldPrice, newPrice } or { batchId, oldQty, newQty }
+  createdAt DateTime    @default(now())
+
+  @@index([branchId, createdAt])
+}

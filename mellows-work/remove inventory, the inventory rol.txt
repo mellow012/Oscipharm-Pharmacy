@@ -1,0 +1,5 @@
+remove inventory, the inventory role is combined to the branch  manager
+add testing display n secton
+add mls for syrups not only units
+
+made some changes , added testing to migration file and branch info to seed datas
