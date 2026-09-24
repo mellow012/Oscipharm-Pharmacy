@@ -1,5 +1,3 @@
-export const EXPIRY_WARNING_DAYS = 30;
-
 export type ActionState = {
     error?: string;
     success?: string;

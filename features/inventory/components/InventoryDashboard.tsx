@@ -4,18 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ReceiveBatchForm } from "@/features/inventory/components/ReceiveBatchForm";
 import { PricingForm } from "@/features/inventory/components/PricingForm";
-import { EXPIRY_WARNING_DAYS } from "@/features/inventory/types";
+import { getExpiryStatus } from "@/features/inventory/utils/expiry";
 import type { InventoryData } from "@/features/inventory/types";
-
-function expiryStatus(expiryDate: Date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const warningDate = new Date(today);
-    warningDate.setDate(warningDate.getDate() + EXPIRY_WARNING_DAYS);
-    if (expiryDate < today) return { label: "Expired", className: "text-danger", rowClassName: "bg-danger-bg/40" };
-    if (expiryDate <= warningDate) return { label: "Expiring soon", className: "text-warn", rowClassName: "bg-warn-bg/45" };
-    return { label: "In date", className: "text-primary", rowClassName: "" };
-}
 
 export function InventoryDashboard({ name, role, branchId, branches, data }: { name: string; role: "ADMIN" | "BRANCH_MANAGER"; branchId: string; branches: Awaited<ReturnType<typeof import("@/features/inventory/lib/queries").getInventoryBranches>>; data: InventoryData }) {
     const router = useRouter();
@@ -48,7 +38,7 @@ export function InventoryDashboard({ name, role, branchId, branches, data }: { n
                         <div><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Stock on hand</p><h2 className="mt-2 text-3xl text-ink">Batches by expiry</h2></div>
                         <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{data.batches.length} active</span>
                     </div>
-                    {data.batches.length ? <div className="overflow-x-auto border-y border-border"><table className="w-full min-w-[620px] text-left"><thead className="border-b border-border font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted"><tr><th className="px-4 py-3 font-normal">Product</th><th className="px-4 py-3 font-normal">Batch</th><th className="px-4 py-3 font-normal">Remaining</th><th className="px-4 py-3 font-normal">Expiry</th><th className="px-4 py-3 font-normal">Status</th></tr></thead><tbody className="divide-y divide-border">{data.batches.map((batch) => { const status = expiryStatus(new Date(batch.expiryDate)); return <tr key={batch.id} className={status.rowClassName}><td className="px-4 py-4"><p className="font-medium text-ink">{batch.variant.ingredient.name} · {batch.variant.brandName}</p><p className="text-sm text-muted">{batch.variant.strength ?? "Standard strength"}</p></td><td className="px-4 py-4 text-sm text-muted">{batch.batchNumber ?? "No number"}</td><td className="px-4 py-4 font-mono text-sm text-ink">{batch.quantityRemaining} {batch.variant.unitLabel}s</td><td className="px-4 py-4 text-sm text-muted">{new Date(batch.expiryDate).toLocaleDateString("en-MW")}</td><td className={`px-4 py-4 font-mono text-[0.65rem] uppercase tracking-[0.1em] ${status.className}`}>{status.label}</td></tr>; })}</tbody></table></div> : <p className="border border-dashed border-border px-5 py-10 text-muted">No stock remains at this branch.</p>}
+                    {data.batches.length ? <div className="overflow-x-auto border-y border-border"><table className="w-full min-w-[620px] text-left"><thead className="border-b border-border font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted"><tr><th className="px-4 py-3 font-normal">Product</th><th className="px-4 py-3 font-normal">Batch</th><th className="px-4 py-3 font-normal">Remaining</th><th className="px-4 py-3 font-normal">Expiry</th><th className="px-4 py-3 font-normal">Status</th></tr></thead><tbody className="divide-y divide-border">{data.batches.map((batch) => { const status = getExpiryStatus(new Date(batch.expiryDate)); return <tr key={batch.id} className={status.rowClassName}><td className="px-4 py-4"><p className="font-medium text-ink">{batch.variant.ingredient.name} · {batch.variant.brandName}</p><p className="text-sm text-muted">{batch.variant.strength ?? "Standard strength"}</p></td><td className="px-4 py-4 text-sm text-muted">{batch.batchNumber ?? "No number"}</td><td className="px-4 py-4 font-mono text-sm text-ink">{batch.quantityRemaining} {batch.variant.unitLabel}s</td><td className="px-4 py-4 text-sm text-muted">{new Date(batch.expiryDate).toLocaleDateString("en-MW")}</td><td className={`px-4 py-4 font-mono text-[0.65rem] uppercase tracking-[0.1em] ${status.className}`}>{status.label}</td></tr>; })}</tbody></table></div> : <p className="border border-dashed border-border px-5 py-10 text-muted">No stock remains at this branch.</p>}
                 </div>
                 <ReceiveBatchForm variants={data.variants} branchId={branchId} includeBranchId={role === "ADMIN"} />
             </section>
