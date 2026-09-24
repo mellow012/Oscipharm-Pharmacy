@@ -6,7 +6,7 @@ import type { ActionState, InventoryData } from "@/features/inventory/types";
 
 const initialState: ActionState = {};
 
-export function ReceiveBatchForm({ variants, branchId }: { variants: InventoryData["variants"]; branchId: string }) {
+export function ReceiveBatchForm({ variants, branchId, includeBranchId }: { variants: InventoryData["variants"]; branchId: string; includeBranchId: boolean }) {
     const [state, formAction, pending] = useActionState(receiveBatch, initialState);
 
     return (
@@ -15,7 +15,7 @@ export function ReceiveBatchForm({ variants, branchId }: { variants: InventoryDa
                 <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Add stock</p>
                 <h2 className="mt-2 text-2xl text-ink">Receive a new batch</h2>
             </div>
-            <input type="hidden" name="branchId" value={branchId} />
+            {includeBranchId ? <input type="hidden" name="branchId" value={branchId} /> : null}
             <div className="space-y-4">
                 <label className="block text-sm text-muted">
                     Product variant

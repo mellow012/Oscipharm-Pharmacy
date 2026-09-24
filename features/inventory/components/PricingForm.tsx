@@ -6,13 +6,13 @@ import type { ActionState, InventoryData } from "@/features/inventory/types";
 
 const initialState: ActionState = {};
 
-export function PricingForm({ variant, branchId }: { variant: InventoryData["variants"][number]; branchId: string }) {
+export function PricingForm({ variant, branchId, includeBranchId }: { variant: InventoryData["variants"][number]; branchId: string; includeBranchId: boolean }) {
     const [state, formAction, pending] = useActionState(updateBranchPrice, initialState);
     const price = variant.price;
 
     return (
         <form action={formAction} className="border-t border-border py-5 first:border-t-0">
-            <input type="hidden" name="branchId" value={branchId} />
+            {includeBranchId ? <input type="hidden" name="branchId" value={branchId} /> : null}
             <input type="hidden" name="variantId" value={variant.id} />
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
