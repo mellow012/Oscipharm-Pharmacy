@@ -23,6 +23,11 @@ enum PaymentMethod {
   MOBILE_MONEY
 }
 
+enum SaleMode {
+  PACK
+  UNIT
+}
+
 enum AuditAction {
   STOCK_RECEIVED
   STOCK_ADJUSTED
@@ -160,6 +165,7 @@ model Sale {
   branch        Branch   @relation(fields: [branchId], references: [id])
   soldById      String
   soldBy        User     @relation(fields: [soldById], references: [id])
+  checkoutRequestId String?
 
   paymentMethod PaymentMethod
   totalAmount   Decimal  @db.Decimal(10, 2)
@@ -168,6 +174,8 @@ model Sale {
 
   items         SaleItem[]
   auditLogs     AuditLog[]
+
+  @@unique([soldById, checkoutRequestId])
 }
 
 model SaleItem {
@@ -179,6 +187,7 @@ model SaleItem {
   batchId    String
   batch      Batch    @relation(fields: [batchId], references: [id])
 
+  saleMode     SaleMode?
   quantityUnits Int              // sold quantity, in units (not packs) — supports loose-item sales
   unitPriceAtSale Decimal @db.Decimal(10, 2)
   subtotal      Decimal  @db.Decimal(10, 2)
