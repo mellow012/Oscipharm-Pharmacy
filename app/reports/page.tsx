@@ -4,6 +4,7 @@ import { ReportsDashboard } from "@/features/reports/components/ReportsDashboard
 import { getReportsData, getReportBranches } from "@/features/reports/lib/queries";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getMalawiDateKey } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     const branches = session.user.role === "ADMIN" ? await getReportBranches() : [];
     const requestedBranchId = params.branchId && branches.some((branch) => branch.id === params.branchId) ? params.branchId : null;
     const branchId = session.user.role === "ADMIN" ? requestedBranchId : session.user.branchId;
+    const today = getMalawiDateKey(new Date());
+    const previousWeek = getMalawiDateKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
     const range = {
-        from: params.from ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        to: params.to ?? new Date().toISOString().slice(0, 10),
+        from: params.from ?? previousWeek,
+        to: params.to ?? today,
     };
 
     const data = await getReportsData({ branchId, from: range.from, to: range.to });
