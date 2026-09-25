@@ -3,8 +3,8 @@
 import { PrismaClient } from "@prisma/client";
 
 const args = new Set(process.argv.slice(2));
-const dryRun = args.has("--dry-run") || !args.has("--apply");
 const confirmed = args.has("--confirm");
+const dryRun = args.has("--dry-run") && confirmed;
 const databaseUrl = process.env.DATABASE_URL || "";
 const host = databaseUrl ? (() => {
     try {

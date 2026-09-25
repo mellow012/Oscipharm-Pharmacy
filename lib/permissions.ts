@@ -7,6 +7,7 @@ export type Permission =
     | "stock:adjust"        // manual stock corrections
     | "price:set"           // set/update branch pricing
     | "pos:checkout"        // complete a sale
+    | "news:manage"         // create/edit/delete news posts
     | "reports:branch:view" // view this branch's sales/audit history
     | "reports:global:view" // view all branches' reports
     | "users:manage"        // create/edit/deactivate users
@@ -20,6 +21,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "stock:adjust",
         "price:set",
         "pos:checkout",
+        "news:manage",
         "reports:branch:view",
         "reports:global:view",
         "users:manage",
@@ -30,6 +32,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "stock:adjust",
         "price:set",
         "pos:checkout",
+        "news:manage",
         "reports:branch:view",
     ],
     POS: ["pos:checkout"],

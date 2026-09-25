@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isExpiredInMalawi } from "@/lib/timezone";
 import type { ActionState } from "@/features/inventory/types";
 
 function getText(formData: FormData, field: string) {
@@ -38,9 +39,7 @@ export async function receiveBatch(_previousState: ActionState, formData: FormDa
 
     const quantityReceived = Number(quantityText);
     const expiryDate = resolveExpiry(expiryText);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (!expiryDate || expiryDate < today) return { error: "Expiry date must be today or later." };
+    if (!expiryDate || isExpiredInMalawi(expiryDate)) return { error: "Expiry date must be today or later." };
 
     const variant = await prisma.variant.findUnique({
         where: { id: variantId },

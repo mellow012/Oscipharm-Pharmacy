@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getMalawiDateKey } from "@/lib/timezone";
 
 export async function getPosProducts(branchId: string) {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayKey = getMalawiDateKey(today);
     const variants = await prisma.variant.findMany({
         orderBy: [{ ingredient: { name: "asc" } }, { brandName: "asc" }],
         select: {
@@ -13,13 +14,14 @@ export async function getPosProducts(branchId: string) {
             unitLabel: true,
             allowsLooseSale: true,
             ingredient: { select: { name: true } },
-            batches: { where: { branchId, quantityRemaining: { gt: 0 }, expiryDate: { gte: today } }, select: { quantityRemaining: true } },
+            batches: { where: { branchId, quantityRemaining: { gt: 0 } }, select: { quantityRemaining: true, expiryDate: true } },
             branchPrices: { where: { branchId }, select: { pricePerPack: true, pricePerUnit: true } },
         },
     });
 
     return variants.map((variant) => {
         const price = variant.branchPrices[0];
+        const sellableBatches = variant.batches.filter((batch) => getMalawiDateKey(new Date(batch.expiryDate)) >= todayKey);
         return {
             id: variant.id,
             ingredientName: variant.ingredient.name,
@@ -28,7 +30,7 @@ export async function getPosProducts(branchId: string) {
             packSize: variant.packSize,
             unitLabel: variant.unitLabel,
             allowsLooseSale: variant.allowsLooseSale,
-            stockUnits: variant.batches.reduce((total, batch) => total + batch.quantityRemaining, 0),
+            stockUnits: sellableBatches.reduce((total, batch) => total + batch.quantityRemaining, 0),
             pricePerPack: price?.pricePerPack.toString() ?? null,
             pricePerUnit: price?.pricePerUnit.toString() ?? null,
         };
