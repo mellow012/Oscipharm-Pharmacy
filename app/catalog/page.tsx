@@ -9,11 +9,19 @@ export default async function CatalogPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-      <nav className="flex items-center justify-between border-b border-border pb-5">
+      <nav className="flex items-center justify-between gap-4 border-b border-border pb-5">
         <Link href="/" aria-label="OsciPharm home">
           <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={154} height={62} className="h-14 w-auto object-contain" />
         </Link>
-        <span className="font-mono text-xs uppercase tracking-[0.14em] text-warn">Product catalog</span>
+
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex items-center gap-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+            <Link href="/catalog" className="transition hover:text-primary">Catalog</Link>
+            <Link href="/news" className="transition hover:text-primary">News</Link>
+          </div>
+        </div>
+
+        <Link href="/login" className="border-b border-warn pb-1 font-mono text-xs uppercase tracking-[0.12em] text-muted transition hover:text-primary">Staff sign in</Link>
       </nav>
       <header className="grid gap-8 border-b border-border py-12 md:grid-cols-[1fr_0.7fr] md:items-end md:py-16">
         <div>
