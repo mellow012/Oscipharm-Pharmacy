@@ -1,16 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { endOfMalawiDate, parseMalawiDate } from "@/lib/timezone";
+import { endOfMalawiDate, getMalawiDateKey, parseMalawiDate } from "@/lib/timezone";
 import type { AuditRow, BranchOption, ExpiryRow, LowStockRow, ReportsData, SalesRow } from "@/features/reports/types";
 
 function defaultRange() {
-    const today = new Date();
-    const to = new Date(today);
-    const from = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return {
-        from: from.toISOString().slice(0, 10),
-        to: to.toISOString().slice(0, 10),
-    };
+    const to = getMalawiDateKey(new Date());
+    const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const from = getMalawiDateKey(fromDate);
+    return { from, to };
 }
 
 function toDateRange(fromText?: string, toText?: string) {
@@ -77,7 +74,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
               ingredient.name AS "ingredientName",
               v."brandName",
               v."strength",
-              COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= CURRENT_DATE THEN batch."quantityRemaining" ELSE 0 END), 0)::int AS "availableUnits",
+              COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN batch."quantityRemaining" ELSE 0 END), 0)::int AS "availableUnits",
               bp."reorderThreshold"
             FROM "BranchPrice" bp
             JOIN "Branch" b ON b.id = bp."branchId"
@@ -87,7 +84,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             WHERE bp."reorderThreshold" IS NOT NULL
               ${buildBranchScopeForStock(branchId)}
             GROUP BY bp."branchId", b.name, ingredient.name, v."brandName", v."strength", bp."reorderThreshold"
-            HAVING COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= CURRENT_DATE THEN batch."quantityRemaining" ELSE 0 END), 0) <= bp."reorderThreshold"
+            HAVING COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN batch."quantityRemaining" ELSE 0 END), 0) <= bp."reorderThreshold"
             ORDER BY b.name ASC, ingredient.name ASC, v."brandName" ASC
         `),
         prisma.$queryRaw<Array<ExpiryRow & { expiryDate: Date }>>(Prisma.sql`
@@ -99,8 +96,8 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
               batch."expiryDate",
               batch."quantityRemaining" AS "remainingUnits",
               CASE
-                WHEN batch."expiryDate" < CURRENT_DATE THEN 'Expired'
-                WHEN batch."expiryDate" <= CURRENT_DATE + INTERVAL '30 days' THEN 'Expiring soon'
+                WHEN batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN 'Expired'
+                WHEN batch."expiryDate" <= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) + INTERVAL '30 days' THEN 'Expiring soon'
                 ELSE 'In date'
               END AS status
             FROM "Batch" batch
@@ -109,8 +106,8 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             JOIN "Ingredient" ingredient ON ingredient.id = v."ingredientId"
             WHERE batch."quantityRemaining" > 0
               AND (
-                batch."expiryDate" < CURRENT_DATE + INTERVAL '30 days'
-                OR batch."expiryDate" < CURRENT_DATE
+                batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) + INTERVAL '30 days'
+                OR batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date)
               )
               ${buildBranchScopeForStock(branchId)}
             ORDER BY batch."expiryDate" ASC, b.name ASC
