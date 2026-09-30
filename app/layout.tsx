@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/features/auth/components/Providers";
 
 export const metadata: Metadata = {
-  title: "OsciPharm – Catalog",
-  description: "Browse OsciPharm's full catalog of medicines, staples, and household items, with branch-specific pricing.",
+  title: "OsciPharm – pharmacy",
+  description: "Good Health, Good Chemistry. Browse OsciPharm's catalog of medicines, staples, and health products, with product details, availability, and pricing.",
 };
 
 export default function RootLayout({
