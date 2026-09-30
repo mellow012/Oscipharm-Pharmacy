@@ -11,7 +11,8 @@ export type Permission =
     | "reports:branch:view" // view this branch's sales/audit history
     | "reports:global:view" // view all branches' reports
     | "users:manage"        // create/edit/deactivate users
-    | "branches:manage";    // create/edit branches
+    | "branches:manage"     // create/edit branches
+    | "membership:manage";  // review and approve membership applications
 
 // If the client ever wants role permissions to be configurable, this map is
 // the thing to move into the DB for a v2 — for now it's intentionally static.
@@ -26,6 +27,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "reports:global:view",
         "users:manage",
         "branches:manage",
+        "membership:manage",
     ],
     BRANCH_MANAGER: [
         "stock:receive",
@@ -34,6 +36,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "pos:checkout",
         "news:manage",
         "reports:branch:view",
+        "membership:manage",
     ],
     POS: ["pos:checkout"],
 };

@@ -1,5 +1,6 @@
-import Link from "next/link";
 import type { Role } from "@prisma/client";
+import Link from "next/link";
+import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 
 type AdminDashboardProps = {
     name: string;
@@ -22,14 +23,7 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <nav className="flex items-center justify-between border-b border-border pb-5">
-                <Link href="/staff" className="font-mono text-xs uppercase tracking-[0.14em] text-warn">
-                    OsciPharm staff
-                </Link>
-                <Link href="/catalog" className="text-sm text-muted transition hover:text-primary">
-                    View catalog
-                </Link>
-            </nav>
+            <StaffHeader />
 
             <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
                 <div>
@@ -37,7 +31,9 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
                     <h1 className="text-5xl leading-[0.98] text-ink">Good to see you, {name}.</h1>
                     <p className="mt-3 max-w-xl text-lg text-muted">A clear view of staff, branches, and the current pharmacy operation.</p>
                 </div>
-                <span className="border border-primary bg-chip px-3 py-2 font-mono text-xs uppercase tracking-[0.14em] text-primary">All branches</span>
+                <Link href="/admin/memberships" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
+                    Membership applications <span aria-hidden="true">-&gt;</span>
+                </Link>
             </header>
 
             <section aria-label="Pharmacy totals" className="grid border-b border-border sm:grid-cols-2 lg:grid-cols-4">

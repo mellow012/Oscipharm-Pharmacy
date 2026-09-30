@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { type FormEvent, useActionState, useMemo, useState, useTransition } from "react";
+import { StaffHeader } from "@/features/marketing/components/StaffHeader";
+import { lookupActiveMembership, type MembershipLookup } from "@/features/membership/lib/actions";
 import { completeSale } from "@/features/pos/lib/actions";
 import type { CartLine, CheckoutState, PosProduct } from "@/features/pos/types";
 
@@ -13,10 +15,153 @@ export function PosWorkspace({ products, name }: { products: PosProduct[]; name:
     const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">("CASH");
     const [requestId, setRequestId] = useState(() => crypto.randomUUID());
     const [state, formAction, pending] = useActionState(completeSale, initialState);
-    const matchingProducts = products.filter((product) => `${product.ingredientName} ${product.brandName} ${product.strength ?? ""}`.toLowerCase().includes(query.toLowerCase()));
-    const total = useMemo(() => cart.reduce((sum, line) => { const product = products.find((item) => item.id === line.variantId)!; const price = line.mode === "PACK" ? product.pricePerPack! : product.pricePerUnit!; return sum + Number(price) * line.quantity; }, 0), [cart, products]);
-    const add = (product: PosProduct, mode: "PACK" | "UNIT") => setCart((current) => { const index = current.findIndex((line) => line.variantId === product.id && line.mode === mode); if (index < 0) return [...current, { variantId: product.id, mode, quantity: 1 }]; const next = [...current]; next[index] = { ...next[index], quantity: next[index].quantity + 1 }; return next; });
-    const reset = () => { setCart([]); setRequestId(crypto.randomUUID()); };
+    const [memberPhone, setMemberPhone] = useState("");
+    const [member, setMember] = useState<MembershipLookup | null>(null);
+    const [memberError, setMemberError] = useState<string | null>(null);
+    const [lookupPending, startLookup] = useTransition();
 
-    return <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8"><header className="mb-8 flex items-end justify-between border-b border-border pb-6"><div><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Point of sale</p><h1 className="mt-2 text-4xl text-ink">Ready for checkout, {name}.</h1></div><span className="border border-primary bg-chip px-3 py-2 font-mono text-xs uppercase tracking-[0.12em] text-primary">Branch checkout</span></header><div className="grid gap-8 lg:grid-cols-[1fr_0.72fr]"><section><div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl text-ink">Products</h2><p className="mt-1 text-sm text-muted">Search branch products and pricing.</p></div><input aria-label="Search products" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search products" className="border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /></div><div className="grid gap-4 sm:grid-cols-2">{matchingProducts.map((product) => { const unavailable = !product.pricePerPack || product.stockUnits < 1; return <article key={product.id} className={`border border-border bg-surface p-5 ${unavailable ? "opacity-70" : ""}`}><p className="font-mono text-xs uppercase tracking-[0.12em] text-warn">{product.ingredientName}</p><div className="mt-2 flex items-start justify-between gap-3"><h3 className="text-xl text-ink">{product.brandName}</h3>{unavailable ? <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-danger">Unavailable</span> : null}</div><p className="mt-1 text-sm text-muted">{product.strength ?? "Standard strength"} · {product.stockUnits} {product.unitLabel}s available</p><div className="mt-5 grid gap-2">{!unavailable ? <><button type="button" onClick={() => add(product, "PACK")} className="flex items-center justify-between border border-primary px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-fg"><span>Add pack</span><span>{money(product.pricePerPack!)}</span></button>{product.allowsLooseSale && product.pricePerUnit ? <button type="button" onClick={() => add(product, "UNIT")} className="flex items-center justify-between border border-border px-3 py-2 text-sm text-muted hover:border-primary hover:text-primary"><span>Add {product.unitLabel}</span><span>{money(product.pricePerUnit)}</span></button> : null}</> : <p className="border border-dashed border-border px-3 py-2 text-sm text-muted">Branch price or stock unavailable</p>}</div></article>; })}</div></section><section className="border border-border bg-surface p-5 sm:p-6"><div className="mb-5 flex items-end justify-between border-b border-border pb-4"><div><p className="font-mono text-xs uppercase tracking-[0.14em] text-warn">Cart</p><h2 className="mt-2 text-2xl text-ink">Review sale</h2></div><span className="font-mono text-xs text-muted">{cart.length} lines</span></div><div className="space-y-4">{cart.map((line, index) => { const product = products.find((item) => item.id === line.variantId)!; const price = line.mode === "PACK" ? product.pricePerPack! : product.pricePerUnit!; return <div key={`${line.variantId}-${line.mode}`} className="flex items-start justify-between gap-4 border-b border-border pb-4"><div><p className="font-medium text-ink">{product.brandName} <span className="text-sm text-muted">({line.mode === "PACK" ? "pack" : product.unitLabel})</span></p><p className="text-sm text-muted">{line.quantity} × {money(price)}</p></div><div className="flex items-center gap-2"><input aria-label={`Quantity ${index + 1}`} type="number" min="1" step="1" value={line.quantity} onChange={(event) => setCart((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Number(event.target.value) } : item))} className="w-16 border border-border px-2 py-1 text-sm" /><span className="font-mono text-sm text-ink">{money(Number(price) * line.quantity)}</span></div></div>; })}</div>{!cart.length ? <p className="py-8 text-sm text-muted">Add a product to start a sale.</p> : null}<div className="mt-6 flex items-center justify-between border-t border-border pt-5"><span className="text-muted">Total</span><strong className="text-2xl text-ink">{money(total)}</strong></div><form action={formAction} className="mt-5 space-y-4"><input type="hidden" name="cart" value={JSON.stringify(cart)} /><input type="hidden" name="expectedTotal" value={total.toFixed(2)} /><input type="hidden" name="checkoutRequestId" value={requestId} /><fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-2 text-sm text-muted">Payment method</legend><label className="border border-border px-3 py-3 text-sm"><input type="radio" name="paymentMethod" value="CASH" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} /> <span className="ml-2">Cash</span></label><label className="border border-border px-3 py-3 text-sm"><input type="radio" name="paymentMethod" value="MOBILE_MONEY" checked={paymentMethod === "MOBILE_MONEY"} onChange={() => setPaymentMethod("MOBILE_MONEY")} /> <span className="ml-2">Mobile money</span></label></fieldset>{state.error ? <p role="alert" className="border-l-4 border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p> : null}<button type="submit" disabled={pending || !cart.length} className="w-full bg-primary px-4 py-3 font-semibold text-primary-fg hover:bg-ink disabled:cursor-wait disabled:opacity-60">{pending ? "Completing sale..." : "Complete sale"}</button></form>{state.receipt ? <div role="status" className="mt-6 border-l-4 border-primary bg-chip p-4"><p className="font-mono text-xs uppercase tracking-[0.12em] text-primary">Receipt {state.receipt.saleId}</p><p className="mt-2 text-xl text-ink">{money(state.receipt.totalAmount)}</p><p className="text-sm text-muted">Paid by {state.receipt.paymentMethod === "MOBILE_MONEY" ? "mobile money" : "cash"}.</p><button type="button" onClick={reset} className="mt-4 border border-primary px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-fg">Start another sale</button></div> : null}</section></div></main>;
+    const matchingProducts = products.filter((product) => `${product.ingredientName} ${product.brandName} ${product.strength ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+    const subtotal = useMemo(() => cart.reduce((sum, line) => {
+        const product = products.find((item) => item.id === line.variantId)!;
+        const price = line.mode === "PACK" ? product.pricePerPack! : product.pricePerUnit!;
+        return sum + Number(price) * line.quantity;
+    }, 0), [cart, products]);
+    const discount = member ? Number((subtotal * Number(member.discountPercent) / 100).toFixed(2)) : 0;
+    const total = Number((subtotal - discount).toFixed(2));
+    const add = (product: PosProduct, mode: "PACK" | "UNIT") => setCart((current) => {
+        const index = current.findIndex((line) => line.variantId === product.id && line.mode === mode);
+        if (index < 0) return [...current, { variantId: product.id, mode, quantity: 1 }];
+        const next = [...current];
+        next[index] = { ...next[index], quantity: next[index].quantity + 1 };
+        return next;
+    });
+    const reset = () => {
+        setCart([]);
+        setMember(null);
+        setMemberPhone("");
+        setMemberError(null);
+        setRequestId(crypto.randomUUID());
+    };
+
+    function handleMemberLookup(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setMemberError(null);
+        startLookup(async () => {
+            const result = await lookupActiveMembership(memberPhone);
+            setMember(result.member ?? null);
+            setMemberError(result.error ?? null);
+        });
+    }
+
+    return (
+        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
+            <StaffHeader />
+            <header className="mb-8 flex items-end justify-between border-b border-border pb-6 pt-8">
+                <div>
+                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Point of sale</p>
+                    <h1 className="mt-2 text-4xl text-ink">Ready for checkout, {name}.</h1>
+                </div>
+                <span className="border border-primary bg-chip px-3 py-2 font-mono text-xs uppercase tracking-[0.12em] text-primary">Branch checkout</span>
+            </header>
+
+            <div className="grid gap-8 lg:grid-cols-[1fr_0.72fr]">
+                <section>
+                    <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 className="text-2xl text-ink">Products</h2>
+                            <p className="mt-1 text-sm text-muted">Search branch products and pricing.</p>
+                        </div>
+                        <input aria-label="Search products" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search products" className="border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        {matchingProducts.map((product) => {
+                            const unavailable = !product.pricePerPack || product.stockUnits < 1;
+                            return (
+                                <article key={product.id} className={`border border-border bg-surface p-5 ${unavailable ? "opacity-70" : ""}`}>
+                                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-warn">{product.ingredientName}</p>
+                                    <div className="mt-2 flex items-start justify-between gap-3">
+                                        <h3 className="text-xl text-ink">{product.brandName}</h3>
+                                        {unavailable ? <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-danger">Unavailable</span> : null}
+                                    </div>
+                                    <p className="mt-1 text-sm text-muted">{product.strength ?? "Standard strength"} · {product.stockUnits} {product.unitLabel}s available</p>
+                                    <div className="mt-5 grid gap-2">
+                                        {!unavailable ? <>
+                                            <button type="button" onClick={() => add(product, "PACK")} className="flex items-center justify-between border border-primary px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-fg"><span>Add pack</span><span>{money(product.pricePerPack!)}</span></button>
+                                            {product.allowsLooseSale && product.pricePerUnit ? <button type="button" onClick={() => add(product, "UNIT")} className="flex items-center justify-between border border-border px-3 py-2 text-sm text-muted hover:border-primary hover:text-primary"><span>Add {product.unitLabel}</span><span>{money(product.pricePerUnit)}</span></button> : null}
+                                        </> : <p className="border border-dashed border-border px-3 py-2 text-sm text-muted">Branch price or stock unavailable</p>}
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                <section className="h-fit border border-border bg-surface p-5 sm:p-6">
+                    <div className="mb-5 flex items-end justify-between border-b border-border pb-4">
+                        <div><p className="font-mono text-xs uppercase tracking-[0.14em] text-warn">Cart</p><h2 className="mt-2 text-2xl text-ink">Review sale</h2></div>
+                        <span className="font-mono text-xs text-muted">{cart.length} lines</span>
+                    </div>
+
+                    <form onSubmit={handleMemberLookup} className="mb-6 border-b border-border pb-5">
+                        <label htmlFor="memberPhone" className="mb-2 block text-sm font-medium text-ink">Member discount</label>
+                        <div className="flex gap-2">
+                            <input id="memberPhone" type="tel" value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} placeholder="Member phone number" className="min-w-0 flex-1 border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+                            <button type="submit" disabled={lookupPending || !memberPhone.trim()} className="border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-chip disabled:opacity-50">{lookupPending ? "Checking..." : "Find"}</button>
+                        </div>
+                        {memberError ? <p role="alert" className="mt-2 text-sm text-danger">{memberError}</p> : null}
+                        {member ? <div className="mt-3 flex items-center justify-between gap-3 bg-chip px-3 py-3 text-sm">
+                            <div><p className="font-medium text-primary">{member.fullName}</p><p className="mt-1 text-xs text-muted">{member.discountPercent}% member discount</p></div>
+                            <button type="button" onClick={() => setMember(null)} aria-label="Remove member discount" title="Remove member discount" className="size-8 border border-primary font-mono text-lg text-primary hover:bg-white">×</button>
+                        </div> : null}
+                    </form>
+
+                    <div className="space-y-4">
+                        {cart.map((line, index) => {
+                            const product = products.find((item) => item.id === line.variantId)!;
+                            const price = line.mode === "PACK" ? product.pricePerPack! : product.pricePerUnit!;
+                            return <div key={`${line.variantId}-${line.mode}`} className="flex items-start justify-between gap-4 border-b border-border pb-4">
+                                <div><p className="font-medium text-ink">{product.brandName} <span className="text-sm text-muted">({line.mode === "PACK" ? "pack" : product.unitLabel})</span></p><p className="text-sm text-muted">{line.quantity} × {money(price)}</p></div>
+                                <div className="flex items-center gap-2">
+                                    <input aria-label={`Quantity ${index + 1}`} type="number" min="1" step="1" value={line.quantity} onChange={(event) => setCart((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Number(event.target.value) } : item))} className="w-16 border border-border px-2 py-1 text-sm" />
+                                    <span className="font-mono text-sm text-ink">{money(Number(price) * line.quantity)}</span>
+                                </div>
+                            </div>;
+                        })}
+                    </div>
+                    {!cart.length ? <p className="py-8 text-sm text-muted">Add a product to start a sale.</p> : null}
+
+                    <div className="mt-6 space-y-2 border-t border-border pt-5 text-sm">
+                        <div className="flex justify-between gap-3"><span className="text-muted">Subtotal</span><span className="text-ink">{money(subtotal)}</span></div>
+                        {member ? <div className="flex justify-between gap-3 text-primary"><span>Member discount ({member.discountPercent}%)</span><span>−{money(discount)}</span></div> : null}
+                        <div className="flex items-center justify-between gap-3 border-t border-border pt-3"><span className="font-medium text-ink">Total due</span><strong className="text-2xl text-ink">{money(total)}</strong></div>
+                    </div>
+
+                    <form action={formAction} className="mt-5 space-y-4">
+                        <input type="hidden" name="cart" value={JSON.stringify(cart)} />
+                        <input type="hidden" name="expectedTotal" value={subtotal.toFixed(2)} />
+                        <input type="hidden" name="membershipApplicationId" value={member?.id ?? ""} />
+                        <input type="hidden" name="checkoutRequestId" value={requestId} />
+                        <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2">
+                            <legend className="mb-2 text-sm text-muted">Payment method</legend>
+                            <label className="border border-border px-3 py-3 text-sm"><input type="radio" name="paymentMethod" value="CASH" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} /> <span className="ml-2">Cash</span></label>
+                            <label className="border border-border px-3 py-3 text-sm"><input type="radio" name="paymentMethod" value="MOBILE_MONEY" checked={paymentMethod === "MOBILE_MONEY"} onChange={() => setPaymentMethod("MOBILE_MONEY")} /> <span className="ml-2">Mobile money</span></label>
+                        </fieldset>
+                        {state.error ? <p role="alert" className="border-l-4 border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p> : null}
+                        <button type="submit" disabled={pending || !cart.length} className="w-full bg-primary px-4 py-3 font-semibold text-primary-fg hover:bg-ink disabled:cursor-wait disabled:opacity-60">{pending ? "Completing sale..." : "Complete sale"}</button>
+                    </form>
+
+                    {state.receipt ? <div role="status" className="mt-6 border-l-4 border-primary bg-chip p-4">
+                        <p className="font-mono text-xs uppercase tracking-[0.12em] text-primary">Receipt {state.receipt.saleId}</p>
+                        <div className="mt-3 space-y-1 text-sm">
+                            <p className="flex justify-between gap-3"><span>Subtotal</span><span>{money(state.receipt.subtotalAmount)}</span></p>
+                            {Number(state.receipt.discountAmount) > 0 ? <p className="flex justify-between gap-3 text-primary"><span>Member discount {state.receipt.membershipDiscountPercent}%{state.receipt.memberName ? ` · ${state.receipt.memberName}` : ""}</span><span>−{money(state.receipt.discountAmount)}</span></p> : null}
+                        </div>
+                        <p className="mt-3 border-t border-primary/20 pt-3 text-xl font-semibold text-ink">{money(state.receipt.totalAmount)}</p>
+                        <p className="text-sm text-muted">Paid by {state.receipt.paymentMethod === "MOBILE_MONEY" ? "mobile money" : "cash"}.</p>
+                        <button type="button" onClick={reset} className="mt-4 border border-primary px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-fg">Start another sale</button>
+                    </div> : null}
+                </section>
+            </div>
+        </main>
+    );
 }

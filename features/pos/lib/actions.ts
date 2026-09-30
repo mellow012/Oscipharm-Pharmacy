@@ -14,7 +14,7 @@ function decimal(value: unknown) {
 }
 
 function receiptFromExisting(existing: any): CheckoutState {
-    return { receipt: { saleId: existing.id, totalAmount: existing.totalAmount.toString(), paymentMethod: existing.paymentMethod, items: existing.items.map((item: any) => ({ label: `${item.variant.ingredient.name} · ${item.variant.brandName}`, quantity: item.quantityUnits, mode: item.saleMode ?? "UNIT", subtotal: item.subtotal.toString() })) } };
+    return { receipt: { saleId: existing.id, subtotalAmount: existing.subtotalAmount.toString(), discountAmount: existing.discountAmount.toString(), membershipDiscountPercent: existing.membershipDiscountPercent.toString(), totalAmount: existing.totalAmount.toString(), memberName: existing.membershipApplication?.fullName, paymentMethod: existing.paymentMethod, items: existing.items.map((item: any) => ({ label: `${item.variant.ingredient.name} · ${item.variant.brandName}`, quantity: item.quantityUnits, mode: item.saleMode ?? "UNIT", subtotal: item.subtotal.toString() })) } };
 }
 
 export async function completeSale(_previous: CheckoutState, formData: FormData): Promise<CheckoutState> {
@@ -28,17 +28,19 @@ export async function completeSale(_previous: CheckoutState, formData: FormData)
     let lines: CartLine[];
     try { lines = JSON.parse(String(formData.get("cart") ?? "[]")); } catch { return { error: "Cart data was invalid." }; }
     const expectedTotal = decimal(formData.get("expectedTotal"));
+    const membershipApplicationId = String(formData.get("membershipApplicationId") ?? "").trim() || null;
     if (!Array.isArray(lines) || !lines.length || !expectedTotal || expectedTotal.isNegative()) return { error: "Add an item before checkout." };
     const startedAt = performance.now();
     try {
-        const result = await prisma.$transaction((tx) => checkoutInTransaction(tx, { branchId: session.user.branchId!, soldById: session.user.id, requestId, paymentMethod: paymentMethod as "CASH" | "MOBILE_MONEY", lines, expectedTotal }), { maxWait: 15000, timeout: 15000 });
+        const result = await prisma.$transaction((tx) => checkoutInTransaction(tx, { branchId: session.user.branchId!, soldById: session.user.id, requestId, paymentMethod: paymentMethod as "CASH" | "MOBILE_MONEY", lines, expectedTotal, membershipApplicationId }), { maxWait: 15000, timeout: 15000 });
         console.info(`[pos] checkout transaction ${(performance.now() - startedAt).toFixed(1)}ms`);
         if ("existing" in result) return receiptFromExisting(result.existing);
         revalidatePath("/pos");
-        return { receipt: { saleId: result.sale.id, totalAmount: result.sale.totalAmount.toString(), paymentMethod: result.sale.paymentMethod, items: result.saleItems.map((item) => ({ label: result.labels.get(item.variantId) ?? item.variantId, quantity: item.quantityUnits, mode: item.saleMode, subtotal: item.subtotal.toString() })) } };
+        const member = membershipApplicationId ? await prisma.membershipApplication.findUnique({ where: { id: membershipApplicationId }, select: { fullName: true } }) : null;
+        return { receipt: { saleId: result.sale.id, subtotalAmount: result.sale.subtotalAmount.toString(), discountAmount: result.sale.discountAmount.toString(), membershipDiscountPercent: result.sale.membershipDiscountPercent.toString(), totalAmount: result.sale.totalAmount.toString(), memberName: member?.fullName, paymentMethod: result.sale.paymentMethod, items: result.saleItems.map((item) => ({ label: result.labels.get(item.variantId) ?? item.variantId, quantity: item.quantityUnits, mode: item.saleMode, subtotal: item.subtotal.toString() })) } };
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-            const existing = await prisma.sale.findUnique({ where: { soldById_checkoutRequestId: { soldById: session.user.id, checkoutRequestId: requestId } }, include: { items: { include: { variant: { include: { ingredient: true } } } } } });
+            const existing = await prisma.sale.findUnique({ where: { soldById_checkoutRequestId: { soldById: session.user.id, checkoutRequestId: requestId } }, include: { membershipApplication: { select: { fullName: true } }, items: { include: { variant: { include: { ingredient: true } } } } } });
             if (existing) return receiptFromExisting(existing);
         }
         return { error: error instanceof Error ? error.message : "Checkout could not be completed." };

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { ReportsData } from "@/features/reports/types";
+import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 
 function money(value: string | number) {
     const amount = typeof value === "string" ? Number(value) : value;
@@ -21,10 +21,7 @@ export function ReportsDashboard({
 }) {
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <nav className="flex items-center justify-between border-b border-border pb-5">
-                <Link href="/staff" className="font-mono text-xs uppercase tracking-[0.14em] text-warn">OsciPharm staff</Link>
-                <Link href="/inventory" className="text-sm text-muted transition hover:text-primary">Inventory</Link>
-            </nav>
+            <StaffHeader />
 
             <header className="border-b border-border py-8">
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Reports</p>
@@ -57,6 +54,42 @@ export function ReportsDashboard({
                 </form>
             </section>
 
+            <section aria-label="Sales and membership totals" className="mb-8 grid border-y border-border sm:grid-cols-2 lg:grid-cols-4">
+                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
+                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Gross sales</p>
+                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.grossAmount)}</p>
+                </div>
+                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
+                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Member discounts</p>
+                    <p className="mt-2 text-2xl text-primary">−{money(data.membershipSales.discountAmount)}</p>
+                </div>
+                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
+                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Net revenue</p>
+                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.netAmount)}</p>
+                </div>
+                <div className="px-5 py-5">
+                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Member sales</p>
+                    <p className="mt-2 text-2xl text-ink">{data.membershipSales.memberSaleCount}</p>
+                </div>
+            </section>
+
+            <section aria-label="Discount breakdown by membership tier" className="mb-8 grid gap-x-8 border-b border-border sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
+                    <div>
+                        <h2 className="font-semibold text-ink">Chronic illness · 20%</h2>
+                        <p className="mt-1 text-sm text-muted">{data.membershipSales.chronicSaleCount} member sales</p>
+                    </div>
+                    <p className="font-mono text-sm text-primary">−{money(data.membershipSales.chronicDiscountAmount)}</p>
+                </div>
+                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
+                    <div>
+                        <h2 className="font-semibold text-ink">General sickness · 15%</h2>
+                        <p className="mt-1 text-sm text-muted">{data.membershipSales.generalSaleCount} member sales</p>
+                    </div>
+                    <p className="font-mono text-sm text-primary">−{money(data.membershipSales.generalDiscountAmount)}</p>
+                </div>
+            </section>
+
             <section className="mb-8 border border-border bg-surface">
                 <div className="border-b border-border px-5 py-4">
                     <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Sales report</p>
@@ -69,7 +102,7 @@ export function ReportsDashboard({
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Day</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Payment</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Product</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Revenue</th>
+                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Gross item value</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Sales</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Lines</th>
                             </tr>

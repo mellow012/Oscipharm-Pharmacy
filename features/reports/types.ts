@@ -13,6 +13,17 @@ export type SalesRow = {
     lineCount: number;
 };
 
+export type MembershipSalesSummary = {
+    grossAmount: string;
+    discountAmount: string;
+    netAmount: string;
+    memberSaleCount: number;
+    chronicSaleCount: number;
+    chronicDiscountAmount: string;
+    generalSaleCount: number;
+    generalDiscountAmount: string;
+};
+
 export type LowStockRow = {
     branchId: string;
     branchName: string;
@@ -45,6 +56,7 @@ export type AuditRow = {
 export type ReportsData = {
     branches: BranchOption[];
     sales: SalesRow[];
+    membershipSales: MembershipSalesSummary;
     lowStock: LowStockRow[];
     expiry: ExpiryRow[];
     audit: AuditRow[];

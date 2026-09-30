@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { getMalawiDateKey } from "@/lib/timezone";
+import { membershipDiscountPercent } from "@/features/membership/lib/policy";
 import type { CartLine } from "@/features/pos/types";
 
 type Transaction = Prisma.TransactionClient;
@@ -11,10 +12,11 @@ export type CheckoutInput = {
     paymentMethod: "CASH" | "MOBILE_MONEY";
     lines: CartLine[];
     expectedTotal: Prisma.Decimal;
+    membershipApplicationId: string | null;
 };
 
 export type CheckoutResult = {
-    sale: { id: string; totalAmount: Prisma.Decimal; paymentMethod: "CASH" | "MOBILE_MONEY" };
+    sale: { id: string; subtotalAmount: Prisma.Decimal; discountAmount: Prisma.Decimal; membershipDiscountPercent: Prisma.Decimal; totalAmount: Prisma.Decimal; paymentMethod: "CASH" | "MOBILE_MONEY" };
     saleItems: Array<{ variantId: string; batchId: string; saleMode: "PACK" | "UNIT"; quantityUnits: number; subtotal: Prisma.Decimal }>;
     labels: Map<string, string>;
 };
@@ -26,7 +28,7 @@ function sameDecimal(left: Prisma.Decimal, right: Prisma.Decimal) {
 export async function checkoutInTransaction(tx: Transaction, input: CheckoutInput): Promise<CheckoutResult | { existing: any }> {
     const existing = await tx.sale.findUnique({
         where: { soldById_checkoutRequestId: { soldById: input.soldById, checkoutRequestId: input.requestId } },
-        include: { items: { include: { variant: { include: { ingredient: true } } } } },
+        include: { membershipApplication: { select: { fullName: true } }, items: { include: { variant: { include: { ingredient: true } } } } },
     });
     if (existing) return { existing };
 
@@ -58,8 +60,20 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
             ? new Prisma.Decimal(line.quantity).times(price.pricePerPack)
             : new Prisma.Decimal(line.quantity).times(price.pricePerUnit);
     });
-    const total = lineTotals.reduce((sum, lineTotal) => sum.plus(lineTotal), new Prisma.Decimal(0)).toDecimalPlaces(2);
-    if (!sameDecimal(total, input.expectedTotal)) throw new Error("Prices changed, review cart");
+    const subtotal = lineTotals.reduce((sum, lineTotal) => sum.plus(lineTotal), new Prisma.Decimal(0)).toDecimalPlaces(2);
+    if (!sameDecimal(subtotal, input.expectedTotal)) throw new Error("Prices changed, review cart");
+
+    const membership = input.membershipApplicationId
+        ? await tx.membershipApplication.findFirst({
+            where: { id: input.membershipApplicationId, status: "ACTIVE", discountTier: { not: null } },
+            select: { id: true, discountTier: true },
+        })
+        : null;
+    if (input.membershipApplicationId && !membership) throw new Error("This membership is no longer active. Look it up again.");
+    const discountPercent = membership?.discountTier ? membershipDiscountPercent[membership.discountTier] : 0;
+    const membershipPercent = new Prisma.Decimal(discountPercent);
+    const discountAmount = subtotal.times(membershipPercent).div(100).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+    const total = subtotal.minus(discountAmount).toDecimalPlaces(2);
 
     const todayKey = getMalawiDateKey(new Date());
     const lockedBatches = await tx.$queryRaw<Array<{ id: string; variantId: string; quantityRemaining: number; expiryDate: Date }>>(
@@ -127,7 +141,11 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
             soldById: input.soldById,
             checkoutRequestId: input.requestId,
             paymentMethod: input.paymentMethod,
+            subtotalAmount: subtotal,
+            discountAmount,
+            membershipDiscountPercent: membershipPercent,
             totalAmount: total,
+            membershipApplicationId: membership?.id,
             items: {
                 createMany: {
                     data: saleItems.map((item) => ({
@@ -147,7 +165,11 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
                     userId: input.soldById,
                     details: {
                         paymentMethod: input.paymentMethod,
+                        subtotalAmount: subtotal.toString(),
+                        discountAmount: discountAmount.toString(),
+                        membershipDiscountPercent: membershipPercent.toString(),
                         totalAmount: total.toString(),
+                        membershipApplicationId: membership?.id ?? null,
                         itemCount: saleItems.length,
                     },
                 },

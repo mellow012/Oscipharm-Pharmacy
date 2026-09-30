@@ -21,7 +21,11 @@ export type CheckoutState = {
     error?: string;
     receipt?: {
         saleId: string;
+        subtotalAmount: string;
+        discountAmount: string;
+        membershipDiscountPercent: string;
         totalAmount: string;
+        memberName?: string;
         paymentMethod: "CASH" | "MOBILE_MONEY";
         items: Array<{ label: string; quantity: number; mode: "PACK" | "UNIT"; subtotal: string }>;
     };
