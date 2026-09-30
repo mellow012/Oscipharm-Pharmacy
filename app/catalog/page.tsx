@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
+import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
 export const dynamic = 'force-dynamic';
 export default async function CatalogPage() {
@@ -9,20 +10,7 @@ export default async function CatalogPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-      <nav className="flex items-center justify-between gap-4 border-b border-border pb-5">
-        <Link href="/" aria-label="OsciPharm home">
-          <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={154} height={62} className="h-14 w-auto object-contain" />
-        </Link>
-
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex items-center gap-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-            <Link href="/catalog" className="transition hover:text-primary">Catalog</Link>
-            <Link href="/news" className="transition hover:text-primary">News</Link>
-          </div>
-        </div>
-
-        <Link href="/login" className="border-b border-warn pb-1 font-mono text-xs uppercase tracking-[0.12em] text-muted transition hover:text-primary">Staff sign in</Link>
-      </nav>
+      <SiteHeader />
       <header className="grid gap-8 border-b border-border py-12 md:grid-cols-[1fr_0.7fr] md:items-end md:py-16">
         <div>
           <p className="mb-4 font-mono text-xs uppercase tracking-[0.18em] text-warn">Browse by category</p>

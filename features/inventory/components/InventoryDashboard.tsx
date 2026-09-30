@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ReceiveBatchForm } from "@/features/inventory/components/ReceiveBatchForm";
 import { PricingForm } from "@/features/inventory/components/PricingForm";
+import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { getExpiryStatus } from "@/features/inventory/utils/expiry";
 import type { InventoryData } from "@/features/inventory/types";
 
@@ -12,10 +12,7 @@ export function InventoryDashboard({ name, role, branchId, branches, data }: { n
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <nav className="flex items-center justify-between border-b border-border pb-5">
-                <Link href="/staff" className="font-mono text-xs uppercase tracking-[0.14em] text-warn">OsciPharm staff</Link>
-                <Link href="/catalog" className="text-sm text-muted transition hover:text-primary">View catalog</Link>
-            </nav>
+            <StaffHeader />
             <header className="flex flex-col gap-6 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
                 <div>
                     <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">Inventory workspace</p>
