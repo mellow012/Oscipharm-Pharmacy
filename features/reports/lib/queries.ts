@@ -36,6 +36,11 @@ function buildBranchScopeForStock(branchId?: string | null) {
     return Prisma.sql` AND bp."branchId" = ${branchId}`;
 }
 
+function buildBatchBranchScope(branchId?: string | null) {
+    if (!branchId) return Prisma.empty;
+    return Prisma.sql` AND batch."branchId" = ${branchId}`;
+}
+
 export async function getReportBranches(): Promise<BranchOption[]> {
     return prisma.branch.findMany({
         orderBy: { name: "asc" },
@@ -134,7 +139,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
                 batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) + INTERVAL '30 days'
                 OR batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date)
               )
-              ${buildBranchScopeForStock(branchId)}
+              ${buildBatchBranchScope(branchId)}
             ORDER BY batch."expiryDate" ASC, b.name ASC
         `),
         prisma.$queryRaw<Array<AuditRow & { details: Prisma.JsonValue }>>(Prisma.sql`

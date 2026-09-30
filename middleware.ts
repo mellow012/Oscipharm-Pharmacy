@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 // the inventory pages); fine-grained per-action checks still happen with
 // `can()` / `canOnBranch()` inside the actual route handlers.
 const ROUTE_RULES: { prefix: string; roles: string[] }[] = [
+    { prefix: "/admin/memberships", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/admin", roles: ["ADMIN"] },
     { prefix: "/inventory", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/pos", roles: ["ADMIN", "BRANCH_MANAGER", "POS"] },
