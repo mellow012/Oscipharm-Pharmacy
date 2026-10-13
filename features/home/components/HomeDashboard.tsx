@@ -6,7 +6,7 @@ import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { can } from "@/lib/permissions";
 
 const sections = [
-    { label: "Catalog", description: "Browse medicines and products", href: "/catalog", permission: null, accent: "border-primary" },
+    { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage" as const, accent: "border-primary" },
     { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive" as const, accent: "border-warn" },
     { label: "Point of Sale", description: "Complete and review branch sales", href: "/pos", permission: "pos:checkout" as const, accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage" as const, accent: "border-warn" },

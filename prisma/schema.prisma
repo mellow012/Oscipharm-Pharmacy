@@ -34,6 +34,8 @@ enum AuditAction {
   PRICE_CHANGED
   SALE_COMPLETED
   SALE_VOIDED
+  ARONIUM_LINK_CREATED
+  ARONIUM_LINK_DELETED
 }
 
 enum MembershipStatus {
@@ -104,6 +106,7 @@ model User {
 
   sales     Sale[]
   auditLogs AuditLog[]
+  aroniumProductLinks AroniumProductLink[]
   newsCreated News[] @relation("NewsCreatedBy")
   newsUpdated News[] @relation("NewsUpdatedBy")
 }
@@ -141,6 +144,7 @@ model Variant {
   packSize       Int                 // units per pack, e.g. 20 (tablets per strip/box)
   unitLabel      String   @default("unit") // e.g. "tablet", "capsule", "ml" — for loose-item sales
   allowsLooseSale Boolean @default(true)   // can this be sold as individual units, not just full packs
+  isActive       Boolean  @default(true)
   imageUrl       String?
 
   createdAt      DateTime @default(now())
@@ -148,8 +152,22 @@ model Variant {
   batches        Batch[]
   branchPrices   BranchPrice[]
   saleItems      SaleItem[]
+  aroniumProductLinks AroniumProductLink[]
 
   @@unique([ingredientId, brandName, strength])
+}
+
+model AroniumProductLink {
+  id           String   @id @default(cuid())
+  aroniumCode  String   @unique
+  variantId    String
+  variant      Variant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  mode         SaleMode
+  createdAt    DateTime @default(now())
+  createdById  String
+  createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([variantId, mode])
 }
 
 model News {

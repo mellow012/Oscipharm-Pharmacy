@@ -6,6 +6,7 @@ export type Permission =
     | "stock:receive"       // record a new batch
     | "stock:adjust"        // manual stock corrections
     | "price:set"           // set/update branch pricing
+    | "catalog:manage"      // view staff catalog and manage Aronium links
     | "pos:checkout"        // complete a sale
     | "news:manage"         // create/edit/delete news posts
     | "reports:branch:view" // view this branch's sales/audit history
@@ -21,6 +22,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "stock:receive",
         "stock:adjust",
         "price:set",
+        "catalog:manage",
         "pos:checkout",
         "news:manage",
         "reports:branch:view",
@@ -33,6 +35,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "stock:receive",
         "stock:adjust",
         "price:set",
+        "catalog:manage",
         "pos:checkout",
         "news:manage",
         "reports:branch:view",

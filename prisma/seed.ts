@@ -91,6 +91,15 @@ async function main() {
         },
     });
 
+    await prisma.aroniumProductLink.createMany({
+        data: [
+            { aroniumCode: "3", variantId: panadol500.id, mode: "PACK", createdById: blantyreManager.id },
+            { aroniumCode: "4", variantId: panadol500.id, mode: "UNIT", createdById: blantyreManager.id },
+            { aroniumCode: "8", variantId: genericParacetamol500.id, mode: "PACK", createdById: blantyreManager.id },
+            { aroniumCode: "9", variantId: amoxil250.id, mode: "UNIT", createdById: blantyreManager.id },
+        ],
+    });
+
     // --- Branch pricing ---------------------------------------------------
     await prisma.branchPrice.createMany({
         data: [
