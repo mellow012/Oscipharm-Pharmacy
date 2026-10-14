@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { validateAroniumProductLink } from "@/features/catalog/lib/aronium-link-validation";
 import type { AroniumLinkActionState } from "@/features/catalog/types";
 
-type StaffSession = {
+export type StaffSession = {
     user: { id: string; role: "ADMIN" | "BRANCH_MANAGER" | "POS"; branchId: string | null };
 };
 
@@ -17,7 +17,7 @@ function getText(formData: FormData, field: string) {
     return String(formData.get(field) ?? "");
 }
 
-async function getAuthorizedBranchId(formData: FormData, session: StaffSession) {
+export async function getAuthorizedBranchId(formData: FormData, session: StaffSession) {
     const branchId = session.user.role === "ADMIN" ? getText(formData, "branchId").trim() : session.user.branchId;
     if (!branchId) return null;
     const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { id: true } });

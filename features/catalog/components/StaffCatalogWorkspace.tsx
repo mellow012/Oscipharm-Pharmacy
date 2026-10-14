@@ -1,62 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useActionState } from "react";
-import { createAroniumProductLink, deleteAroniumProductLink } from "@/features/catalog/lib/aronium-actions";
-import type { AroniumLinkActionState, StaffCatalogCategory } from "@/features/catalog/types";
-
-const initialState: AroniumLinkActionState = {};
-
-function formatCurrency(value: string | null) {
-    if (!value) return "—";
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? `MK ${numeric.toLocaleString("en-MW")}` : value;
-}
-
-function AroniumLinkForm({ variantId, allowsLooseSale, branchId }: { variantId: string; allowsLooseSale: boolean; branchId: string }) {
-    const [state, formAction, pending] = useActionState(createAroniumProductLink, initialState);
-
-    return (
-        <form action={formAction} className="mt-4 rounded border border-border bg-surface p-3">
-            <input type="hidden" name="variantId" value={variantId} />
-            <input type="hidden" name="branchId" value={branchId} />
-            <div className="grid gap-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
-                <label className="text-xs uppercase tracking-[0.08em] text-muted">
-                    Aronium code
-                    <input name="aroniumCode" required placeholder="e.g. 3" maxLength={100} className="mt-2 w-full border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
-                </label>
-                <label className="text-xs uppercase tracking-[0.08em] text-muted">
-                    Mode
-                    <select name="mode" defaultValue="PACK" className="mt-2 w-full border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15">
-                        <option value="PACK">PACK</option>
-                        {allowsLooseSale ? <option value="UNIT">UNIT</option> : null}
-                    </select>
-                </label>
-                <button type="submit" disabled={pending} className="inline-flex min-h-[42px] items-center justify-center border border-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary transition hover:bg-primary hover:text-primary-fg disabled:cursor-wait disabled:opacity-60">
-                    {pending ? "Saving..." : "Add code"}
-                </button>
-            </div>
-            {state.error ? <p role="alert" className="mt-3 text-sm text-danger">{state.error}</p> : null}
-            {state.success ? <p role="status" className="mt-3 text-sm text-primary">{state.success}</p> : null}
-        </form>
-    );
-}
-
-function DeleteLinkForm({ linkId, branchId }: { linkId: string; branchId: string }) {
-    const [state, formAction, pending] = useActionState(deleteAroniumProductLink, initialState);
-
-    return (
-        <form action={formAction} className="inline-block">
-            <input type="hidden" name="linkId" value={linkId} />
-            <input type="hidden" name="branchId" value={branchId} />
-            <button type="submit" disabled={pending} className="text-xs font-medium text-danger underline underline-offset-2 transition hover:text-danger/80 disabled:cursor-wait disabled:opacity-60">
-                {pending ? "Removing..." : "Remove"}
-            </button>
-            {state.error ? <div className="mt-2 text-xs text-danger">{state.error}</div> : null}
-            {state.success ? <div className="mt-2 text-xs text-primary">{state.success}</div> : null}
-        </form>
-    );
-}
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { StaffCatalogDetailSheet } from "@/features/catalog/components/StaffCatalogDetailSheet";
+import { StaffCatalogSidebar } from "@/features/catalog/components/StaffCatalogSidebar";
+import { StaffCatalogVariantList, type StaffCatalogIngredientGroup, type StaffCatalogVariantRow } from "@/features/catalog/components/StaffCatalogVariantList";
+import type { StaffCatalogCategory } from "@/features/catalog/types";
 
 export function StaffCatalogWorkspace({
     categories,
@@ -69,155 +18,247 @@ export function StaffCatalogWorkspace({
     branches: Array<{ id: string; name: string }>;
     role: "ADMIN" | "BRANCH_MANAGER";
 }) {
-    const [query, setQuery] = useState("");
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+    const [creatingVariant, setCreatingVariant] = useState(false);
 
-    const filteredCategories = useMemo(() => {
-        const term = query.trim().toLowerCase();
-        if (!term) return categories;
+    const rawCategory = searchParams.get("category") ?? "all";
+    const searchText = searchParams.get("query") ?? "";
+    const notLinkedOnly = searchParams.get("notLinked") === "1";
+    const pageParam = Number(searchParams.get("page") ?? "1");
+    const currentCategory = rawCategory === "all" || rawCategory === "uncategorized" ? rawCategory : rawCategory;
 
-        return categories
-            .map((category) => ({
-                ...category,
-                ingredients: category.ingredients
-                    .map((ingredient) => ({
-                        ...ingredient,
-                        variants: ingredient.variants.filter((variant) => {
-                            const haystack = [
-                                category.name,
-                                ingredient.name,
-                                variant.brandName,
-                                variant.strength ?? "",
-                                ...variant.aroniumProductLinks.map((link) => `${link.aroniumCode} ${link.mode}`),
-                            ]
-                                .join(" ")
-                                .toLowerCase();
-                            return haystack.includes(term);
-                        }),
-                    }))
-                    .filter((ingredient) => ingredient.variants.length > 0),
-            }))
-            .filter((category) => category.ingredients.length > 0);
-    }, [categories, query]);
+    const allRows = useMemo<StaffCatalogVariantRow[]>(() => categories.flatMap((category) => category.ingredients.flatMap((ingredient) => ingredient.variants.map((variant) => ({
+        id: variant.id,
+        categoryId: category.id,
+        categoryName: category.name,
+        ingredientId: ingredient.id,
+        ingredientName: ingredient.name,
+        brandName: variant.brandName,
+        strength: variant.strength,
+        packSize: variant.packSize,
+        unitLabel: variant.unitLabel,
+        allowsLooseSale: variant.allowsLooseSale,
+        isActive: variant.isActive,
+        pricePerPack: variant.pricePerPack,
+        pricePerUnit: variant.pricePerUnit,
+        stock: variant.stock,
+        aroniumProductLinks: variant.aroniumProductLinks,
+    })))), [categories]);
+
+    const categorySummaries = useMemo(() => {
+        const result = [{ id: "all", name: "All", count: allRows.length }];
+        categories.forEach((category) => {
+            result.push({
+                id: category.id,
+                name: category.name,
+                count: category.ingredients.reduce((total, ingredient) => total + ingredient.variants.length, 0),
+            });
+        });
+        const uncategorizedCount = 0;
+        if (uncategorizedCount > 0) result.push({ id: "uncategorized", name: "Uncategorized", count: uncategorizedCount });
+        return result;
+    }, [allRows.length, categories]);
+
+    const filteredRows = useMemo(() => {
+        const search = searchText.trim().toLowerCase();
+
+        return allRows.filter((row) => {
+            if (search) {
+                const haystack = [
+                    row.ingredientName,
+                    row.brandName,
+                    row.strength ?? "",
+                    row.categoryName,
+                    ...row.aroniumProductLinks.map((link) => `${link.aroniumCode} ${link.mode}`),
+                ].join(" ").toLowerCase();
+                if (!haystack.includes(search)) return false;
+            } else if (currentCategory !== "all" && currentCategory !== "uncategorized") {
+                if (row.categoryId !== currentCategory) return false;
+            }
+
+            if (notLinkedOnly && row.aroniumProductLinks.length > 0) return false;
+            return true;
+        });
+    }, [allRows, currentCategory, notLinkedOnly, searchText]);
+
+    const pageSize = 25;
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+    const safePage = Math.min(Math.max(Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1, 1), totalPages);
+
+    useEffect(() => {
+        if (safePage !== pageParam) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("page", String(safePage));
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        }
+    }, [pageParam, pathname, router, safePage, searchParams]);
+
+    const visibleRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+    const selectedVariant = allRows.find((row) => row.id === selectedVariantId) ?? null;
+
+    const updateParams = (updates: Record<string, string | null>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null || value === "") {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        });
+        if (!params.has("page") && !updates.page) {
+            params.set("page", "1");
+        }
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    const onCategoryChange = (categoryId: string) => {
+        updateParams({ category: categoryId === "all" ? "all" : categoryId, page: "1" });
+    };
+
+    const onSearchChange = (nextValue: string) => {
+        const trimmed = nextValue.trim();
+        updateParams({ query: trimmed || null, page: "1" });
+    };
+
+    const onNotLinkedToggle = () => {
+        updateParams({ notLinked: notLinkedOnly ? null : "1", page: "1" });
+    };
+
+    const onPrevPage = () => {
+        if (safePage > 1) updateParams({ page: String(safePage - 1) });
+    };
+
+    const onNextPage = () => {
+        if (safePage < totalPages) updateParams({ page: String(safePage + 1) });
+    };
+
+    const ingredientGroups = useMemo(() => {
+        const groups = new Map<string, StaffCatalogIngredientGroup>();
+        visibleRows.forEach((row) => {
+            const key = `${row.categoryId}:${row.ingredientId}`;
+            const group = groups.get(key) ?? {
+                ingredientName: row.ingredientName,
+                categoryName: row.categoryName,
+                rows: [],
+            };
+            group.rows.push(row);
+            groups.set(key, group);
+        });
+        return Array.from(groups.values()).sort((a, b) => a.ingredientName.localeCompare(b.ingredientName));
+    }, [visibleRows]);
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
+        <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8">
             <div className="mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <p className="mb-2 font-mono text-xs uppercase tracking-[0.18em] text-warn">Staff catalog</p>
                     <h1 className="text-4xl text-ink">Catalog overview</h1>
                 </div>
-                <div className="flex items-center gap-3">
-                    {role === "ADMIN" && branches.length > 0 ? (
-                        <label className="text-xs uppercase tracking-[0.08em] text-muted">
-                            Branch
-                            <select defaultValue={branchId} className="ml-2 border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" onChange={(event) => {
-                                const next = event.target.value;
-                                if (next) window.location.href = `/staff/catalog?branchId=${encodeURIComponent(next)}`;
-                            }}>
-                                {branches.map((branch) => (
-                                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                ))}
-                            </select>
-                        </label>
-                    ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                {role === "ADMIN" && branches.length > 0 ? (
+                    <label className="text-xs uppercase tracking-[0.08em] text-muted">
+                        Branch
+                        <select defaultValue={branchId} className="ml-2 border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" onChange={(event) => {
+                            const next = event.target.value;
+                            if (next) window.location.href = `/staff/catalog?branchId=${encodeURIComponent(next)}`;
+                        }}>
+                            {branches.map((branch) => (
+                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                            ))}
+                        </select>
+                    </label>
+                ) : null}
+                    <button type="button" onClick={() => { setSelectedVariantId(null); setCreatingVariant(true); }} className="border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-fg">Add variant</button>
                 </div>
             </div>
 
-            <div className="mb-8 max-w-xl">
-                <label className="block text-xs uppercase tracking-[0.08em] text-muted">
-                    Search catalog
-                    <input
-                        type="search"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search ingredient, brand, code..."
-                        className="mt-2 w-full border border-border bg-white px-4 py-3 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-                    />
-                </label>
-            </div>
+            <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
+                <StaffCatalogSidebar
+                    categories={categorySummaries}
+                    selectedCategory={currentCategory}
+                    onSelect={onCategoryChange}
+                />
 
-            <div className="space-y-8">
-                {filteredCategories.map((category) => (
-                    <section key={category.id} className="rounded border border-border bg-white p-5">
-                        <div className="mb-5 flex items-end justify-between border-b border-border pb-3">
-                            <h2 className="text-2xl text-ink">{category.name}</h2>
-                            <span className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-muted">
-                                {category.ingredients.reduce((total, ingredient) => total + ingredient.variants.length, 0)} variants
-                            </span>
-                        </div>
+                <section>
+                    <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <label className="block w-full max-w-xl">
+                            <span className="text-xs uppercase tracking-[0.08em] text-muted">Search catalog</span>
+                            <input
+                                type="search"
+                                value={searchText}
+                                onChange={(event) => onSearchChange(event.target.value)}
+                                placeholder="Ingredient, brand, strength or Aronium code"
+                                className="mt-2 w-full border border-border bg-white px-4 py-3 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                            />
+                        </label>
 
-                        <div className="space-y-6">
-                            {category.ingredients.map((ingredient) => (
-                                <div key={ingredient.id} className="border-l border-border pl-4">
-                                    <h3 className="mb-4 text-xl text-ink">{ingredient.name}</h3>
-                                    <div className="space-y-4">
-                                        {ingredient.variants.map((variant) => (
-                                            <article key={variant.id} className="rounded border border-border bg-surface p-4">
-                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                                    <div>
-                                                        <div className="flex flex-wrap items-center gap-3">
-                                                            <h4 className="text-lg font-semibold text-ink">{variant.brandName}</h4>
-                                                            {variant.strength ? <span className="text-sm text-muted">{variant.strength}</span> : null}
-                                                            <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[0.65rem] font-medium uppercase tracking-[0.1em] ${variant.isActive ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
-                                                                {variant.isActive ? "Active" : "Inactive"}
-                                                            </span>
-                                                        </div>
-                                                        <p className="mt-1 text-sm text-muted">{variant.packSize} {variant.unitLabel}s per pack</p>
-                                                    </div>
-
-                                                    <div className="grid gap-3 text-sm sm:grid-cols-3 lg:min-w-[380px]">
-                                                        <div>
-                                                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Pack price</div>
-                                                            <div className="mt-1 font-medium text-ink">{formatCurrency(variant.pricePerPack)}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Unit price</div>
-                                                            <div className="mt-1 font-medium text-ink">{variant.allowsLooseSale ? formatCurrency(variant.pricePerUnit) : "Pack only"}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Total stock</div>
-                                                            <div className="mt-1 font-medium text-ink">{variant.stock} units</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4 border-t border-border pt-4">
-                                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                                        <h5 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Aronium codes</h5>
-                                                        <span className="font-mono text-[0.65rem] uppercase tracking-[0.08em] text-muted">{variant.aroniumProductLinks.length} linked</span>
-                                                    </div>
-                                                    {variant.aroniumProductLinks.length > 0 ? (
-                                                        <ul className="mb-4 space-y-2">
-                                                            {variant.aroniumProductLinks.map((link) => (
-                                                                <li key={link.id} className="flex items-center justify-between gap-3 rounded border border-border bg-white px-3 py-2 text-sm">
-                                                                    <span>
-                                                                        <span className="font-medium text-ink">{link.aroniumCode}</span>
-                                                                        <span className="ml-2 text-muted">({link.mode})</span>
-                                                                    </span>
-                                                                    <DeleteLinkForm linkId={link.id} branchId={branchId} />
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    ) : (
-                                                        <p className="mb-4 text-sm text-muted">No Aronium codes linked yet.</p>
-                                                    )}
-                                                    <AroniumLinkForm variantId={variant.id} allowsLooseSale={variant.allowsLooseSale} branchId={branchId} />
-                                                </div>
-                                            </article>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                ))}
-
-                {filteredCategories.length === 0 ? (
-                    <div className="rounded border border-dashed border-border bg-surface p-10 text-center text-muted">
-                        No variants match your search.
+                        <button
+                            type="button"
+                            onClick={onNotLinkedToggle}
+                            aria-pressed={notLinkedOnly}
+                            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.08em] transition ${
+                                notLinkedOnly ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-ink hover:border-primary/40 hover:text-primary"
+                            }`}
+                        >
+                            Not linked to Aronium
+                        </button>
                     </div>
-                ) : null}
+
+                    {filteredRows.length === 0 ? (
+                        <div className="rounded border border-dashed border-border bg-surface p-10 text-center">
+                            <p className="text-lg text-ink">
+                                {searchText
+                                    ? "No variants match your search."
+                                    : notLinkedOnly
+                                        ? "Every variant in this view is linked to Aronium."
+                                        : currentCategory !== "all"
+                                            ? "No variants in this category yet."
+                                            : "No variants in the catalog yet."}
+                            </p>
+                            <p className="mt-2 text-sm text-muted">
+                                {searchText
+                                    ? "Try another ingredient, brand, strength or Aronium code."
+                                    : notLinkedOnly
+                                        ? "Clear the filter to view linked variants."
+                                        : currentCategory !== "all"
+                                            ? "This category does not currently contain any variants."
+                                            : "Add a variant to get started."}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                                <div className="text-sm text-muted">
+                                    Showing {filteredRows.length === 0 ? 0 : ((safePage - 1) * pageSize) + 1}-{Math.min(safePage * pageSize, filteredRows.length)} of {filteredRows.length}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button type="button" onClick={onPrevPage} disabled={safePage === 1} className="border border-border px-3 py-1.5 text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+                                    <button type="button" onClick={onNextPage} disabled={safePage >= totalPages} className="border border-border px-3 py-1.5 text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                                </div>
+                            </div>
+
+                            <StaffCatalogVariantList groups={ingredientGroups} searchText={searchText} onSelect={setSelectedVariantId} />
+                        </>
+                    )}
+                </section>
             </div>
+
+            {selectedVariant || creatingVariant || selectedVariantId !== null ? (
+                <StaffCatalogDetailSheet
+                    variant={selectedVariant}
+                    branchId={branchId}
+                    categories={categories}
+                    onSaved={(variantId) => {
+                        setCreatingVariant(false);
+                        setSelectedVariantId(variantId);
+                        router.refresh();
+                    }}
+                    onClose={() => { setSelectedVariantId(null); setCreatingVariant(false); }}
+                />
+            ) : null}
         </main>
     );
 }

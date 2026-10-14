@@ -11,6 +11,7 @@ export async function getCatalogBrowserData() {
     select: { id: true, name: true },
   });
   const variants = await prisma.variant.findMany({
+    where: { isActive: true },
     orderBy: [{ ingredient: { name: "asc" } }, { brandName: "asc" }],
     select: {
       id: true,
@@ -47,7 +48,7 @@ export async function getIngredients(categoryId: string): Promise<Ingredient[]> 
 
 export async function getVariants(ingredientId: string): Promise<Variant[]> {
   return prisma.variant.findMany({
-    where: { ingredientId },
+    where: { ingredientId, isActive: true },
     orderBy: { brandName: "asc" }, // Fixed based on schema
   });
 }
