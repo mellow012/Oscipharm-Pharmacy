@@ -14,14 +14,14 @@ export type CheckoutInput = {
     branchId: string;
     soldById: string;
     requestId?: string;
-    paymentMethod: "CASH" | "MOBILE_MONEY";
+    paymentMethod: "CASH" | "MOBILE_MONEY" | "UNKNOWN";
     lines: CheckoutLine[];
     expectedTotal: Prisma.Decimal;
     membershipApplicationId: string | null;
 };
 
 export type CheckoutResult = {
-    sale: { id: string; subtotalAmount: Prisma.Decimal; discountAmount: Prisma.Decimal; membershipDiscountPercent: Prisma.Decimal; totalAmount: Prisma.Decimal; paymentMethod: "CASH" | "MOBILE_MONEY" };
+    sale: { id: string; subtotalAmount: Prisma.Decimal; discountAmount: Prisma.Decimal; membershipDiscountPercent: Prisma.Decimal; totalAmount: Prisma.Decimal; paymentMethod: "CASH" | "MOBILE_MONEY" | "UNKNOWN" };
     saleItems: Array<{ variantId: string; batchId: string | null; unallocatedUnits: number; saleMode: "PACK" | "UNIT"; quantityUnits: number; subtotal: Prisma.Decimal }>;
     labels: Map<string, string>;
 };
