@@ -126,8 +126,8 @@ model Category {
 model Ingredient {
   id         String   @id @default(cuid())
   name       String              // e.g. "Paracetamol", "Amoxicillin"
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
 
   variants   Variant[]
 
@@ -136,8 +136,8 @@ model Ingredient {
 
 model Variant {
   id             String   @id @default(cuid())
-  ingredientId   String
-  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredientId   String?
+  ingredient     Ingredient? @relation(fields: [ingredientId], references: [id])
 
   brandName      String              // e.g. "Panadol", "Amoxil"
   strength       String?             // e.g. "500mg"
@@ -277,11 +277,12 @@ model SaleItem {
   sale       Sale     @relation(fields: [saleId], references: [id])
   variantId  String
   variant    Variant  @relation(fields: [variantId], references: [id])
-  batchId    String
-  batch      Batch    @relation(fields: [batchId], references: [id])
+  batchId    String?
+  batch      Batch?   @relation(fields: [batchId], references: [id])
 
   saleMode     SaleMode?
   quantityUnits Int              // sold quantity, in units (not packs) — supports loose-item sales
+  unallocatedUnits Int @default(0)
   unitPriceAtSale Decimal @db.Decimal(10, 2)
   subtotal      Decimal  @db.Decimal(10, 2)
 }

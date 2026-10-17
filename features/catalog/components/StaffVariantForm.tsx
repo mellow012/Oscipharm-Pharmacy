@@ -11,8 +11,8 @@ const initialState: StaffVariantActionState = {};
 
 type EditableVariant = {
     id: string;
-    categoryId: string;
-    ingredientId: string;
+    categoryId: string | null;
+    ingredientId: string | null;
     brandName: string;
     strength: string | null;
     packSize: number;
@@ -37,10 +37,10 @@ export function StaffVariantForm({
     onSaved: (variantId: string) => void;
 }) {
     const [state, formAction, pending] = useActionState(saveStaffVariant, initialState);
-    const [categoryMode, setCategoryMode] = useState(variant ? "existing" : "new");
+    const [categoryMode, setCategoryMode] = useState(variant?.categoryId ? "existing" : "none");
     const [categoryId, setCategoryId] = useState(variant?.categoryId ?? "");
     const [categoryName, setCategoryName] = useState("");
-    const [ingredientMode, setIngredientMode] = useState(variant ? "existing" : "new");
+    const [ingredientMode, setIngredientMode] = useState(variant?.ingredientId ? "existing" : "none");
     const [ingredientId, setIngredientId] = useState(variant?.ingredientId ?? "");
     const [ingredientName, setIngredientName] = useState("");
     const [allowsLooseSale, setAllowsLooseSale] = useState(variant?.allowsLooseSale ?? false);
@@ -87,18 +87,19 @@ export function StaffVariantForm({
                 <label className="block text-xs font-medium uppercase tracking-[0.08em] text-muted" htmlFor="variant-category">Category</label>
                 <select
                     id="variant-category"
-                    value={categoryMode === "new" ? NEW_CATALOG_ITEM : categoryId}
+                    value={categoryMode === "new" ? NEW_CATALOG_ITEM : categoryMode === "none" ? "none" : categoryId}
                     disabled={Boolean(variant)}
                     onChange={(event) => {
                         const value = event.target.value;
-                        setCategoryMode(value === NEW_CATALOG_ITEM ? "new" : "existing");
-                        setCategoryId(value === NEW_CATALOG_ITEM ? "" : value);
-                        setIngredientMode("new");
+                        const nextMode = value === NEW_CATALOG_ITEM ? "new" : value === "none" ? "none" : "existing";
+                        setCategoryMode(nextMode);
+                        setCategoryId(nextMode === "existing" ? value : "");
+                        setIngredientMode(nextMode === "none" ? "none" : "new");
                         setIngredientId("");
                     }}
                     className={fieldClass}
                 >
-                    <option value="">Choose a category</option>
+                    <option value="none">Uncategorized</option>
                     {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                     {!variant ? <option value={NEW_CATALOG_ITEM}>+ Create category</option> : null}
                 </select>
@@ -119,18 +120,19 @@ export function StaffVariantForm({
                 <label className="block text-xs font-medium uppercase tracking-[0.08em] text-muted" htmlFor="variant-ingredient">Ingredient</label>
                 <select
                     id="variant-ingredient"
-                    value={ingredientMode === "new" ? NEW_CATALOG_ITEM : ingredientId}
-                    disabled={Boolean(variant) || categoryMode === "new" || !categoryId}
+                    value={ingredientMode === "new" ? NEW_CATALOG_ITEM : ingredientMode === "none" ? "none" : ingredientId}
+                    disabled={Boolean(variant) || categoryMode === "new"}
                     onChange={(event) => {
                         const value = event.target.value;
-                        setIngredientMode(value === NEW_CATALOG_ITEM ? "new" : "existing");
-                        setIngredientId(value === NEW_CATALOG_ITEM ? "" : value);
+                        const nextMode = value === NEW_CATALOG_ITEM ? "new" : value === "none" ? "none" : "existing";
+                        setIngredientMode(nextMode);
+                        setIngredientId(nextMode === "existing" ? value : "");
                     }}
                     className={fieldClass}
                 >
-                    <option value="">Choose an ingredient</option>
+                    <option value="none">No ingredient</option>
                     {ingredients.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.name}</option>)}
-                    {!variant && categoryMode === "existing" && categoryId ? <option value={NEW_CATALOG_ITEM}>+ Create ingredient</option> : null}
+                    {!variant && categoryMode !== "new" ? <option value={NEW_CATALOG_ITEM}>+ Create ingredient</option> : null}
                 </select>
                 <input
                     name="ingredientName"

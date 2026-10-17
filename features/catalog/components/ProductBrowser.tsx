@@ -9,8 +9,8 @@ type Product = {
     brandName: string;
     strength: string | null;
     unitLabel: string;
-    ingredientName: string;
-    categoryId: string;
+    ingredientName: string | null;
+    categoryId: string | null;
     stock: number;
     pricePerPack: string | null;
 };
@@ -26,7 +26,8 @@ export function ProductBrowser({ categories, products }: ProductBrowserProps) {
     const filteredProducts = useMemo(() => {
         const query = search.trim().toLowerCase();
         return products.filter((product) => {
-            const matchesCategory = activeCategory === "all" || product.categoryId === activeCategory;
+            const matchesCategory = activeCategory === "all"
+                || (activeCategory === "uncategorized" ? product.categoryId === null : product.categoryId === activeCategory);
             const matchesSearch = !query || [product.ingredientName, product.brandName, product.strength]
                 .filter(Boolean)
                 .join(" ")
@@ -73,6 +74,15 @@ export function ProductBrowser({ categories, products }: ProductBrowserProps) {
                         {category.name}
                     </button>
                 ))}
+                {products.some((product) => product.categoryId === null) ? (
+                    <button
+                        type="button"
+                        onClick={() => setActiveCategory("uncategorized")}
+                        className={`shrink-0 border px-4 py-2 text-sm transition ${activeCategory === "uncategorized" ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-muted hover:border-primary hover:text-primary"}`}
+                    >
+                        Uncategorized
+                    </button>
+                ) : null}
             </div>
             <p className="mb-4 font-mono text-xs uppercase tracking-[0.14em] text-muted">{filteredProducts.length} products shown</p>
             {filteredProducts.length > 0 ? (
@@ -80,14 +90,14 @@ export function ProductBrowser({ categories, products }: ProductBrowserProps) {
                     {filteredProducts.map((product) => (
                         <Link
                             key={product.id}
-                            href={`/catalog/${product.categoryId}`}
+                            href={product.categoryId ? `/catalog/${product.categoryId}` : "/catalog"}
                             className="group border border-border bg-surface p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-sm"
                         >
                             <div className="mb-8 flex items-start justify-between gap-3">
                                 <span className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-warn">In stock</span>
                                 <span className="font-mono text-xs text-muted">{product.stock} {product.unitLabel}s</span>
                             </div>
-                            <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{product.ingredientName}</p>
+                            <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{product.ingredientName ?? "Uncategorized"}</p>
                             <h3 className="mt-2 text-2xl text-ink group-hover:text-primary">{product.brandName}</h3>
                             <div className="mt-2 flex items-end justify-between gap-3">
                                 <p className="text-sm text-muted">{product.strength ?? "Standard strength"}</p>

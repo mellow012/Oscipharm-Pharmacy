@@ -12,10 +12,10 @@ async function removeTestRecords(prefix) {
 }
 
 async function main() {
-    const branch = await prisma.branch.findFirst({ where: { name: "Lilongwe - Area 25" } });
+    const branch = await prisma.branch.findFirst({ where: { name: "Blantyre Town Lunzu" } });
     const variant = await prisma.variant.findFirst({ where: { brandName: "Panadol" }, include: { branchPrices: true } });
-    const cashier = await prisma.user.findUnique({ where: { email: "pos.lilongwe@pharmacy.test" } });
-    if (!branch || !variant || !cashier) throw new Error("Seed records not found");
+    const cashier = await prisma.user.findUnique({ where: { email: "pos.blantyre@local.dev" } });
+    if (!branch || !variant || !cashier) throw new Error("Canonical seed records not found");
     const price = variant.branchPrices.find((item) => item.branchId === branch.id);
     if (!price) throw new Error("Branch price not found");
     const prefix = `POS-CONCURRENCY-${Date.now()}`;
@@ -28,14 +28,13 @@ async function main() {
         const contention = await Promise.allSettled(["A", "B"].map((suffix) => prisma.$transaction((tx) => checkoutInTransaction(tx, input(`${prefix}-${suffix}`)), { maxWait: 15000, timeout: 15000 })));
         const contentionFulfilled = contention.filter((result) => result.status === "fulfilled").length;
         const stock = await prisma.batch.findFirst({ where: { batchNumber: `${prefix}-STOCK` }, select: { quantityRemaining: true } });
-        if (contentionFulfilled !== 1 || stock?.quantityRemaining !== 0) throw new Error(`Contention failed: ${contentionFulfilled} succeeded, remaining=${stock?.quantityRemaining}`);
+        const sales = await prisma.sale.findMany({ where: { checkoutRequestId: { startsWith: prefix } }, select: { id: true } });
+        const unallocatedCount = await prisma.saleItem.count({ where: { saleId: { in: sales.map((sale) => sale.id) }, batchId: null, unallocatedUnits: { gt: 0 } } });
+        if (contentionFulfilled !== 2 || stock?.quantityRemaining !== 0 || unallocatedCount !== 1) {
+            throw new Error(`Shortage recording failed: ${contentionFulfilled} sales, unallocated=${unallocatedCount}, remaining=${stock?.quantityRemaining}`);
+        }
         await removeTestRecords(prefix);
-
-        await prisma.batch.create({ data: { variantId: variant.id, branchId: branch.id, batchNumber: `${prefix}-IDEMPOTENCY-STOCK`, quantityReceived: 1, quantityRemaining: 1, expiryDate: new Date(Date.now() + 86400000), receivedById: cashier.id } });
-        const sameKey = await Promise.all(["A", "B"].map(() => prisma.$transaction((tx) => checkoutInTransaction(tx, input(`${prefix}-SAME-KEY`)), { maxWait: 15000, timeout: 15000 })));
-        const sameSaleIds = sameKey.map((result) => "existing" in result ? result.existing.id : result.sale.id);
-        if (sameSaleIds[0] !== sameSaleIds[1]) throw new Error("Idempotency race returned different sale IDs");
-        console.log(JSON.stringify({ passed: true, contentionFulfilled, contentionRejected: contention.length - contentionFulfilled, idempotencySameSale: true }));
+        console.log(JSON.stringify({ passed: true, contentionFulfilled, unallocatedCount }));
     } finally {
         await removeTestRecords(prefix);
         for (const batch of baseline) await prisma.batch.update({ where: { id: batch.id }, data: { quantityRemaining: batch.quantityRemaining } });

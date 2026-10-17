@@ -51,7 +51,13 @@ export async function getInventoryData(branchId: string) {
 
     return {
         branch,
-        batches,
+        batches: batches.map((batch) => ({
+            ...batch,
+            variant: {
+                ...batch.variant,
+                ingredient: batch.variant.ingredient ?? { name: "Uncategorized" },
+            },
+        })),
         variants: variants.map((variant) => ({
             id: variant.id,
             brandName: variant.brandName,

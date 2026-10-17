@@ -1,23 +1,28 @@
 import { Prisma } from "@prisma/client";
-import { getMalawiDateKey } from "@/lib/timezone";
-import { membershipDiscountPercent } from "@/features/membership/lib/policy";
-import type { CartLine } from "@/features/pos/types";
+import { getMalawiDateKey } from "../../../lib/timezone.ts";
+import { membershipDiscountPercent } from "../../membership/lib/policy.ts";
 
 type Transaction = Prisma.TransactionClient;
+
+export type CheckoutLine = {
+    variantId: string;
+    mode: "PACK" | "UNIT";
+    quantity: number;
+};
 
 export type CheckoutInput = {
     branchId: string;
     soldById: string;
-    requestId: string;
+    requestId?: string;
     paymentMethod: "CASH" | "MOBILE_MONEY";
-    lines: CartLine[];
+    lines: CheckoutLine[];
     expectedTotal: Prisma.Decimal;
     membershipApplicationId: string | null;
 };
 
 export type CheckoutResult = {
     sale: { id: string; subtotalAmount: Prisma.Decimal; discountAmount: Prisma.Decimal; membershipDiscountPercent: Prisma.Decimal; totalAmount: Prisma.Decimal; paymentMethod: "CASH" | "MOBILE_MONEY" };
-    saleItems: Array<{ variantId: string; batchId: string; saleMode: "PACK" | "UNIT"; quantityUnits: number; subtotal: Prisma.Decimal }>;
+    saleItems: Array<{ variantId: string; batchId: string | null; unallocatedUnits: number; saleMode: "PACK" | "UNIT"; quantityUnits: number; subtotal: Prisma.Decimal }>;
     labels: Map<string, string>;
 };
 
@@ -25,13 +30,7 @@ function sameDecimal(left: Prisma.Decimal, right: Prisma.Decimal) {
     return left.toDecimalPlaces(2).equals(right.toDecimalPlaces(2));
 }
 
-export async function checkoutInTransaction(tx: Transaction, input: CheckoutInput): Promise<CheckoutResult | { existing: any }> {
-    const existing = await tx.sale.findUnique({
-        where: { soldById_checkoutRequestId: { soldById: input.soldById, checkoutRequestId: input.requestId } },
-        include: { membershipApplication: { select: { fullName: true } }, items: { include: { variant: { include: { ingredient: true } } } } },
-    });
-    if (existing) return { existing };
-
+export async function checkoutInTransaction(tx: Transaction, input: CheckoutInput): Promise<CheckoutResult> {
     const variantIds = Array.from(new Set(input.lines.map((line) => line.variantId)));
     const variants = await tx.variant.findMany({
         where: { id: { in: variantIds } },
@@ -86,7 +85,7 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
         demand.set(line.variantId, (demand.get(line.variantId) ?? 0) + unitsRequired);
     }
 
-    const allocations = new Map<string, Array<{ batchId: string; units: number }>>();
+    const allocations = new Map<string, Array<{ batchId: string | null; units: number }>>();
     for (const variantId of variantIds) {
         let remaining = demand.get(variantId) ?? 0;
         for (const batch of sellableBatches.filter((item) => item.variantId === variantId)) {
@@ -95,15 +94,19 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
             allocations.set(variantId, [...(allocations.get(variantId) ?? []), { batchId: batch.id, units }]);
             remaining -= units;
         }
-        if (remaining) throw new Error("Insufficient non-expired stock.");
+        if (remaining) allocations.set(variantId, [...(allocations.get(variantId) ?? []), { batchId: null, units: remaining }]);
     }
 
-    const deductionRows = Array.from(allocations.values()).flat();
-    if (deductionRows.length > 0) {
-        const updatedBatchCount = await tx.$executeRaw(
-            Prisma.sql`UPDATE "Batch" AS batch SET "quantityRemaining" = batch."quantityRemaining" - changes.units FROM (VALUES ${Prisma.join(deductionRows.map((row) => Prisma.sql`(${row.batchId}, ${row.units})`))}) AS changes(id, units) WHERE batch."id" = changes.id AND batch."quantityRemaining" >= changes.units`
-        );
-        if (updatedBatchCount !== deductionRows.length) throw new Error("Insufficient non-expired stock.");
+    for (const chunks of Array.from(allocations.values())) {
+        for (const chunk of chunks) {
+            if (!chunk.batchId) continue;
+            const updatedBatchCount = await tx.$executeRaw(
+                Prisma.sql`UPDATE "Batch" SET "quantityRemaining" = "quantityRemaining" - ${chunk.units} WHERE "id" = ${chunk.batchId} AND "quantityRemaining" >= ${chunk.units}`
+            );
+            if (updatedBatchCount !== 1) {
+                chunk.batchId = null;
+            }
+        }
     }
 
     const saleItems: CheckoutResult["saleItems"] = [];
@@ -112,7 +115,7 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
 
     input.lines.forEach((line, lineIndex) => {
         const variant = byId.get(line.variantId)!;
-        labels.set(line.variantId, `${variant.ingredient.name} · ${variant.brandName}${variant.strength ? ` ${variant.strength}` : ""}`);
+        labels.set(line.variantId, `${variant.ingredient?.name ? `${variant.ingredient.name} · ` : ""}${variant.brandName}${variant.strength ? ` ${variant.strength}` : ""}`);
 
         let lineRemaining = line.mode === "PACK" ? line.quantity * variant.packSize : line.quantity;
         let lineSubtotal = new Prisma.Decimal(0);
@@ -124,7 +127,7 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
             const chunk = chunks[cursor];
             const units = Math.min(lineRemaining, chunk.units);
             const subtotal = units === lineRemaining ? lineTotal.minus(lineSubtotal) : lineTotal.div(lineRemaining).times(units).toDecimalPlaces(2);
-            saleItems.push({ variantId: line.variantId, batchId: chunk.batchId, saleMode: line.mode, quantityUnits: units, subtotal });
+            saleItems.push({ variantId: line.variantId, batchId: chunk.batchId, unallocatedUnits: chunk.batchId ? 0 : units, saleMode: line.mode, quantityUnits: units, subtotal });
             lineSubtotal = lineSubtotal.plus(subtotal);
             lineRemaining -= units;
             chunk.units -= units;
@@ -132,7 +135,16 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
         }
 
         allocationCursor.set(line.variantId, cursor);
-        if (lineRemaining > 0) throw new Error("Insufficient non-expired stock.");
+        if (lineRemaining > 0) {
+            saleItems.push({
+                variantId: line.variantId,
+                batchId: null,
+                unallocatedUnits: lineRemaining,
+                saleMode: line.mode,
+                quantityUnits: lineRemaining,
+                subtotal: lineTotal.minus(lineSubtotal),
+            });
+        }
     });
 
     const sale = await tx.sale.create({
@@ -151,6 +163,7 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
                     data: saleItems.map((item) => ({
                         variantId: item.variantId,
                         batchId: item.batchId,
+                        unallocatedUnits: item.unallocatedUnits,
                         saleMode: item.saleMode,
                         quantityUnits: item.quantityUnits,
                         unitPriceAtSale: item.subtotal.div(item.quantityUnits),

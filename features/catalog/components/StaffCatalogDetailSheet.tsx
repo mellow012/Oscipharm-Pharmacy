@@ -69,8 +69,8 @@ export function StaffCatalogDetailSheet({
 }: {
     variant: {
         id: string;
-        categoryId: string;
-        ingredientId: string;
+        categoryId: string | null;
+        ingredientId: string | null;
         brandName: string;
         strength: string | null;
         packSize: number;

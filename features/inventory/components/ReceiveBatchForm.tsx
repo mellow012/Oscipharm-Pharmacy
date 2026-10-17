@@ -22,7 +22,7 @@ export function ReceiveBatchForm({ variants, branchId, includeBranchId }: { vari
                     <select name="variantId" required className="mt-2 w-full border border-border bg-white px-3 py-3 text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15">
                         <option value="">Select a product</option>
                         {variants.map((variant) => (
-                            <option key={variant.id} value={variant.id}>{variant.ingredient.name} · {variant.brandName} {variant.strength ?? ""}</option>
+                            <option key={variant.id} value={variant.id}>{variant.ingredient?.name ? `${variant.ingredient.name} · ` : ""}{variant.brandName} {variant.strength ?? ""}</option>
                         ))}
                     </select>
                 </label>

@@ -32,3 +32,7 @@ export type StaffCatalogCategory = {
         variants: StaffCatalogVariant[];
     }>;
 };
+
+export type StaffCatalogUncategorizedVariant = StaffCatalogVariant & {
+    ingredient: { id: string; name: string } | null;
+};

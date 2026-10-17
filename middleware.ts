@@ -9,7 +9,6 @@ const ROUTE_RULES: { prefix: string; roles: string[] }[] = [
     { prefix: "/admin/memberships", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/admin", roles: ["ADMIN"] },
     { prefix: "/inventory", roles: ["ADMIN", "BRANCH_MANAGER"] },
-    { prefix: "/pos", roles: ["ADMIN", "BRANCH_MANAGER", "POS"] },
     { prefix: "/reports", roles: ["ADMIN", "BRANCH_MANAGER"] },
     // /staff is the shared landing after login for every role — no role
     // restriction here, just requires a session (enforced by `authorized`
@@ -42,7 +41,6 @@ export const config = {
     matcher: [
         "/admin/:path*",
         "/inventory/:path*",
-        "/pos/:path*",
         "/reports/:path*",
         "/staff/:path*",
     ],

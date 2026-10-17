@@ -1,9 +1,9 @@
 export type StaffCatalogVariantRow = {
     id: string;
-    categoryId: string;
-    categoryName: string;
-    ingredientId: string;
-    ingredientName: string;
+    categoryId: string | null;
+    categoryName: string | null;
+    ingredientId: string | null;
+    ingredientName: string | null;
     brandName: string;
     strength: string | null;
     packSize: number;

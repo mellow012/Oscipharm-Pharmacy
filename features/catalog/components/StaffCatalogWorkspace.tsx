@@ -5,15 +5,17 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StaffCatalogDetailSheet } from "@/features/catalog/components/StaffCatalogDetailSheet";
 import { StaffCatalogSidebar } from "@/features/catalog/components/StaffCatalogSidebar";
 import { StaffCatalogVariantList, type StaffCatalogIngredientGroup, type StaffCatalogVariantRow } from "@/features/catalog/components/StaffCatalogVariantList";
-import type { StaffCatalogCategory } from "@/features/catalog/types";
+import type { StaffCatalogCategory, StaffCatalogUncategorizedVariant } from "@/features/catalog/types";
 
 export function StaffCatalogWorkspace({
     categories,
+    uncategorizedVariants,
     branchId,
     branches,
     role,
 }: {
     categories: StaffCatalogCategory[];
+    uncategorizedVariants: StaffCatalogUncategorizedVariant[];
     branchId: string;
     branches: Array<{ id: string; name: string }>;
     role: "ADMIN" | "BRANCH_MANAGER";
@@ -30,7 +32,8 @@ export function StaffCatalogWorkspace({
     const pageParam = Number(searchParams.get("page") ?? "1");
     const currentCategory = rawCategory === "all" || rawCategory === "uncategorized" ? rawCategory : rawCategory;
 
-    const allRows = useMemo<StaffCatalogVariantRow[]>(() => categories.flatMap((category) => category.ingredients.flatMap((ingredient) => ingredient.variants.map((variant) => ({
+    const allRows = useMemo<StaffCatalogVariantRow[]>(() => [
+        ...categories.flatMap((category) => category.ingredients.flatMap((ingredient) => ingredient.variants.map((variant) => ({
         id: variant.id,
         categoryId: category.id,
         categoryName: category.name,
@@ -46,7 +49,25 @@ export function StaffCatalogWorkspace({
         pricePerUnit: variant.pricePerUnit,
         stock: variant.stock,
         aroniumProductLinks: variant.aroniumProductLinks,
-    })))), [categories]);
+        })))),
+        ...uncategorizedVariants.map((variant) => ({
+            id: variant.id,
+            categoryId: null,
+            categoryName: null,
+            ingredientId: variant.ingredient?.id ?? null,
+            ingredientName: variant.ingredient?.name ?? null,
+            brandName: variant.brandName,
+            strength: variant.strength,
+            packSize: variant.packSize,
+            unitLabel: variant.unitLabel,
+            allowsLooseSale: variant.allowsLooseSale,
+            isActive: variant.isActive,
+            pricePerPack: variant.pricePerPack,
+            pricePerUnit: variant.pricePerUnit,
+            stock: variant.stock,
+            aroniumProductLinks: variant.aroniumProductLinks,
+        })),
+    ], [categories, uncategorizedVariants]);
 
     const categorySummaries = useMemo(() => {
         const result = [{ id: "all", name: "All", count: allRows.length }];
@@ -57,10 +78,10 @@ export function StaffCatalogWorkspace({
                 count: category.ingredients.reduce((total, ingredient) => total + ingredient.variants.length, 0),
             });
         });
-        const uncategorizedCount = 0;
+        const uncategorizedCount = uncategorizedVariants.length;
         if (uncategorizedCount > 0) result.push({ id: "uncategorized", name: "Uncategorized", count: uncategorizedCount });
         return result;
-    }, [allRows.length, categories]);
+    }, [allRows.length, categories, uncategorizedVariants.length]);
 
     const filteredRows = useMemo(() => {
         const search = searchText.trim().toLowerCase();
@@ -68,15 +89,17 @@ export function StaffCatalogWorkspace({
         return allRows.filter((row) => {
             if (search) {
                 const haystack = [
-                    row.ingredientName,
+                    row.ingredientName ?? "",
                     row.brandName,
                     row.strength ?? "",
-                    row.categoryName,
+                    row.categoryName ?? "",
                     ...row.aroniumProductLinks.map((link) => `${link.aroniumCode} ${link.mode}`),
                 ].join(" ").toLowerCase();
                 if (!haystack.includes(search)) return false;
-            } else if (currentCategory !== "all" && currentCategory !== "uncategorized") {
-                if (row.categoryId !== currentCategory) return false;
+            } else if (currentCategory === "uncategorized") {
+                if (row.categoryId !== null) return false;
+            } else if (currentCategory !== "all" && row.categoryId !== currentCategory) {
+                return false;
             }
 
             if (notLinkedOnly && row.aroniumProductLinks.length > 0) return false;
@@ -138,10 +161,10 @@ export function StaffCatalogWorkspace({
     const ingredientGroups = useMemo(() => {
         const groups = new Map<string, StaffCatalogIngredientGroup>();
         visibleRows.forEach((row) => {
-            const key = `${row.categoryId}:${row.ingredientId}`;
+            const key = `${row.categoryId ?? "uncategorized"}:${row.ingredientId ?? row.id}`;
             const group = groups.get(key) ?? {
-                ingredientName: row.ingredientName,
-                categoryName: row.categoryName,
+                ingredientName: row.ingredientName ?? row.brandName,
+                categoryName: row.categoryName ?? "Uncategorized",
                 rows: [],
             };
             group.rows.push(row);

@@ -16,7 +16,7 @@ export function PricingForm({ variant, branchId, includeBranchId }: { variant: I
             <input type="hidden" name="variantId" value={variant.id} />
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
-                    <h3 className="text-lg text-ink">{variant.ingredient.name} · {variant.brandName}</h3>
+                    <h3 className="text-lg text-ink">{variant.ingredient?.name ? `${variant.ingredient.name} · ${variant.brandName}` : variant.brandName}</h3>
                     <p className="text-sm text-muted">{variant.strength ?? "Standard strength"} · {variant.packSize} {variant.unitLabel}s per pack</p>
                 </div>
                 {!variant.allowsLooseSale ? <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-muted">Pack sales only</span> : null}

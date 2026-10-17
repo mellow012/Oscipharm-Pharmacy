@@ -1,162 +1,135 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { pathToFileURL } from "node:url";
 
-const prisma = new PrismaClient();
+const CANONICAL_BRANCH_NAME = "Blantyre Town Lunzu";
+const CANONICAL_BRANCH_LOCATION = "Blantyre, Malawi";
+const DEV_ADMIN_EMAIL = "admin@local.dev";
+const DEV_BRANCH_MANAGER_EMAIL = "manager.blantyre@local.dev";
+const DEV_POS_EMAIL = "pos.blantyre@local.dev";
 
-async function main() {
-    // --- Branches -------------------------------------------------------
-    const blantyre = await prisma.branch.create({
-        data: { name: "Blantyre Town Lunzu", location: "Blantyre, Malawi" },
-    });
+function isProductionDatabase() {
+    const dbUrl = process.env.DATABASE_URL ?? "";
+    if (process.env.NODE_ENV === "production") return true;
+    const host = dbUrl ? new URL(dbUrl).hostname : "";
+    return /(prod|staging|production|live)/i.test(host) || /(prod|staging|production|live)/i.test(dbUrl);
+}
 
-    // --- Users (admin + branch manager + POS) ---
-    const passwordHash = await bcrypt.hash("password123", 10); // seed-only, change before real use
+export async function seedCanonicalBranch(
+    prismaClient = new PrismaClient(),
+    options: { allowAuthorizedTarget?: boolean } = {},
+) {
+    if (!options.allowAuthorizedTarget && isProductionDatabase()) {
+        throw new Error("Refusing to run the dev seed against a production-like database.");
+    }
 
-    const users = await Promise.all([
-        prisma.user.create({
+    const passwordHash = await bcrypt.hash("password123", 10);
+
+    await prismaClient.auditLog.deleteMany({});
+    await prismaClient.saleItem.deleteMany({});
+    await prismaClient.sale.deleteMany({});
+    await prismaClient.membershipApplication.deleteMany({});
+    await prismaClient.newsImage.deleteMany({});
+    await prismaClient.news.deleteMany({});
+    await prismaClient.batch.deleteMany({});
+    await prismaClient.branchPrice.deleteMany({});
+    await prismaClient.aroniumProductLink.deleteMany({});
+    await prismaClient.variant.deleteMany({});
+    await prismaClient.ingredient.deleteMany({});
+    await prismaClient.category.deleteMany({});
+    await prismaClient.user.deleteMany({});
+    await prismaClient.branch.deleteMany({});
+
+    const branch = await prismaClient.branch.create({
+            data: { name: CANONICAL_BRANCH_NAME, location: CANONICAL_BRANCH_LOCATION },
+        });
+
+    const [adminUser, branchManager] = await Promise.all([
+        prismaClient.user.create({
             data: {
                 name: "Admin User",
-                email: "admin@pharmacy.test",
+                email: DEV_ADMIN_EMAIL,
                 passwordHash,
                 role: Role.ADMIN,
                 branchId: null,
             },
         }),
-        prisma.user.create({
+        prismaClient.user.create({
             data: {
                 name: "Blantyre Manager",
-                email: "manager.blantyre@pharmacy.test",
+                email: DEV_BRANCH_MANAGER_EMAIL,
                 passwordHash,
                 role: Role.BRANCH_MANAGER,
-                branchId: blantyre.id,
+                branchId: branch.id,
             },
         }),
-        prisma.user.create({
+        prismaClient.user.create({
             data: {
                 name: "Blantyre POS",
-                email: "pos.blantyre@pharmacy.test",
+                email: DEV_POS_EMAIL,
                 passwordHash,
                 role: Role.POS,
-                branchId: blantyre.id,
+                branchId: branch.id,
             },
         }),
     ]);
-    // Branch Manager now covers stock-receiving duties directly — no separate
-    // Inventory role/user exists.
-    const blantyreManager = users[1];
 
-    // --- Catalog: Category -> Ingredient -> Variant ---------------------
-    const painRelief = await prisma.category.create({
-        data: { name: "Pain Relief" },
-    });
-    const antibiotics = await prisma.category.create({
-        data: { name: "Antibiotics" },
-    });
-
-    const paracetamol = await prisma.ingredient.create({
-        data: { name: "Paracetamol", categoryId: painRelief.id },
-    });
-    const amoxicillin = await prisma.ingredient.create({
-        data: { name: "Amoxicillin", categoryId: antibiotics.id },
-    });
-
-    const panadol500 = await prisma.variant.create({
-        data: {
-            ingredientId: paracetamol.id,
-            brandName: "Panadol",
-            strength: "500mg",
-            packSize: 20,
-            unitLabel: "tablet",
-            allowsLooseSale: true,
-        },
-    });
-    const genericParacetamol500 = await prisma.variant.create({
-        data: {
-            ingredientId: paracetamol.id,
-            brandName: "Generic",
-            strength: "500mg",
-            packSize: 100,
-            unitLabel: "tablet",
-            allowsLooseSale: true,
-        },
-    });
-    const amoxil250 = await prisma.variant.create({
-        data: {
-            ingredientId: amoxicillin.id,
-            brandName: "Amoxil",
-            strength: "250mg",
-            packSize: 10,
-            unitLabel: "capsule",
-            allowsLooseSale: true,
-        },
-    });
-
-    await prisma.aroniumProductLink.createMany({
-        data: [
-            { aroniumCode: "3", variantId: panadol500.id, mode: "PACK", createdById: blantyreManager.id },
-            { aroniumCode: "4", variantId: panadol500.id, mode: "UNIT", createdById: blantyreManager.id },
-            { aroniumCode: "8", variantId: genericParacetamol500.id, mode: "PACK", createdById: blantyreManager.id },
-            { aroniumCode: "9", variantId: amoxil250.id, mode: "UNIT", createdById: blantyreManager.id },
-        ],
-    });
-
-    // --- Branch pricing ---------------------------------------------------
-    await prisma.branchPrice.createMany({
-        data: [
-            { variantId: panadol500.id, branchId: blantyre.id, pricePerPack: 4700, pricePerUnit: 260, reorderThreshold: 40 },
-            { variantId: genericParacetamol500.id, branchId: blantyre.id, pricePerPack: 8000, pricePerUnit: 90, reorderThreshold: 100 },
-            { variantId: amoxil250.id, branchId: blantyre.id, pricePerPack: 6000, pricePerUnit: 650, reorderThreshold: 20 },
-        ],
-    });
-
-    // --- Batches (stock on hand) -------------------------------------------
     const oneYearOut = new Date();
     oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
-
     const soon = new Date();
-    soon.setDate(soon.getDate() + 20); // deliberately near-expiry, to test the alert feature
+    soon.setDate(soon.getDate() + 20);
+    const products = [
+        { aroniumCode: "DEV-001", name: "Panadol", strength: "500mg", unitLabel: "tablet", price: 4700, threshold: 10, batchNumber: "DEV-PAN-001", quantity: 10, expiryDate: oneYearOut },
+        { aroniumCode: "DEV-002", name: "Generic", strength: "500mg", unitLabel: "tablet", price: 8000, threshold: 10, batchNumber: "DEV-GEN-002", quantity: 2, expiryDate: soon },
+        { aroniumCode: "DEV-005", name: "Amoxil", strength: "250mg", unitLabel: "capsule", price: 6000, threshold: 5, batchNumber: "DEV-AMX-005", quantity: 5, expiryDate: oneYearOut },
+    ];
 
-    await prisma.batch.createMany({
-        data: [
-            {
-                variantId: panadol500.id,
-                branchId: blantyre.id,
-                batchNumber: "PAN-2026-01",
-                quantityReceived: 10, // packs
-                quantityRemaining: 200, // units (10 packs * 20 tablets)
-                expiryDate: oneYearOut,
-                receivedById: blantyreManager.id,
+    for (const product of products) {
+        const variant = await prismaClient.variant.create({
+            data: {
+                ingredientId: null,
+                brandName: product.name,
+                strength: product.strength,
+                packSize: 1,
+                unitLabel: product.unitLabel,
+                allowsLooseSale: false,
+                isActive: true,
             },
-            {
-                variantId: genericParacetamol500.id,
-                branchId: blantyre.id,
-                batchNumber: "GEN-2025-11",
-                quantityReceived: 2,
-                quantityRemaining: 200,
-                expiryDate: soon,
-                receivedById: blantyreManager.id,
+        });
+        await prismaClient.aroniumProductLink.create({
+            data: { aroniumCode: product.aroniumCode, variantId: variant.id, mode: "PACK", createdById: branchManager.id },
+        });
+        await prismaClient.branchPrice.create({
+            data: { variantId: variant.id, branchId: branch.id, pricePerPack: product.price, pricePerUnit: 0, reorderThreshold: product.threshold, updatedById: adminUser.id },
+        });
+        await prismaClient.batch.create({
+            data: {
+                variantId: variant.id,
+                branchId: branch.id,
+                batchNumber: product.batchNumber,
+                quantityReceived: product.quantity,
+                quantityRemaining: product.quantity,
+                expiryDate: product.expiryDate,
+                receivedById: branchManager.id,
             },
-            {
-                variantId: amoxil250.id,
-                branchId: blantyre.id,
-                batchNumber: "AMX-2026-02",
-                quantityReceived: 5,
-                quantityRemaining: 50,
-                expiryDate: oneYearOut,
-                receivedById: blantyreManager.id,
-            },
-        ],
-    });
+        });
+    }
 
-    console.log("Seed complete.");
+    console.log(`Seed complete for canonical branch: ${CANONICAL_BRANCH_NAME}`);
     console.log("Login with any seeded email + password: password123");
 }
 
-main()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+export async function main() {
+    process.loadEnvFile();
+    const prismaClient = new PrismaClient();
+    try {
+        await seedCanonicalBranch(prismaClient);
+    } finally {
+        await prismaClient.$disconnect();
+    }
+}
+
+const isDirectRun = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
+if (isDirectRun) {
+    void main();
+}

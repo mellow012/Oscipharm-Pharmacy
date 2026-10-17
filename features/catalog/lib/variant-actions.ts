@@ -55,7 +55,7 @@ function expectedDatabaseError(error: unknown): StaffVariantActionState | null {
     return null;
 }
 
-async function isDuplicateVariant(input: VariantInput) {
+async function isDuplicateVariant(input: Omit<VariantInput, "ingredientId"> & { ingredientId: string | null }) {
     const variants = await prisma.variant.findMany({
         where: { ingredientId: input.ingredientId },
         select: { id: true, ingredientId: true, brandName: true, strength: true },
@@ -90,7 +90,7 @@ export async function saveStaffVariant(
     if (input.categoryMode === "existing" && !category) return { errors: { categoryId: "Choose a valid category." } };
     const ingredient = input.ingredientMode === "existing"
         ? await prisma.ingredient.findFirst({
-            where: { id: input.ingredientId, categoryId: category?.id },
+            where: { id: input.ingredientId, categoryId: category?.id ?? null },
             select: { id: true },
         })
         : null;
@@ -115,13 +115,13 @@ export async function saveStaffVariant(
     if (currentVariant && input.ingredientMode === "existing" && currentVariant.ingredientId !== ingredient?.id) {
         return { errors: { form: "The ingredient cannot be changed when editing a variant." } };
     }
-    if (currentVariant && category && currentVariant.ingredient.categoryId !== category.id) {
+    if (currentVariant && (currentVariant.ingredient?.categoryId ?? null) !== (category?.id ?? null)) {
         return { errors: { form: "The category cannot be changed when editing a variant." } };
     }
 
-    const resolvedIngredientId = ingredient?.id ?? currentVariant?.ingredientId ?? "";
+    const resolvedIngredientId = ingredient?.id ?? currentVariant?.ingredientId ?? null;
     const variantCandidate = { ...input, ingredientId: resolvedIngredientId };
-    if (resolvedIngredientId && await isDuplicateVariant(variantCandidate)) {
+    if (await isDuplicateVariant(variantCandidate)) {
         return { errors: { brandName: "A variant with that brand and strength already exists for this ingredient." } };
     }
 
@@ -133,10 +133,12 @@ export async function saveStaffVariant(
 
     try {
         const saved = await prisma.$transaction(async (tx) => {
-            const resolvedCategoryId = category?.id ?? (await tx.category.create({ data: { name: input.categoryName } })).id;
-            const savedIngredientId = ingredient?.id ?? (currentVariant?.ingredientId ?? (await tx.ingredient.create({
-                data: { name: input.ingredientName, categoryId: resolvedCategoryId },
-            })).id);
+            const resolvedCategoryId = category?.id ?? (input.categoryMode === "new"
+                ? (await tx.category.create({ data: { name: input.categoryName } })).id
+                : null);
+            const savedIngredientId = ingredient?.id ?? currentVariant?.ingredientId ?? (input.ingredientMode === "new"
+                ? (await tx.ingredient.create({ data: { name: input.ingredientName, categoryId: resolvedCategoryId } })).id
+                : null);
             const oldPrice = currentVariant
                 ? await tx.branchPrice.findUnique({ where: { variantId_branchId: { variantId: currentVariant.id, branchId } } })
                 : null;
@@ -167,7 +169,7 @@ export async function saveStaffVariant(
                         event: currentVariant ? "CATALOG_VARIANT_UPDATED" : "CATALOG_VARIANT_CREATED",
                         variantId: variant.id,
                         oldValues: currentVariant ? {
-                            categoryId: currentVariant.ingredient.categoryId,
+                            categoryId: currentVariant.ingredient?.categoryId ?? null,
                             ingredientId: currentVariant.ingredientId,
                             brandName: currentVariant.brandName,
                             strength: currentVariant.strength,

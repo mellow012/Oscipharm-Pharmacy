@@ -9,10 +9,10 @@ const moneyInput = z.string().trim()
 
 export const variantInputSchema = z.object({
     variantId: z.string().trim().optional(),
-    categoryMode: z.enum(["existing", "new"]),
+    categoryMode: z.enum(["none", "existing", "new"]),
     categoryId: z.string().trim(),
     categoryName: z.string().trim().max(100, "Category name must be 100 characters or fewer.").optional().default(""),
-    ingredientMode: z.enum(["existing", "new"]),
+    ingredientMode: z.enum(["none", "existing", "new"]),
     ingredientId: z.string().trim(),
     ingredientName: z.string().trim().max(100, "Ingredient name must be 100 characters or fewer.").optional().default(""),
     brandName: z.string().trim().min(1, "Enter a brand name.").max(100, "Brand name must be 100 characters or fewer."),
@@ -39,7 +39,7 @@ export const variantInputSchema = z.object({
     if (input.ingredientMode === "new" && !input.ingredientName) {
         context.addIssue({ code: "custom", path: ["ingredientName"], message: "Enter an ingredient name." });
     }
-    if (input.categoryMode === "new" && input.ingredientMode === "existing") {
+    if (input.categoryMode === "new" && input.ingredientMode !== "new") {
         context.addIssue({ code: "custom", path: ["ingredientId"], message: "Choose or create an ingredient for the new category." });
     }
     if (input.allowsLooseSale && !/^\d+(\.\d{1,2})?$/.test(input.pricePerUnit ?? "")) {
@@ -67,8 +67,8 @@ export function firstVariantInputError(error: z.ZodError): VariantFieldErrors {
 }
 
 export function hasDuplicateVariant(
-    candidate: { id?: string; ingredientId: string; brandName: string; strength: string | null },
-    variants: Array<{ id: string; ingredientId: string; brandName: string; strength: string | null }>,
+    candidate: { id?: string; ingredientId: string | null; brandName: string; strength: string | null },
+    variants: Array<{ id: string; ingredientId: string | null; brandName: string; strength: string | null }>,
 ) {
     const brandName = candidate.brandName.trim().toLocaleLowerCase();
     const strength = candidate.strength?.trim().toLocaleLowerCase() || null;

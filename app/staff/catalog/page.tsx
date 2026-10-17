@@ -22,11 +22,12 @@ export default async function StaffCatalogPage({
     const branchId = session.user.role === "ADMIN" ? requestedBranchId ?? availableBranches[0]?.id : session.user.branchId;
     if (!branchId) redirect("/staff");
 
-    const categories = await getStaffCatalogData(branchId);
+    const { categories, uncategorizedVariants } = await getStaffCatalogData(branchId);
 
     return (
         <StaffCatalogWorkspace
             categories={categories}
+            uncategorizedVariants={uncategorizedVariants}
             branchId={branchId}
             branches={availableBranches}
             role={session.user.role as "ADMIN" | "BRANCH_MANAGER"}

@@ -15,7 +15,7 @@ export default async function IngredientPage({
     include: { category: true },
   });
 
-  if (!ingredient || ingredient.categoryId !== categoryId) {
+  if (!ingredient || !ingredient.category || ingredient.categoryId !== categoryId) {
     return <div>Ingredient not found</div>;
   }
 
