@@ -21,11 +21,24 @@ enum Role {
 enum PaymentMethod {
   CASH
   MOBILE_MONEY
+  UNKNOWN
 }
 
 enum SaleMode {
   PACK
   UNIT
+}
+
+enum ImportRunKind {
+  STOCK
+  SALES
+}
+
+enum ImportRunStatus {
+  PREVIEW
+  COMMITTING
+  COMMITTED
+  UNDONE
 }
 
 enum AuditAction {
@@ -68,6 +81,7 @@ model Branch {
   batches       Batch[]
   prices        BranchPrice[]
   sales         Sale[]
+  importRuns    ImportRun[]
   auditLogs     AuditLog[]
 }
 
@@ -105,6 +119,7 @@ model User {
   createdAt DateTime @default(now())
 
   sales     Sale[]
+  importRuns ImportRun[]
   auditLogs AuditLog[]
   aroniumProductLinks AroniumProductLink[]
   newsCreated News[] @relation("NewsCreatedBy")
@@ -170,6 +185,27 @@ model AroniumProductLink {
   @@unique([variantId, mode])
 }
 
+model ImportRun {
+  id          String         @id @default(cuid())
+  kind        ImportRunKind
+  branchId    String
+  branch      Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  filename    String
+  fileSha256  String
+  status      ImportRunStatus @default(PREVIEW)
+  uploadedById String
+  uploadedBy  User          @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  counts      Json          @default("{}")
+  createdAt   DateTime      @default(now())
+  committedAt DateTime?
+
+  batches     Batch[]
+  sales       Sale[]
+
+  @@unique([branchId, kind, fileSha256])
+  @@index([branchId, createdAt])
+}
+
 model News {
   id          String      @id @default(cuid())
   title       String
@@ -228,11 +264,14 @@ model Batch {
   variant      Variant  @relation(fields: [variantId], references: [id])
   branchId     String
   branch       Branch   @relation(fields: [branchId], references: [id])
+  importRunId  String?
+  importRun    ImportRun? @relation(fields: [importRunId], references: [id], onDelete: Restrict)
 
   batchNumber  String?             // supplier's batch/lot number, if provided
   quantityReceived Int             // in whole packs
   quantityRemaining Int            // in whole units (packSize * packs - units sold loose), decremented on sale
   expiryDate   DateTime
+  expiryDateKnown Boolean @default(true)
   receivedAt   DateTime @default(now())
   receivedById String
 
@@ -253,6 +292,8 @@ model Sale {
   soldById      String
   soldBy        User     @relation(fields: [soldById], references: [id])
   checkoutRequestId String?
+  importRunId   String?
+  importRun     ImportRun? @relation(fields: [importRunId], references: [id], onDelete: Restrict)
 
   paymentMethod PaymentMethod
   subtotalAmount Decimal @db.Decimal(10, 2)

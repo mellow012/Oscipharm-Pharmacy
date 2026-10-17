@@ -15,6 +15,17 @@ function isProductionDatabase() {
     return /(prod|staging|production|live)/i.test(host) || /(prod|staging|production|live)/i.test(dbUrl);
 }
 
+function requireSeedPassword(envVar: string) {
+    const value = process.env[envVar]?.trim();
+    if (!value) {
+        throw new Error(`Missing ${envVar}; set a password of at least 12 characters.`);
+    }
+    if (value.length < 12) {
+        throw new Error(`${envVar} must be at least 12 characters long.`);
+    }
+    return value;
+}
+
 export async function seedCanonicalBranch(
     prismaClient = new PrismaClient(),
     options: { allowAuthorizedTarget?: boolean } = {},
@@ -23,7 +34,15 @@ export async function seedCanonicalBranch(
         throw new Error("Refusing to run the dev seed against a production-like database.");
     }
 
-    const passwordHash = await bcrypt.hash("password123", 10);
+    const adminPassword = requireSeedPassword("SEED_ADMIN_PASSWORD");
+    const managerPassword = requireSeedPassword("SEED_MANAGER_PASSWORD");
+    const posPassword = requireSeedPassword("SEED_POS_PASSWORD");
+
+    const passwordHashes = {
+        admin: await bcrypt.hash(adminPassword, 10),
+        manager: await bcrypt.hash(managerPassword, 10),
+        pos: await bcrypt.hash(posPassword, 10),
+    };
 
     await prismaClient.auditLog.deleteMany({});
     await prismaClient.saleItem.deleteMany({});
@@ -37,6 +56,7 @@ export async function seedCanonicalBranch(
     await prismaClient.variant.deleteMany({});
     await prismaClient.ingredient.deleteMany({});
     await prismaClient.category.deleteMany({});
+    await prismaClient.importRun.deleteMany({});
     await prismaClient.user.deleteMany({});
     await prismaClient.branch.deleteMany({});
 
@@ -49,7 +69,7 @@ export async function seedCanonicalBranch(
             data: {
                 name: "Admin User",
                 email: DEV_ADMIN_EMAIL,
-                passwordHash,
+                passwordHash: passwordHashes.admin,
                 role: Role.ADMIN,
                 branchId: null,
             },
@@ -58,7 +78,7 @@ export async function seedCanonicalBranch(
             data: {
                 name: "Blantyre Manager",
                 email: DEV_BRANCH_MANAGER_EMAIL,
-                passwordHash,
+                passwordHash: passwordHashes.manager,
                 role: Role.BRANCH_MANAGER,
                 branchId: branch.id,
             },
@@ -67,7 +87,7 @@ export async function seedCanonicalBranch(
             data: {
                 name: "Blantyre POS",
                 email: DEV_POS_EMAIL,
-                passwordHash,
+                passwordHash: passwordHashes.pos,
                 role: Role.POS,
                 branchId: branch.id,
             },
@@ -116,7 +136,7 @@ export async function seedCanonicalBranch(
     }
 
     console.log(`Seed complete for canonical branch: ${CANONICAL_BRANCH_NAME}`);
-    console.log("Login with any seeded email + password: password123");
+    console.log("Seeded local-dev accounts were created; passwords were loaded from environment variables.");
 }
 
 export async function main() {

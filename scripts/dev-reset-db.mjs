@@ -57,6 +57,7 @@ console.log(`Reset target host: ${host}`);
 const prisma = new PrismaClient({ datasources: { db: { url: directUrl } } });
 try {
     const rowCounts = {
+        importRuns: await prisma.importRun.count(),
         auditLogs: await prisma.auditLog.count(),
         saleItems: await prisma.saleItem.count(),
         sales: await prisma.sale.count(),
