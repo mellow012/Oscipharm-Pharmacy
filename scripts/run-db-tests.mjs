@@ -11,7 +11,11 @@ try {
 
 const testDatabaseUrl = requireTestDatabaseUrl();
 const appDatabaseUrl = process.env.DATABASE_URL ?? "";
-const testFiles = ["prisma/seed.test.mjs", "features/catalog/lib/aronium-links.db.test.mjs"];
+const testFiles = [
+    "prisma/seed.test.mjs",
+    "features/catalog/lib/aronium-links.db.test.mjs",
+    "features/inventory/lib/stock-import-service.db.test.mjs",
+];
 const child = spawn(process.execPath, ["--experimental-strip-types", "--test", ...testFiles], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
     stdio: "inherit",

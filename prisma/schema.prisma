@@ -49,6 +49,7 @@ enum AuditAction {
   SALE_VOIDED
   ARONIUM_LINK_CREATED
   ARONIUM_LINK_DELETED
+  IMPORT_COMMITTED
 }
 
 enum MembershipStatus {
@@ -202,7 +203,7 @@ model ImportRun {
   batches     Batch[]
   sales       Sale[]
 
-  @@unique([branchId, kind, fileSha256])
+  @@index([branchId, kind, fileSha256])
   @@index([branchId, createdAt])
 }
 

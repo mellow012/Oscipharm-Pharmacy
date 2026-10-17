@@ -35,6 +35,8 @@ export type ParseStockExportResult = {
   };
 };
 
+export const STOCK_UPLOAD_FORMAT_ERROR = "Please use Aronium's Excel button to export the stock file as an .xlsx workbook.";
+
 function text(value: unknown): string {
   if (value === null || value === undefined) {
     return "";
@@ -366,6 +368,7 @@ function parseLayoutB(values: unknown[][]): ParseStockExportResult {
 
 export async function parseStockExport(
   buffer: Buffer | Uint8Array | ArrayBuffer,
+  filename?: string,
 ): Promise<ParseStockExportResult> {
   const workbook = new ExcelJS.Workbook();
   const fileBuffer =
@@ -375,7 +378,15 @@ export async function parseStockExport(
         ? Buffer.from(buffer)
         : Buffer.from(buffer as ArrayLike<number>);
 
-  await workbook.xlsx.load(fileBuffer as any);
+  if ((filename && !/\.xlsx$/i.test(filename)) || fileBuffer[0] !== 0x50 || fileBuffer[1] !== 0x4b) {
+    throw new Error(STOCK_UPLOAD_FORMAT_ERROR);
+  }
+
+  try {
+    await workbook.xlsx.load(fileBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+  } catch {
+    throw new Error(STOCK_UPLOAD_FORMAT_ERROR);
+  }
 
   const worksheet = workbook.worksheets[0];
   if (!worksheet) {

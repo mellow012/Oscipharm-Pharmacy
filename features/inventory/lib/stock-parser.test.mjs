@@ -19,8 +19,25 @@ test("parseStockExport accepts the layout A fixture", async () => {
   assert.equal(result.rows[0].unitCost, 2500);
   assert.equal(result.rows[0].warnings.length, 0);
   assert.equal(result.skipped.length, 0);
+  const parsedValues = result.rows.map(({ code, quantity, unitCost, lineCost, totalValue }) => ({
+    code,
+    quantity,
+    unitCost,
+    lineCost,
+    value: totalValue,
+  }));
+  console.log("Layout A fixture rows:", parsedValues);
+  assert.deepEqual(parsedValues, [
+    { code: "3", quantity: 50, unitCost: 2500, lineCost: 125000, value: 200000 },
+    { code: "4", quantity: 550, unitCost: 6000, lineCost: 3300000, value: 4950000 },
+    { code: "5", quantity: 50, unitCost: 300, lineCost: 15000, value: 30000 },
+    { code: "1", quantity: 50, unitCost: 3000, lineCost: 150000, value: 225000 },
+    { code: "6", quantity: 500, unitCost: 40, lineCost: 20000, value: 40000 },
+    { code: "2", quantity: 0, unitCost: 400, lineCost: 0, value: 0 },
+  ]);
 });
 
+// Layout B coverage uses a synthetic workbook; the checked-in Aronium fixture is Layout A.
 test("parseStockExport accepts a printed-layout B export and skips header blocks and totals", async () => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Stock");
@@ -64,4 +81,15 @@ test("parseStockExport rejects a Refunds summary", async () => {
 
   const buffer = await workbook.xlsx.writeBuffer();
   await assert.rejects(() => parseStockExport(buffer), { message: "This doesn't look like an Aronium Stock export." });
+});
+
+test("parseStockExport directs PDF and non-XLSX uploads to Aronium's Excel export", async () => {
+  await assert.rejects(
+    () => parseStockExport(Buffer.from("%PDF-1.7"), "stock.pdf"),
+    { message: "Please use Aronium's Excel button to export the stock file as an .xlsx workbook." },
+  );
+  await assert.rejects(
+    () => parseStockExport(Buffer.from("not an xlsx file"), "stock.csv"),
+    { message: "Please use Aronium's Excel button to export the stock file as an .xlsx workbook." },
+  );
 });
