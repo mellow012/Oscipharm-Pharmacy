@@ -1,8 +1,10 @@
-import { getMalawiDateKey } from "@/lib/timezone";
+import { getMalawiDateKey } from "../../../lib/timezone.ts";
 
 export const EXPIRY_WARNING_DAYS = 30;
 
-export function getExpiryStatus(expiryDate: Date) {
+export function getExpiryStatus(expiryDate: Date, expiryDateKnown = true) {
+    if (!expiryDateKnown) return { label: "Expiry not recorded", className: "text-warn", rowClassName: "bg-warn-bg/30" };
+
     const now = new Date();
     const todayKey = getMalawiDateKey(now);
     const warningKey = getMalawiDateKey(new Date(now.getTime() + EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000));

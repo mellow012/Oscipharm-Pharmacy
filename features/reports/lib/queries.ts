@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { endOfMalawiDate, getMalawiDateKey, parseMalawiDate } from "@/lib/timezone";
 import type { AuditRow, BranchOption, ExpiryRow, LowStockRow, ReportsData, SalesRow } from "@/features/reports/types";
 import { buildExpiryQuery, buildLowStockQuery } from "@/features/reports/lib/stock-report-queries";
+import { groupExpiryNotRecorded } from "@/features/reports/lib/expiry-watch";
+import { filterLowStockRows } from "@/features/reports/lib/stock-availability";
 
 function defaultRange() {
     const to = getMalawiDateKey(new Date());
@@ -42,7 +44,7 @@ export async function getReportBranches(): Promise<BranchOption[]> {
 export async function getReportsData({ branchId, from, to }: { branchId?: string | null; from?: string; to?: string }): Promise<ReportsData> {
     const range = toDateRange(from, to);
 
-    const [branches, sales, membershipSales, lowStock, expiry, audit] = await Promise.all([
+    const [branches, sales, membershipSales, lowStock, expiry, expiryNotRecordedRows, audit] = await Promise.all([
         getReportBranches(),
         prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(Prisma.sql`
             SELECT
@@ -90,6 +92,23 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
         `),
         prisma.$queryRaw<Array<LowStockRow & { availableUnits: bigint }>>(buildLowStockQuery(branchId)),
         prisma.$queryRaw<Array<ExpiryRow & { expiryDate: Date }>>(buildExpiryQuery(branchId)),
+        prisma.batch.findMany({
+            where: { quantityRemaining: { gt: 0 }, expiryDateKnown: false, ...(branchId ? { branchId } : {}) },
+            orderBy: [{ branch: { name: "asc" } }, { expiryDate: "asc" }],
+            select: {
+                id: true,
+                branchId: true,
+                batchNumber: true,
+                quantityRemaining: true,
+                branch: { select: { name: true } },
+                variant: {
+                    select: {
+                        brandName: true,
+                        ingredient: { select: { name: true } },
+                    },
+                },
+            },
+        }),
         prisma.$queryRaw<Array<AuditRow & { details: Prisma.JsonValue }>>(Prisma.sql`
             SELECT
               al."createdAt",
@@ -129,7 +148,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             generalSaleCount: 0,
             generalDiscountAmount: "0",
           },
-        lowStock: lowStock.map((row) => ({
+        lowStock: filterLowStockRows(lowStock.map((row) => ({
             branchId: row.branchId,
             branchName: row.branchName,
             ingredientName: row.ingredientName,
@@ -137,7 +156,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             strength: row.strength,
             availableUnits: Number(row.availableUnits),
             reorderThreshold: row.reorderThreshold,
-        })),
+        }))),
         expiry: expiry.map((row) => ({
             branchName: row.branchName,
             ingredientName: row.ingredientName,
@@ -147,6 +166,15 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             remainingUnits: Number(row.remainingUnits),
             status: row.status,
         })),
+        expiryNotRecorded: groupExpiryNotRecorded(expiryNotRecordedRows.map((row) => ({
+            batchId: row.id,
+            branchId: row.branchId,
+            branchName: row.branch.name,
+            ingredientName: row.variant.ingredient?.name ?? "Uncategorized",
+            brandName: row.variant.brandName,
+            batchNumber: row.batchNumber,
+            remainingUnits: row.quantityRemaining,
+        }))),
         audit: audit.map((row) => ({
             createdAt: new Date(row.createdAt).toISOString(),
             action: row.action,

@@ -9,7 +9,7 @@ export function buildLowStockQuery(branchId?: string | null) {
           COALESCE(ingredient.name, 'Uncategorized') AS "ingredientName",
           v."brandName",
           v."strength",
-          COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN batch."quantityRemaining" ELSE 0 END), 0)::int AS "availableUnits",
+          COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND (batch."expiryDateKnown" = false OR batch."expiryDate" >= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date)) THEN batch."quantityRemaining" ELSE 0 END), 0)::int AS "availableUnits",
           bp."reorderThreshold"
         FROM "BranchPrice" bp
         JOIN "Branch" b ON b.id = bp."branchId"
@@ -19,7 +19,6 @@ export function buildLowStockQuery(branchId?: string | null) {
         WHERE bp."reorderThreshold" IS NOT NULL
           ${branchScope}
         GROUP BY bp."branchId", b.name, COALESCE(ingredient.name, 'Uncategorized'), v."brandName", v."strength", bp."reorderThreshold"
-        HAVING COALESCE(SUM(CASE WHEN batch."quantityRemaining" > 0 AND batch."expiryDate" >= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN batch."quantityRemaining" ELSE 0 END), 0) <= bp."reorderThreshold"
         ORDER BY b.name ASC, COALESCE(ingredient.name, 'Uncategorized') ASC, v."brandName" ASC
     `;
 }
@@ -35,6 +34,7 @@ export function buildExpiryQuery(branchId?: string | null) {
           batch."expiryDate",
           batch."quantityRemaining" AS "remainingUnits",
           CASE
+            WHEN batch."expiryDateKnown" = false THEN 'Expiry not recorded'
             WHEN batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) THEN 'Expired'
             WHEN batch."expiryDate" <= ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) + INTERVAL '30 days' THEN 'Expiring soon'
             ELSE 'In date'
@@ -44,6 +44,7 @@ export function buildExpiryQuery(branchId?: string | null) {
         JOIN "Variant" v ON v.id = batch."variantId"
         LEFT JOIN "Ingredient" ingredient ON ingredient.id = v."ingredientId"
         WHERE batch."quantityRemaining" > 0
+          AND batch."expiryDateKnown" = true
           AND (
             batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date) + INTERVAL '30 days'
             OR batch."expiryDate" < ((NOW() AT TIME ZONE 'Africa/Blantyre')::date)

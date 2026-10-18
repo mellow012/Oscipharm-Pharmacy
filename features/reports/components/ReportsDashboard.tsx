@@ -185,6 +185,24 @@ export function ReportsDashboard({
                 </div>
             </section>
 
+            <section className="mb-8 border border-border bg-surface">
+                <div className="border-b border-border px-5 py-4">
+                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Expiry watch</p>
+                    <h2 className="mt-2 text-2xl text-ink">Expiry not recorded <span className="ml-2 font-mono text-base text-muted">{data.expiryNotRecorded.count}</span></h2>
+                </div>
+                {data.expiryNotRecorded.count ? data.expiryNotRecorded.groups.map((group) => (
+                    <div key={group.branchId} className="border-b border-border last:border-b-0">
+                        <h3 className="px-5 py-3 text-sm font-semibold text-ink">{group.branchName} <span className="ml-1 font-mono text-xs text-muted">{group.batches.length} batches</span></h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[560px] text-left">
+                                <thead className="border-y border-border bg-surface-strong"><tr><th className="px-4 py-2 text-xs uppercase text-muted">Product</th><th className="px-4 py-2 text-xs uppercase text-muted">Batch</th><th className="px-4 py-2 text-xs uppercase text-muted">Remaining</th></tr></thead>
+                                <tbody>{group.batches.map((row) => <tr key={row.batchId} className="border-b border-border last:border-b-0"><td className="px-4 py-3 text-sm text-ink">{row.ingredientName} · {row.brandName}</td><td className="px-4 py-3 text-sm text-muted">{row.batchNumber ?? "—"}</td><td className="px-4 py-3 font-mono text-sm text-ink">{row.remainingUnits}</td></tr>)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                )) : <p className="px-5 py-6 text-sm text-muted">All active batches have a recorded expiry date.</p>}
+            </section>
+
             <section className="border border-border bg-surface">
                 <div className="border-b border-border px-5 py-4">
                     <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Audit log</p>

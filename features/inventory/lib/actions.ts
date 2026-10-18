@@ -111,3 +111,45 @@ export async function updateBranchPrice(_previousState: ActionState, formData: F
     revalidatePath("/inventory");
     return { success: "Pricing updated." };
 }
+
+export async function updateBatchExpiry(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || !can(session.user.role, "stock:adjust")) return { error: "You are not allowed to edit batch expiry dates." };
+
+    const batchId = getText(formData, "batchId");
+    const expiryText = getText(formData, "expiryDate");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryText)) return { error: "Enter a valid expiry date." };
+    const expiryDate = new Date(`${expiryText}T00:00:00.000Z`);
+    if (Number.isNaN(expiryDate.getTime()) || expiryDate.toISOString().slice(0, 10) !== expiryText) return { error: "Enter a valid expiry date." };
+
+    const batch = await prisma.batch.findUnique({
+        where: { id: batchId },
+        select: { id: true, branchId: true, expiryDate: true, expiryDateKnown: true },
+    });
+    if (!batch) return { error: "Batch not found." };
+    if (session.user.role !== "ADMIN" && session.user.branchId !== batch.branchId) return { error: "You are not allowed to edit this branch's batches." };
+    if (batch.expiryDateKnown && batch.expiryDate.toISOString().slice(0, 10) === expiryText) return { success: "No expiry changes were needed." };
+
+    await prisma.$transaction(async (tx) => {
+        await tx.batch.update({ where: { id: batch.id }, data: { expiryDate, expiryDateKnown: true } });
+        await tx.auditLog.create({
+            data: {
+                action: "STOCK_ADJUSTED",
+                branchId: batch.branchId,
+                userId: session.user.id,
+                details: {
+                    batchId: batch.id,
+                    change: "expiry date updated",
+                    previousExpiryDate: batch.expiryDate.toISOString().slice(0, 10),
+                    previousExpiryDateKnown: batch.expiryDateKnown,
+                    expiryDate: expiryText,
+                    expiryDateKnown: true,
+                },
+            },
+        });
+    });
+
+    revalidatePath("/inventory");
+    revalidatePath("/reports");
+    return { success: "Expiry date updated." };
+}

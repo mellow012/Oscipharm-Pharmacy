@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Prisma } from "@prisma/client";
-import { checkoutInTransaction } from "./checkout-core.ts";
+import { checkoutInTransaction, selectSellableBatches } from "./checkout-core.ts";
+
+test("checkout considers unknown-expiry batches sellable and prioritizes known FEFO stock", () => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const batches = selectSellableBatches([
+        { id: "unknown", variantId: "variant-1", quantityRemaining: 12, expiryDate: new Date("2000-01-01T00:00:00.000Z"), expiryDateKnown: false },
+        { id: "expired", variantId: "variant-1", quantityRemaining: 3, expiryDate: new Date("2000-01-01T00:00:00.000Z"), expiryDateKnown: true },
+        { id: "known-valid", variantId: "variant-1", quantityRemaining: 2, expiryDate: new Date("2099-01-01T00:00:00.000Z"), expiryDateKnown: true },
+    ], todayKey);
+
+    assert.deepEqual(batches.map((batch) => batch.id), ["known-valid", "unknown"]);
+    assert.equal(batches.reduce((sum, batch) => sum + batch.quantityRemaining, 0), 14);
+});
 
 test("checkout records shortages as unallocated sale items", async () => {
     let createdData;

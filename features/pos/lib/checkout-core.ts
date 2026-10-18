@@ -4,6 +4,17 @@ import { membershipDiscountPercent } from "../../membership/lib/policy.ts";
 
 type Transaction = Prisma.TransactionClient;
 
+type StockBatch = { id: string; variantId: string; quantityRemaining: number; expiryDate: Date; expiryDateKnown: boolean };
+
+export function selectSellableBatches(batches: StockBatch[], todayKey: string): StockBatch[] {
+    return batches
+        .filter((batch) => !batch.expiryDateKnown || getMalawiDateKey(new Date(batch.expiryDate)) >= todayKey)
+        .sort((left, right) => {
+            if (left.expiryDateKnown !== right.expiryDateKnown) return left.expiryDateKnown ? -1 : 1;
+            return left.expiryDate.getTime() - right.expiryDate.getTime() || left.id.localeCompare(right.id);
+        });
+}
+
 export type CheckoutLine = {
     variantId: string;
     mode: "PACK" | "UNIT";
@@ -75,10 +86,10 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
     const total = subtotal.minus(discountAmount).toDecimalPlaces(2);
 
     const todayKey = getMalawiDateKey(new Date());
-    const lockedBatches = await tx.$queryRaw<Array<{ id: string; variantId: string; quantityRemaining: number; expiryDate: Date }>>(
-        Prisma.sql`SELECT "id", "variantId", "quantityRemaining", "expiryDate" FROM "Batch" WHERE "branchId" = ${input.branchId} AND "variantId" IN (${Prisma.join(variantIds)}) AND "quantityRemaining" > 0 ORDER BY "variantId" ASC, "expiryDate" ASC, "id" ASC FOR UPDATE`
+    const lockedBatches = await tx.$queryRaw<StockBatch[]>(
+        Prisma.sql`SELECT "id", "variantId", "quantityRemaining", "expiryDate", "expiryDateKnown" FROM "Batch" WHERE "branchId" = ${input.branchId} AND "variantId" IN (${Prisma.join(variantIds)}) AND "quantityRemaining" > 0 ORDER BY "variantId" ASC, CASE WHEN "expiryDateKnown" THEN 0 ELSE 1 END ASC, "expiryDate" ASC, "id" ASC FOR UPDATE`
     );
-    const sellableBatches = lockedBatches.filter((batch) => getMalawiDateKey(new Date(batch.expiryDate)) >= todayKey);
+    const sellableBatches = selectSellableBatches(lockedBatches, todayKey);
     const demand = new Map<string, number>();
     for (const line of input.lines) {
         const unitsRequired = line.mode === "PACK" ? line.quantity * byId.get(line.variantId)!.packSize : line.quantity;

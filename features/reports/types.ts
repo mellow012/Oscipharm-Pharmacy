@@ -1,3 +1,5 @@
+import type { ExpiryNotRecordedGroup } from "@/features/reports/lib/expiry-watch";
+
 export type BranchOption = {
     id: string;
     name: string;
@@ -59,6 +61,7 @@ export type ReportsData = {
     membershipSales: MembershipSalesSummary;
     lowStock: LowStockRow[];
     expiry: ExpiryRow[];
+    expiryNotRecorded: { count: number; groups: ExpiryNotRecordedGroup[] };
     audit: AuditRow[];
     range: { from: string; to: string };
 };

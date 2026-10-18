@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
+import { processChunkSlice } from "./stock-import-slices.ts";
 import { parseStockExport, type StockRow } from "./stock-parser.ts";
 
 const CHUNK_SIZE = 200;
@@ -24,7 +25,7 @@ type FlaggedRow = {
   warnings: string[];
 };
 
-type PreviewCounts = {
+export type PreviewCounts = {
   totalRows: number;
   completedRows?: number;
   committedRows?: number;
@@ -37,9 +38,9 @@ type PreviewCounts = {
   totals: { quantity: number; cost: number; value: number };
 };
 
-type ImportPreviewRow = StockRow & { productStatus: "NEW" | "EXISTING"; variantId: string | null };
+export type ImportPreviewRow = StockRow & { productStatus: "NEW" | "EXISTING"; variantId: string | null };
 
-type ImportPreview = {
+export type ImportPreview = {
   layout: "A" | "B";
   rows: ImportPreviewRow[];
   skipped: SkippedRow[];
@@ -62,7 +63,10 @@ export type ChunkProgress = { completedRows: number; totalRows: number; chunk: n
 
 export type CommitImportOptions = {
   onChunkCommitted?: (progress: ChunkProgress) => void | Promise<void>;
+  timeLimitMs?: number;
 };
+
+export type StockImportSliceResult = { processed: number; total: number; done: boolean };
 
 export type CreatePreviewResult =
   | { status: "PREVIEW"; run: ImportRun; preview: ImportPreview }
@@ -217,7 +221,7 @@ async function createPreviewWith(
   if (existingRun?.status === "UNDONE") existingRun = null;
 
   const activeRun = await db.importRun.findFirst({
-    where: { branchId: input.branchId, kind: "STOCK", status: { not: "UNDONE" }, ...(existingRun ? { id: { not: existingRun.id } } : {}) },
+    where: { branchId: input.branchId, kind: "STOCK", status: { in: ["COMMITTING", "COMMITTED"] }, ...(existingRun ? { id: { not: existingRun.id } } : {}) },
     orderBy: { createdAt: "asc" },
   });
   if (activeRun) throw stockConflict(activeRun);
@@ -238,7 +242,7 @@ async function createPreviewWith(
         });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const racedRun = await db.importRun.findFirst({ where: { branchId: input.branchId, kind: "STOCK", status: { not: "UNDONE" } }, orderBy: { createdAt: "asc" } });
+      const racedRun = await db.importRun.findFirst({ where: { branchId: input.branchId, kind: "STOCK", status: { in: ["COMMITTING", "COMMITTED"] } }, orderBy: { createdAt: "asc" } });
       if (racedRun) throw stockConflict(racedRun);
     }
     throw error;
@@ -298,11 +302,14 @@ async function commitImportWith(
     flaggedRowCount: parsed.rows.filter((row) => row.warnings.length > 0).length,
     totals: countsForRows(eligibleRows, skippedRows, new Map()).counts.totals,
   };
-  let completedRows = 0;
-
-  for (let chunkIndex = 0; chunkIndex < rowGroups.length; chunkIndex += 1) {
-    const chunk = rowGroups[chunkIndex];
-    await db.$transaction(async (tx) => {
+  const initialCounts = jsonCounts(run);
+  const startAt = Math.min(Number(initialCounts.completedChunks ?? 0), rowGroups.length);
+  const slice = await processChunkSlice({
+    chunks: rowGroups,
+    startAt,
+    timeLimitMs: options.timeLimitMs ?? 8_000,
+    async processChunk(chunk, chunkIndex) {
+      await db.$transaction(async (tx) => {
       for (const row of chunk) {
         let link = await tx.aroniumProductLink.findUnique({
           where: { aroniumCode: row.code },
@@ -360,14 +367,27 @@ async function commitImportWith(
         }
       }
 
-      completedRows += chunk.length;
+      const completedRows = Math.min((chunkIndex + 1) * CHUNK_SIZE, eligibleRows.length);
       await tx.importRun.update({
         where: { id: run.id },
-        data: { counts: { ...finalCounts, completedRows } as Prisma.InputJsonValue },
+        data: { counts: { ...finalCounts, completedRows, completedChunks: chunkIndex + 1 } as Prisma.InputJsonValue },
       });
-    });
+      });
 
-    await options.onChunkCommitted?.({ completedRows, totalRows: eligibleRows.length, chunk: chunkIndex + 1 });
+      await options.onChunkCommitted?.({
+        completedRows: Math.min((chunkIndex + 1) * CHUNK_SIZE, eligibleRows.length),
+        totalRows: eligibleRows.length,
+        chunk: chunkIndex + 1,
+      });
+    },
+  });
+
+  if (!slice.done) {
+    return {
+      processed: Math.min(slice.processed * CHUNK_SIZE, eligibleRows.length),
+      total: eligibleRows.length,
+      done: false,
+    } satisfies StockImportSliceResult;
   }
 
   const committed = await db.$transaction(async (tx) => {
@@ -386,7 +406,7 @@ async function commitImportWith(
     return updatedRun;
   });
 
-  return { run: committed, counts: finalCounts };
+  return { run: committed, counts: finalCounts, processed: eligibleRows.length, total: eligibleRows.length, done: true };
 }
 
 async function currentActorId(): Promise<string | null> {

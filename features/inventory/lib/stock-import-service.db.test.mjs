@@ -127,7 +127,10 @@ test("resume after a committed first chunk does not duplicate batches", async ()
       /simulated crash/,
     );
     assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 200);
-    const resumed = await context.service.commitImport(result.run.id, buffer);
+    let resumed;
+    do {
+      resumed = await context.service.commitImport(result.run.id, buffer);
+    } while (!resumed.done);
     assert.equal(resumed.run.status, "COMMITTED");
     assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 201);
     assert.equal(await prisma.auditLog.count({ where: { branchId: context.branch.id, action: "IMPORT_COMMITTED" } }), 1);

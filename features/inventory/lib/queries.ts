@@ -21,6 +21,7 @@ export async function getInventoryData(branchId: string) {
                 batchNumber: true,
                 quantityRemaining: true,
                 expiryDate: true,
+                expiryDateKnown: true,
                 variant: {
                     select: {
                         brandName: true,

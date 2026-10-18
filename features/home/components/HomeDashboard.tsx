@@ -8,6 +8,7 @@ import { can } from "@/lib/permissions";
 const sections = [
     { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage" as const, accent: "border-primary" },
     { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive" as const, accent: "border-warn" },
+    { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:receive" as const, accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage" as const, accent: "border-warn" },
     { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view" as const, accent: "border-warn" },
     { label: "Admin", description: "Manage users and branches", href: "/admin", permission: "users:manage" as const, accent: "border-primary" },
