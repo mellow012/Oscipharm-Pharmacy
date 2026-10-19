@@ -6,7 +6,10 @@ import { requireTestDatabaseUrl } from "../../../scripts/test-database-safety.mj
 import { createStockImportService } from "./stock-import-service.ts";
 
 const testDatabaseUrl = requireTestDatabaseUrl();
-const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } }, log: [{ emit: "event", level: "query" }] });
+let observedQueryCount = 0;
+prisma.$on("query", () => { observedQueryCount += 1; });
+let lastLoggedQueryCount = 0;
 
 async function createWorkbook(rows) {
   const workbook = new ExcelJS.Workbook();
@@ -46,19 +49,23 @@ async function setup() {
 
 async function cleanup(context) {
   if (!context) return;
-  const links = await prisma.aroniumProductLink.findMany({
-    where: { createdById: context.user.id },
-    select: { variantId: true },
-  });
-  const variantIds = [...new Set(links.map((link) => link.variantId))];
-  await prisma.auditLog.deleteMany({ where: { branchId: context.branch.id } });
-  await prisma.batch.deleteMany({ where: { branchId: context.branch.id } });
-  await prisma.branchPrice.deleteMany({ where: { branchId: context.branch.id } });
-  await prisma.importRun.deleteMany({ where: { branchId: context.branch.id } });
-  await prisma.aroniumProductLink.deleteMany({ where: { createdById: context.user.id } });
-  if (variantIds.length) await prisma.variant.deleteMany({ where: { id: { in: variantIds } } });
-  await prisma.user.delete({ where: { id: context.user.id } });
-  await prisma.branch.delete({ where: { id: context.branch.id } });
+  try {
+    const links = await prisma.aroniumProductLink.findMany({
+      where: { createdById: context.user.id },
+      select: { variantId: true },
+    });
+    const variantIds = [...new Set(links.map((link) => link.variantId))];
+    await prisma.auditLog.deleteMany({ where: { branchId: context.branch.id } });
+    await prisma.batch.deleteMany({ where: { branchId: context.branch.id } });
+    await prisma.branchPrice.deleteMany({ where: { branchId: context.branch.id } });
+    await prisma.importRun.deleteMany({ where: { branchId: context.branch.id } });
+    await prisma.aroniumProductLink.deleteMany({ where: { createdById: context.user.id } });
+    if (variantIds.length) await prisma.variant.deleteMany({ where: { id: { in: variantIds } } });
+    await prisma.user.deleteMany({ where: { id: context.user.id } });
+    await prisma.branch.deleteMany({ where: { id: context.branch.id } });
+  } catch (error) {
+    console.error("Stock import test cleanup failed:", error);
+  }
 }
 
 async function preview(context, buffer) {
@@ -67,6 +74,7 @@ async function preview(context, buffer) {
     userId: context.user.id,
     filename: "stock.xlsx",
     buffer,
+    asOf: new Date("2026-10-17T10:00:00.000Z"),
   });
 }
 
@@ -84,7 +92,14 @@ test("stock import previews and commits counts with one audit entry", async () =
     assert.equal(result.preview.counts.groupRows, 1);
     assert.deepEqual(result.preview.counts.totals, { quantity: 6, cost: 600, value: 720 });
 
-    const committed = await context.service.commitImport(result.run.id, buffer);
+    lastLoggedQueryCount = observedQueryCount;
+    const committed = await context.service.commitImport(result.run.id, buffer, {
+      onChunkCommitted(progress) {
+        const actualQueries = observedQueryCount - lastLoggedQueryCount;
+        lastLoggedQueryCount = observedQueryCount;
+        console.log(`stock import chunk ${progress.chunk}: ${actualQueries} SQL queries (${progress.queryCount} service calls counted)`);
+      },
+    });
     assert.equal(committed.run.status, "COMMITTED");
     assert.equal(committed.counts.committedRows, 2);
     assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 2);
@@ -109,7 +124,7 @@ test("same committed stock file is blocked on re-upload", async () => {
 test("resume after a committed first chunk does not duplicate batches", async () => {
   const context = await setup();
   try {
-    const rows = Array.from({ length: 201 }, (_, index) => ({
+    const rows = Array.from({ length: 51 }, (_, index) => ({
       code: `resume-${index}`,
       name: `Resume Product ${index}`,
       quantity: 1,
@@ -126,13 +141,13 @@ test("resume after a committed first chunk does not duplicate batches", async ()
       }),
       /simulated crash/,
     );
-    assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 200);
+    assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 50);
     let resumed;
     do {
       resumed = await context.service.commitImport(result.run.id, buffer);
     } while (!resumed.done);
     assert.equal(resumed.run.status, "COMMITTED");
-    assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 201);
+    assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 51);
     assert.equal(await prisma.auditLog.count({ where: { branchId: context.branch.id, action: "IMPORT_COMMITTED" } }), 1);
   } finally {
     await cleanup(context);

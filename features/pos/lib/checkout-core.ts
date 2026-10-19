@@ -6,13 +6,28 @@ type Transaction = Prisma.TransactionClient;
 
 type StockBatch = { id: string; variantId: string; quantityRemaining: number; expiryDate: Date; expiryDateKnown: boolean };
 
+export type FefoAllocationChunk = { batchId: string | null; units: number; unallocatedUnits: number };
+
 export function selectSellableBatches(batches: StockBatch[], todayKey: string): StockBatch[] {
     return batches
-        .filter((batch) => !batch.expiryDateKnown || getMalawiDateKey(new Date(batch.expiryDate)) >= todayKey)
+        .filter((batch) => batch.quantityRemaining > 0 && (!batch.expiryDateKnown || getMalawiDateKey(new Date(batch.expiryDate)) >= todayKey))
         .sort((left, right) => {
             if (left.expiryDateKnown !== right.expiryDateKnown) return left.expiryDateKnown ? -1 : 1;
             return left.expiryDate.getTime() - right.expiryDate.getTime() || left.id.localeCompare(right.id);
         });
+}
+
+export function allocateFefoBatches(quantity: number, batches: StockBatch[], todayKey: string): FefoAllocationChunk[] {
+    let remaining = Math.max(0, Math.trunc(quantity));
+    const allocations: FefoAllocationChunk[] = [];
+    for (const batch of selectSellableBatches(batches, todayKey)) {
+        if (remaining === 0) break;
+        const units = Math.min(remaining, batch.quantityRemaining);
+        allocations.push({ batchId: batch.id, units, unallocatedUnits: 0 });
+        remaining -= units;
+    }
+    if (remaining > 0) allocations.push({ batchId: null, units: remaining, unallocatedUnits: remaining });
+    return allocations;
 }
 
 export type CheckoutLine = {
@@ -98,14 +113,12 @@ export async function checkoutInTransaction(tx: Transaction, input: CheckoutInpu
 
     const allocations = new Map<string, Array<{ batchId: string | null; units: number }>>();
     for (const variantId of variantIds) {
-        let remaining = demand.get(variantId) ?? 0;
-        for (const batch of sellableBatches.filter((item) => item.variantId === variantId)) {
-            if (!remaining) break;
-            const units = Math.min(remaining, batch.quantityRemaining);
-            allocations.set(variantId, [...(allocations.get(variantId) ?? []), { batchId: batch.id, units }]);
-            remaining -= units;
-        }
-        if (remaining) allocations.set(variantId, [...(allocations.get(variantId) ?? []), { batchId: null, units: remaining }]);
+        const chunks = allocateFefoBatches(
+            demand.get(variantId) ?? 0,
+            sellableBatches.filter((item) => item.variantId === variantId),
+            todayKey,
+        );
+        allocations.set(variantId, chunks.map(({ batchId, units }) => ({ batchId, units })));
     }
 
     for (const chunks of Array.from(allocations.values())) {

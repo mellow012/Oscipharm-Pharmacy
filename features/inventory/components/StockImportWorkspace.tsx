@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { commitStockImportSlice, previewStockImport } from "@/features/inventory/lib/import-actions";
+import { SalesImportPanel } from "@/features/inventory/components/SalesImportPanel";
 import type { ImportPreview } from "@/features/inventory/lib/stock-import-service";
 
 const uploadMessage = "Please export the Stock report with Aronium's Excel button";
@@ -13,6 +14,7 @@ type HistoryRun = {
   status: string;
   createdAt: string;
   committedAt: string | null;
+  asOf: string | null;
   counts: unknown;
   uploadedBy: string;
 };
@@ -22,9 +24,21 @@ type PageData = {
   branch: { id: string; name: string } | null;
   runs: HistoryRun[];
   committingRun: ResumeRun;
+  salesRuns: HistoryRun[];
+  salesCommittingRun: ResumeRun;
   actorRole: string;
 };
 type PreviewState = { runId: string; filename: string; preview: ImportPreview };
+
+function malawiLocalNowValue() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Blantyre", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date()).reduce<Record<string, string>>((result, part) => {
+    if (part.type !== "literal") result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("en-MW", { style: "currency", currency: "MWK", maximumFractionDigits: 2 }).format(value);
@@ -38,6 +52,8 @@ function countsOf(value: unknown): Record<string, unknown> {
 export function StockImportWorkspace({ data, requestedBranchId }: { data: PageData; requestedBranchId?: string }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
+  const [tab, setTab] = useState<"STOCK" | "SALES">("STOCK");
+  const [asOf, setAsOf] = useState(malawiLocalNowValue);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [activeRun, setActiveRun] = useState<{ id: string; filename: string; processed: number; total: number } | null>(null);
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
@@ -57,6 +73,7 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
     const formData = new FormData();
     formData.set("file", selectedFile);
     formData.set("branchId", branchId);
+    formData.set("asOf", asOf);
     const result = await previewStockImport(formData);
     if (!result.ok) return setError(result.error);
     if (result.status === "COMMITTING") {
@@ -133,6 +150,11 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
         {data.branch ? <p className="mt-2 text-muted">{data.branch.name}</p> : null}
       </header>
 
+      <nav aria-label="Import type" className="mt-5 flex border-b border-border">
+        <button type="button" onClick={() => setTab("STOCK")} aria-pressed={tab === "STOCK"} className={`border-b-2 px-4 py-3 text-sm font-medium ${tab === "STOCK" ? "border-primary text-primary" : "border-transparent text-muted"}`}>Stock</button>
+        <button type="button" onClick={() => setTab("SALES")} aria-pressed={tab === "SALES"} className={`border-b-2 px-4 py-3 text-sm font-medium ${tab === "SALES" ? "border-primary text-primary" : "border-transparent text-muted"}`}>Sales</button>
+      </nav>
+
       {data.actorRole === "ADMIN" ? (
         <label className="mt-6 block max-w-sm text-sm text-muted">Branch
           <select value={branchId} onChange={(event) => router.push(`/staff/import?branchId=${event.target.value}`)} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink">
@@ -141,7 +163,7 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
         </label>
       ) : null}
 
-      {data.committingRun ? (
+      {tab === "STOCK" && data.committingRun ? (
         <section className="mt-6 border-l-4 border-warn bg-warn-bg/40 p-4" aria-live="polite">
           <h2 className="font-semibold text-ink">An import needs to be resumed</h2>
           <p className="mt-1 text-sm text-muted">Select the same workbook, then resume {data.committingRun.filename}.</p>
@@ -153,9 +175,13 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
         </section>
       ) : null}
 
+      {tab === "STOCK" ? <>
       <section className="mt-8 border-y border-border py-6">
         <h2 className="text-2xl text-ink">Upload Stock workbook</h2>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="block text-sm text-muted">Stock as of (Africa/Blantyre)
+            <input type="datetime-local" required value={asOf} onChange={(event) => setAsOf(event.target.value)} className="mt-2 block w-full border border-border bg-white p-2 text-ink" />
+          </label>
           <label className="block flex-1 text-sm text-muted">.xlsx file
             <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPreview(null); setError(""); }} className="mt-2 block w-full border border-border bg-white p-2 text-ink" />
           </label>
@@ -200,15 +226,16 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
       <section className="mt-10 border-t border-border pt-6">
         <h2 className="text-2xl text-ink">Import history</h2>
         <div className="mt-4 overflow-x-auto border-y border-border">
-          <table className="w-full min-w-[680px] text-left">
-            <thead className="border-b border-border text-xs uppercase text-muted"><tr><th className="px-3 py-3 font-normal">Date</th><th className="px-3 py-3 font-normal">File</th><th className="px-3 py-3 font-normal">Status</th><th className="px-3 py-3 font-normal">Rows</th><th className="px-3 py-3 font-normal">Run by</th></tr></thead>
+          <table className="w-full min-w-[760px] text-left">
+            <thead className="border-b border-border text-xs uppercase text-muted"><tr><th className="px-3 py-3 font-normal">Imported</th><th className="px-3 py-3 font-normal">Stock as of</th><th className="px-3 py-3 font-normal">File</th><th className="px-3 py-3 font-normal">Status</th><th className="px-3 py-3 font-normal">Counts</th><th className="px-3 py-3 font-normal">Run by</th></tr></thead>
             <tbody className="divide-y divide-border">{data.runs.map((run) => {
               const counts = countsOf(run.counts);
-              return <tr key={run.id}><td className="px-3 py-3 text-sm text-muted">{new Date(run.committedAt ?? run.createdAt).toLocaleString("en-MW")}</td><td className="px-3 py-3 text-sm text-ink">{run.filename}</td><td className="px-3 py-3 text-sm text-ink">{run.status}</td><td className="px-3 py-3 text-xs text-muted">{String(counts.committedRows ?? counts.totalRows ?? 0)} rows · {String(counts.newProducts ?? 0)} new · {String(counts.existingProducts ?? 0)} existing · {String(counts.skippedRowCount ?? 0)} skipped · {money(Number(counts.totals && typeof counts.totals === "object" ? (counts.totals as Record<string, unknown>).value ?? 0 : 0))} value</td><td className="px-3 py-3 text-sm text-muted">{run.uploadedBy}</td></tr>;
-            })}{data.runs.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-sm text-muted">No stock imports for this branch.</td></tr> : null}</tbody>
+              return <tr key={run.id}><td className="px-3 py-3 text-sm text-muted">{new Date(run.committedAt ?? run.createdAt).toLocaleString("en-MW")}</td><td className="px-3 py-3 text-sm text-muted">{run.asOf ? new Date(run.asOf).toLocaleString("en-MW", { timeZone: "Africa/Blantyre" }) : "—"}</td><td className="px-3 py-3 text-sm text-ink">{run.filename}</td><td className="px-3 py-3 text-sm text-ink">{run.status}</td><td className="px-3 py-3 text-xs text-muted">{String(counts.committedRows ?? counts.totalRows ?? 0)} rows · {String(counts.newProducts ?? 0)} new · {String(counts.existingProducts ?? 0)} existing · {String(counts.skippedRowCount ?? 0)} skipped · {money(Number(counts.totals && typeof counts.totals === "object" ? (counts.totals as Record<string, unknown>).value ?? 0 : 0))} value</td><td className="px-3 py-3 text-sm text-muted">{run.uploadedBy}</td></tr>;
+            })}{data.runs.length === 0 ? <tr><td colSpan={6} className="px-3 py-6 text-sm text-muted">No stock imports for this branch.</td></tr> : null}</tbody>
           </table>
         </div>
       </section>
+      </> : <SalesImportPanel branchId={branchId} salesRuns={data.salesRuns} committingRun={data.salesCommittingRun} />}
     </main>
   );
 }

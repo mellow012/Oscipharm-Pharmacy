@@ -4,8 +4,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createPreview, commitImport } from "@/features/inventory/lib/stock-import-service";
+import { createSalesPreview, commitSalesSlice } from "@/features/inventory/lib/sales-import-service";
 
 const IMPORT_XLSX_MESSAGE = "Please export the Stock report with Aronium's Excel button";
+const SALES_XLSX_MESSAGE = "Please export the Sales Item list with Aronium's Excel button.";
 
 type ImportActor = { id: string; role: string; branchId: string | null };
 
@@ -45,11 +47,28 @@ function plainError(error: unknown): string {
   return "The stock import could not be completed. Check the workbook and try again.";
 }
 
-function fileFrom(formData: FormData): File {
+function fileFrom(formData: FormData, formatMessage = IMPORT_XLSX_MESSAGE): File {
   const file = formData.get("file");
-  if (!(file instanceof File) || !file.size) throw new Error(IMPORT_XLSX_MESSAGE);
-  if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error(IMPORT_XLSX_MESSAGE);
+  if (!(file instanceof File) || !file.size) throw new Error(formatMessage);
+  if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error(formatMessage);
   return file;
+}
+
+function parseStockAsOf(value: FormDataEntryValue | null): Date {
+  const raw = String(value ?? "");
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(raw);
+  if (!match) throw new Error("Enter a valid stock as-of date and time.");
+  const [, yearText, monthText, dayText, hourText, minuteText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (calendarDate.getUTCFullYear() !== year || calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day || hour > 23 || minute > 59) {
+    throw new Error("Enter a valid stock as-of date and time.");
+  }
+  return new Date(`${raw}:00+02:00`);
 }
 
 export async function loadImportPageData(requestedBranchId?: string) {
@@ -59,10 +78,16 @@ export async function loadImportPageData(requestedBranchId?: string) {
       ? await prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
       : [];
     const branchId = await resolveBranch(actor, requestedBranchId ?? branches[0]?.id);
-    const [branch, runs] = await Promise.all([
+    const [branch, runs, salesRuns] = await Promise.all([
       prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } }),
       prisma.importRun.findMany({
         where: { branchId, kind: "STOCK" },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+        include: { uploadedBy: { select: { name: true } } },
+      }),
+      prisma.importRun.findMany({
+        where: { branchId, kind: "SALES" },
         orderBy: { createdAt: "desc" },
         take: 30,
         include: { uploadedBy: { select: { name: true } } },
@@ -78,6 +103,7 @@ export async function loadImportPageData(requestedBranchId?: string) {
         status: run.status,
         createdAt: run.createdAt.toISOString(),
         committedAt: run.committedAt?.toISOString() ?? null,
+        asOf: run.asOf?.toISOString() ?? null,
         counts: run.counts,
         uploadedBy: run.uploadedBy.name,
       })),
@@ -88,10 +114,23 @@ export async function loadImportPageData(requestedBranchId?: string) {
             counts: runs.find((run) => run.status === "COMMITTING")!.counts,
           }
         : null,
+      salesRuns: salesRuns.map((run) => ({
+        id: run.id,
+        filename: run.filename,
+        status: run.status,
+        createdAt: run.createdAt.toISOString(),
+        committedAt: run.committedAt?.toISOString() ?? null,
+        asOf: null,
+        counts: run.counts,
+        uploadedBy: run.uploadedBy.name,
+      })),
+      salesCommittingRun: salesRuns.find((run) => run.status === "COMMITTING")
+        ? { id: salesRuns.find((run) => run.status === "COMMITTING")!.id, filename: salesRuns.find((run) => run.status === "COMMITTING")!.filename, counts: salesRuns.find((run) => run.status === "COMMITTING")!.counts }
+        : null,
       actorRole: actor.role,
     };
   } catch (error) {
-    return { error: plainError(error), branches: [], branch: null, runs: [], committingRun: null, actorRole: actor.role };
+    return { error: plainError(error), branches: [], branch: null, runs: [], salesRuns: [], committingRun: null, salesCommittingRun: null, actorRole: actor.role };
   }
 }
 
@@ -100,7 +139,7 @@ export async function previewStockImport(formData: FormData) {
     const actor = await getImportActor();
     const branchId = await resolveBranch(actor, String(formData.get("branchId") ?? ""));
     const file = fileFrom(formData);
-    const result = await createPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
+    const result = await createPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()), asOf: parseStockAsOf(formData.get("asOf")) });
     if (result.status === "COMMITTING") {
       return {
         ok: true as const,
@@ -121,6 +160,40 @@ export async function previewStockImport(formData: FormData) {
   } catch (error) {
     return { ok: false as const, error: plainError(error) };
   }
+}
+
+export async function previewSalesImport(formData: FormData) {
+  try {
+    const actor = await getImportActor();
+    const branchId = await resolveBranch(actor, String(formData.get("branchId") ?? ""));
+    const file = fileFrom(formData, SALES_XLSX_MESSAGE);
+    const result = await createSalesPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
+    if (result.status === "COMMITTING") return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, processed: result.resume.processed, total: result.resume.total };
+    return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, preview: result.preview };
+  } catch (error) {
+    return { ok: false as const, error: salesPlainError(error) };
+  }
+}
+
+export async function commitSalesImportSlice(formData: FormData) {
+  try {
+    await getImportActor();
+    const runId = String(formData.get("runId") ?? "");
+    if (!runId) throw new Error("Sales import run was not found.");
+    const file = fileFrom(formData, SALES_XLSX_MESSAGE);
+    const result = await commitSalesSlice(runId, Buffer.from(await file.arrayBuffer()), 8_000);
+    return { ok: true as const, processed: result.processed, total: result.total, done: result.done, counts: result.counts ?? null };
+  } catch (error) {
+    return { ok: false as const, error: salesPlainError(error) };
+  }
+}
+
+function salesPlainError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "The sales import could not be completed.";
+  if (/^Sales row \d+ /.test(message)) return message;
+  if (message.startsWith("This file was already imported on ") || message.startsWith("Only an Admin") || message.startsWith("Choose a valid branch.") || message.startsWith("You must be signed in") || message.startsWith("Sales import run was not found.") || message.startsWith("This upload does not match")) return message;
+  if (message.includes("Stock export") || message.includes("Refunds summary") || message.includes("Excel button") || message.includes("Sales Item list")) return SALES_XLSX_MESSAGE;
+  return "The sales import could not be completed. Check the workbook and try again.";
 }
 
 export async function commitStockImportSlice(formData: FormData) {

@@ -7,6 +7,7 @@ test("checkout considers unknown-expiry batches sellable and prioritizes known F
     const todayKey = new Date().toISOString().slice(0, 10);
     const batches = selectSellableBatches([
         { id: "unknown", variantId: "variant-1", quantityRemaining: 12, expiryDate: new Date("2000-01-01T00:00:00.000Z"), expiryDateKnown: false },
+        { id: "empty-unknown", variantId: "variant-1", quantityRemaining: 0, expiryDate: new Date("2100-01-01T00:00:00.000Z"), expiryDateKnown: false },
         { id: "expired", variantId: "variant-1", quantityRemaining: 3, expiryDate: new Date("2000-01-01T00:00:00.000Z"), expiryDateKnown: true },
         { id: "known-valid", variantId: "variant-1", quantityRemaining: 2, expiryDate: new Date("2099-01-01T00:00:00.000Z"), expiryDateKnown: true },
     ], todayKey);

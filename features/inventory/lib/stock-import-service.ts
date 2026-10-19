@@ -1,11 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
-import { processChunkSlice } from "./stock-import-slices.ts";
+import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
 import { parseStockExport, type StockRow } from "./stock-parser.ts";
 
-const CHUNK_SIZE = 200;
+const CHUNK_SIZE = 50;
 const OPENING_EXPIRY = new Date("2100-01-01T00:00:00.000Z");
 
 type DatabaseClient = PrismaClient;
@@ -57,9 +57,10 @@ export type CreatePreviewInput = {
   userId: string;
   filename: string;
   buffer: FileBuffer;
+  asOf: Date;
 };
 
-export type ChunkProgress = { completedRows: number; totalRows: number; chunk: number };
+export type ChunkProgress = { completedRows: number; totalRows: number; chunk: number; queryCount: number };
 
 export type CommitImportOptions = {
   onChunkCommitted?: (progress: ChunkProgress) => void | Promise<void>;
@@ -203,6 +204,7 @@ async function createPreviewWith(
   input: CreatePreviewInput,
   resolveActorId: () => Promise<string | null>,
 ): Promise<CreatePreviewResult> {
+  if (!(input.asOf instanceof Date) || !Number.isFinite(input.asOf.getTime())) throw new Error("Enter a valid stock as-of date and time.");
   const actorId = await resolveActorId();
   if (!actorId || actorId !== input.userId) throw new Error("You must be signed in to preview a stock import.");
   await assertImportPermission(db, input.branchId, actorId);
@@ -236,9 +238,9 @@ async function createPreviewWith(
   let run: ImportRun;
   try {
     run = existingRun
-      ? await db.importRun.update({ where: { id: existingRun.id }, data: { filename: input.filename, counts: countsJson } })
+        ? await db.importRun.update({ where: { id: existingRun.id }, data: { filename: input.filename, asOf: input.asOf, counts: countsJson } })
       : await db.importRun.create({
-          data: { kind: "STOCK", branchId: input.branchId, filename: input.filename, fileSha256, uploadedById: input.userId, status: "PREVIEW", counts: countsJson },
+          data: { kind: "STOCK", branchId: input.branchId, filename: input.filename, fileSha256, uploadedById: input.userId, status: "PREVIEW", counts: countsJson, asOf: input.asOf },
         });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -268,6 +270,7 @@ async function commitImportWith(
   if (sha256(buffer) !== run.fileSha256) throw new Error("The uploaded file does not match this import preview.");
   if (run.status === "COMMITTED") throw stockConflict(run, true);
   if (run.status === "UNDONE") throw new Error("This import run has been undone and cannot be committed.");
+  if (!run.asOf) throw new Error("Stock import is missing its as-of date and time.");
 
   const actorId = await resolveActorId();
   if (!actorId) throw new Error("You must be signed in to commit a stock import.");
@@ -309,75 +312,96 @@ async function commitImportWith(
     startAt,
     timeLimitMs: options.timeLimitMs ?? 8_000,
     async processChunk(chunk, chunkIndex) {
+      const codes = chunk.map((row) => row.code);
+      let queryCount = 0;
       await db.$transaction(async (tx) => {
-      for (const row of chunk) {
-        let link = await tx.aroniumProductLink.findUnique({
-          where: { aroniumCode: row.code },
-          select: { variantId: true },
-        });
-        if (!link) {
-          const variant = await tx.variant.create({
-            data: {
-              brandName: row.name,
-              strength: null,
-              packSize: 1,
-              unitLabel: row.uom || "unit",
-              allowsLooseSale: false,
-            },
-            select: { id: true },
-          });
-          link = await tx.aroniumProductLink.create({
-              data: { aroniumCode: row.code, variantId: variant.id, mode: "PACK", createdById: actorId },
-            select: { variantId: true },
-          });
+        await lockImportBranch(tx, run.branchId);
+        queryCount += 1;
+        const prefetchedLinks = await tx.aroniumProductLink.findMany({ where: { aroniumCode: { in: codes } }, select: { aroniumCode: true, variantId: true } });
+        queryCount += 1;
+        const prefetchedLinkByCode = new Map(prefetchedLinks.map((link) => [link.aroniumCode, link.variantId]));
+        const linkedVariantIds = prefetchedLinks.map((link) => link.variantId);
+        const [prefetchedVariants, prefetchedPrices, prefetchedBatches] = linkedVariantIds.length
+          ? await Promise.all([
+              tx.variant.findMany({ where: { id: { in: linkedVariantIds } }, select: { id: true, packSize: true } }),
+              tx.branchPrice.findMany({ where: { branchId: run.branchId, variantId: { in: linkedVariantIds } }, select: { variantId: true } }),
+              tx.batch.findMany({ where: { importRunId: run.id, variantId: { in: linkedVariantIds } }, select: { variantId: true } }),
+            ])
+          : [[], [], []];
+        queryCount += linkedVariantIds.length ? 3 : 0;
+        const variantById = new Map(prefetchedVariants.map((variant) => [variant.id, variant]));
+        const pricedVariantIds = new Set(prefetchedPrices.map((price) => price.variantId));
+        const existingBatchVariantIds = new Set(prefetchedBatches.map((batch) => batch.variantId));
+        const missingRows = chunk.filter((row) => !prefetchedLinkByCode.has(row.code));
+        const createdVariants = missingRows.map((row) => ({ id: randomUUID(), brandName: row.name, strength: null, packSize: 1, unitLabel: row.uom || "unit", allowsLooseSale: false }));
+        if (createdVariants.length) {
+          await tx.variant.createMany({ data: createdVariants });
+          queryCount += 1;
+        }
+        const variantIdByCode = new Map<string, string>();
+        missingRows.forEach((row, index) => variantIdByCode.set(row.code, createdVariants[index].id));
+        const newLinks = missingRows.map((row) => ({ aroniumCode: row.code, variantId: variantIdByCode.get(row.code)!, mode: "PACK" as const, createdById: actorId }));
+        if (newLinks.length) {
+          await tx.aroniumProductLink.createMany({ data: newLinks });
+          queryCount += 1;
         }
 
-        if (row.quantity > 0) {
-          const price = await tx.branchPrice.findUnique({
-            where: { variantId_branchId: { variantId: link.variantId, branchId: run.branchId } },
-            select: { id: true },
-          });
-          const value = row.totalValueInclTax ?? row.totalValue;
-          if (!price && value !== null && value !== undefined) {
-            const pricePerPack = new Prisma.Decimal(value).div(row.quantity).toDecimalPlaces(2);
-            await tx.branchPrice.create({
-              data: { variantId: link.variantId, branchId: run.branchId, pricePerPack, pricePerUnit: new Prisma.Decimal(0), updatedById: actorId },
-            });
-          }
-
-          const existingBatch = await tx.batch.findFirst({
-            where: { importRunId: run.id, variantId: link.variantId },
-            select: { id: true },
-          });
-          if (!existingBatch) {
-            await tx.batch.create({
-              data: {
-                variantId: link.variantId,
+        const priceCreates: Prisma.BranchPriceCreateManyInput[] = [];
+        const batchCreates: Prisma.BatchCreateManyInput[] = [];
+        for (const row of chunk) {
+          const variantId = prefetchedLinkByCode.get(row.code) ?? variantIdByCode.get(row.code)!;
+          const variant = variantById.get(variantId) ?? { id: variantId, packSize: 1 };
+          if (row.quantity > 0) {
+            const value = row.totalValueInclTax ?? row.totalValue;
+            if (!pricedVariantIds.has(variantId) && value !== null && value !== undefined) {
+              priceCreates.push({
+                variantId,
+                branchId: run.branchId,
+                pricePerPack: new Prisma.Decimal(value).div(row.quantity).toDecimalPlaces(2),
+                pricePerUnit: new Prisma.Decimal(0),
+                updatedById: actorId,
+              });
+              pricedVariantIds.add(variantId);
+            }
+            if (!existingBatchVariantIds.has(variantId)) {
+              batchCreates.push({
+                variantId,
                 branchId: run.branchId,
                 importRunId: run.id,
-                batchNumber: openingBatchNumber(),
+                batchNumber: openingBatchNumber(run.asOf!),
                 quantityReceived: row.quantity,
-                quantityRemaining: row.quantity,
+                quantityRemaining: row.quantity * variant.packSize,
                 expiryDate: OPENING_EXPIRY,
                 expiryDateKnown: false,
+                receivedAt: run.asOf!,
                 receivedById: actorId,
-              },
-            });
+              });
+              existingBatchVariantIds.add(variantId);
+            }
           }
         }
-      }
+        if (priceCreates.length) {
+          await tx.branchPrice.createMany({ data: priceCreates, skipDuplicates: true });
+          queryCount += 1;
+        }
+        if (batchCreates.length) {
+          await tx.batch.createMany({ data: batchCreates, skipDuplicates: true });
+          queryCount += 1;
+        }
 
-      const completedRows = Math.min((chunkIndex + 1) * CHUNK_SIZE, eligibleRows.length);
-      await tx.importRun.update({
-        where: { id: run.id },
-        data: { counts: { ...finalCounts, completedRows, completedChunks: chunkIndex + 1 } as Prisma.InputJsonValue },
-      });
-      });
+        const completedRows = Math.min((chunkIndex + 1) * CHUNK_SIZE, eligibleRows.length);
+        await tx.importRun.update({
+          where: { id: run.id },
+          data: { counts: { ...finalCounts, completedRows, completedChunks: chunkIndex + 1 } as Prisma.InputJsonValue },
+        });
+        queryCount += 1;
+      }, { timeout: 30_000, maxWait: 10_000 });
 
       await options.onChunkCommitted?.({
         completedRows: Math.min((chunkIndex + 1) * CHUNK_SIZE, eligibleRows.length),
         totalRows: eligibleRows.length,
         chunk: chunkIndex + 1,
+        queryCount,
       });
     },
   });
@@ -404,7 +428,7 @@ async function commitImportWith(
       },
     });
     return updatedRun;
-  });
+  }, { timeout: 30_000, maxWait: 10_000 });
 
   return { run: committed, counts: finalCounts, processed: eligibleRows.length, total: eligibleRows.length, done: true };
 }

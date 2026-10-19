@@ -5,6 +5,7 @@ import type { AuditRow, BranchOption, ExpiryRow, LowStockRow, ReportsData, Sales
 import { buildExpiryQuery, buildLowStockQuery } from "@/features/reports/lib/stock-report-queries";
 import { groupExpiryNotRecorded } from "@/features/reports/lib/expiry-watch";
 import { filterLowStockRows } from "@/features/reports/lib/stock-availability";
+import { buildSalesReportQuery } from "@/features/reports/lib/sales-report-query";
 
 function defaultRange() {
     const to = getMalawiDateKey(new Date());
@@ -46,25 +47,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
 
     const [branches, sales, membershipSales, lowStock, expiry, expiryNotRecordedRows, audit] = await Promise.all([
         getReportBranches(),
-        prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(Prisma.sql`
-            SELECT
-              ((s."createdAt" AT TIME ZONE 'Africa/Blantyre')::date)::text AS day,
-              s."paymentMethod"::text AS "paymentMethod",
-              COALESCE(ingredient.name || ' · ' || v."brandName", 'Unspecified product') AS product,
-              SUM(si."subtotal")::text AS revenue,
-              COUNT(DISTINCT s.id)::int AS "saleCount",
-              COUNT(si.id)::int AS "lineCount"
-            FROM "Sale" s
-            LEFT JOIN "SaleItem" si ON si."saleId" = s.id
-            LEFT JOIN "Variant" v ON v.id = si."variantId"
-            LEFT JOIN "Ingredient" ingredient ON ingredient.id = v."ingredientId"
-            WHERE s."createdAt" >= ${range.from}
-              AND s."createdAt" < ${range.to}
-              AND s."voidedAt" IS NULL
-              ${buildBranchScope(branchId)}
-            GROUP BY ((s."createdAt" AT TIME ZONE 'Africa/Blantyre')::date), s."paymentMethod", COALESCE(ingredient.name || ' · ' || v."brandName", 'Unspecified product')
-            ORDER BY day DESC, "paymentMethod" ASC, product ASC
-        `),
+                prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(buildSalesReportQuery({ branchId, from: range.from, to: range.to })),
         prisma.$queryRaw<Array<{
             grossAmount: string;
             discountAmount: string;
@@ -84,7 +67,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
               COALESCE(SUM(s."discountAmount") FILTER (WHERE s."membershipDiscountPercent" = 20), 0)::text AS "chronicDiscountAmount",
               COUNT(*) FILTER (WHERE s."membershipDiscountPercent" = 15)::int AS "generalSaleCount",
               COALESCE(SUM(s."discountAmount") FILTER (WHERE s."membershipDiscountPercent" = 15), 0)::text AS "generalDiscountAmount"
-            FROM "Sale" s
+                        FROM "Sale" s
             WHERE s."createdAt" >= ${range.from}
               AND s."createdAt" < ${range.to}
               AND s."voidedAt" IS NULL

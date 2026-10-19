@@ -197,6 +197,7 @@ model ImportRun {
   uploadedById String
   uploadedBy  User          @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
   counts      Json          @default("{}")
+  asOf        DateTime?     @db.Timestamp(3)
   createdAt   DateTime      @default(now())
   committedAt DateTime?
 
@@ -295,6 +296,11 @@ model Sale {
   checkoutRequestId String?
   importRunId   String?
   importRun     ImportRun? @relation(fields: [importRunId], references: [id], onDelete: Restrict)
+  sourceDocumentNumber String?
+  refDocumentNumber String?
+  isRefund      Boolean  @default(false)
+  stockAffected Boolean  @default(true)
+  sourceCashier String?
 
   paymentMethod PaymentMethod
   subtotalAmount Decimal @db.Decimal(10, 2)
@@ -311,6 +317,7 @@ model Sale {
 
   @@unique([soldById, checkoutRequestId])
   @@index([membershipApplicationId])
+  // The partial unique index on (branchId, sourceDocumentNumber) is raw SQL on purpose.
 }
 
 model SaleItem {

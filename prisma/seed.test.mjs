@@ -4,8 +4,11 @@ import { PrismaClient } from "@prisma/client";
 import { seedCanonicalBranch } from "./seed.ts";
 import { requireTestDatabaseUrl } from "../scripts/test-database-safety.mjs";
 
+process.env.SEED_ADMIN_PASSWORD = "FAKE_TEST_ADMIN_PASSWORD_0001";
+process.env.SEED_MANAGER_PASSWORD = "FAKE_TEST_MANAGER_PASSWORD_0001";
+process.env.SEED_POS_PASSWORD = "FAKE_TEST_POS_PASSWORD_0001";
+
 const testDatabaseUrl = requireTestDatabaseUrl();
-process.env.DATABASE_URL = testDatabaseUrl;
 
 test("seed leaves exactly one canonical branch and no placeholder test users", async () => {
     const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });

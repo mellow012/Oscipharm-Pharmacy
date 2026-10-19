@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildExpiryQuery, buildLowStockQuery } from "./stock-report-queries.ts";
+import { buildSalesReportQuery } from "./sales-report-query.ts";
 
 test("low-stock query retains and labels products with no ingredient", () => {
     const query = buildLowStockQuery("branch-1").sql;
@@ -17,4 +18,11 @@ test("expiry query retains and labels products with no ingredient", () => {
     assert.match(query, /COALESCE\(ingredient\.name, 'Uncategorized'\) AS "ingredientName"/);
     assert.match(query, /batch\."expiryDateKnown" = true/);
     assert.doesNotMatch(query, /THEN 'In date'[\s\S]*expiryDateKnown = false/);
+});
+
+test("sales report preserves signed refund subtotals and includes history-only financial sales", () => {
+    const query = buildSalesReportQuery({ branchId: "branch-1", from: new Date("2026-10-01T00:00:00Z"), to: new Date("2026-10-08T00:00:00Z") }).sql;
+    assert.match(query, /SUM\(si\."subtotal"\)/);
+    assert.doesNotMatch(query, /ABS\(si\."subtotal"\)/);
+    assert.doesNotMatch(query, /"stockAffected"/);
 });

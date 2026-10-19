@@ -5,6 +5,7 @@ import { loadImportPageData } from "@/features/inventory/lib/import-actions";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function StockImportPage({ searchParams }: { searchParams: Promise<{ branchId?: string }> }) {
   const session = await getServerSession(authOptions);
