@@ -1,3 +1,5 @@
+import { pluralizeLabel } from "@/lib/plural";
+
 export type StaffCatalogVariantRow = {
     id: string;
     categoryId: string | null;
@@ -66,7 +68,7 @@ export function StaffCatalogVariantList({
                                     <div className="font-medium text-ink">{row.brandName}</div>
                                     {row.strength ? <div className="text-sm text-muted">{row.strength}</div> : null}
                                 </div>
-                                <div className="text-sm text-muted"><span className="font-medium text-ink">{row.packSize}</span> {row.unitLabel}s</div>
+                                <div className="text-sm text-muted"><span className="font-medium text-ink">{row.packSize}</span> {pluralizeLabel(row.packSize, row.unitLabel)}</div>
                                 <div className="text-sm text-muted"><span className="font-medium text-ink">{formatCurrency(row.pricePerPack)}</span></div>
                                 <div className="text-sm text-muted">
                                     {row.allowsLooseSale ? <span className="font-medium text-ink">{formatCurrency(row.pricePerUnit)}</span> : <span>Pack only</span>}
@@ -78,7 +80,7 @@ export function StaffCatalogVariantList({
                                     </span>
                                 </div>
                                 <div className="text-sm text-muted">
-                                    {row.aroniumProductLinks.length > 0 ? <span className="font-medium text-ink">{row.aroniumProductLinks.length} codes</span> : <span className="text-muted/80">Not linked</span>}
+                                    {row.aroniumProductLinks.length > 0 ? <span className="font-medium text-ink">{row.aroniumProductLinks.length} {pluralizeLabel(row.aroniumProductLinks.length, "code")}</span> : <span className="text-muted/80">Not linked</span>}
                                 </div>
                             </button>
                         ))}

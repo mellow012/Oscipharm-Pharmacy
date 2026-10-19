@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { endOfMalawiDate, getMalawiDateKey, parseMalawiDate } from "@/lib/timezone";
 import type { AuditRow, BranchOption, ExpiryRow, LowStockRow, ReportsData, SalesRow } from "@/features/reports/types";
@@ -6,6 +7,7 @@ import { buildExpiryQuery, buildLowStockQuery } from "@/features/reports/lib/sto
 import { groupExpiryNotRecorded } from "@/features/reports/lib/expiry-watch";
 import { filterLowStockRows } from "@/features/reports/lib/stock-availability";
 import { buildSalesReportQuery } from "@/features/reports/lib/sales-report-query";
+import { getSalesFreshness } from "@/features/reports/lib/sales-queries";
 
 function defaultRange() {
     const to = getMalawiDateKey(new Date());
@@ -42,16 +44,18 @@ export async function getReportBranches(): Promise<BranchOption[]> {
     });
 }
 
-export async function getReportsData({ branchId, from, to }: { branchId?: string | null; from?: string; to?: string }): Promise<ReportsData> {
+export async function getReportsData({ branchId, role, from, to }: { branchId?: string | null; role: Role; from?: string; to?: string }): Promise<ReportsData> {
     const range = toDateRange(from, to);
 
-    const [branches, sales, membershipSales, lowStock, expiry, expiryNotRecordedRows, audit] = await Promise.all([
+    const [branches, sales, membershipSales, lowStock, expiry, expiryNotRecordedRows, audit, freshness] = await Promise.all([
         getReportBranches(),
-                prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(buildSalesReportQuery({ branchId, from: range.from, to: range.to })),
+        prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(buildSalesReportQuery({ branchId, from: range.from, to: range.to })),
         prisma.$queryRaw<Array<{
             grossAmount: string;
             discountAmount: string;
             netAmount: string;
+            refundAmount: string;
+            combinedNetAmount: string;
             memberSaleCount: number;
             chronicSaleCount: number;
             chronicDiscountAmount: string;
@@ -59,15 +63,17 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             generalDiscountAmount: string;
         }>>(Prisma.sql`
             SELECT
-              COALESCE(SUM(s."subtotalAmount"), 0)::text AS "grossAmount",
-              COALESCE(SUM(s."discountAmount"), 0)::text AS "discountAmount",
-              COALESCE(SUM(s."totalAmount"), 0)::text AS "netAmount",
-              COUNT(*) FILTER (WHERE s."membershipApplicationId" IS NOT NULL)::int AS "memberSaleCount",
-              COUNT(*) FILTER (WHERE s."membershipDiscountPercent" = 20)::int AS "chronicSaleCount",
-              COALESCE(SUM(s."discountAmount") FILTER (WHERE s."membershipDiscountPercent" = 20), 0)::text AS "chronicDiscountAmount",
-              COUNT(*) FILTER (WHERE s."membershipDiscountPercent" = 15)::int AS "generalSaleCount",
-              COALESCE(SUM(s."discountAmount") FILTER (WHERE s."membershipDiscountPercent" = 15), 0)::text AS "generalDiscountAmount"
-                        FROM "Sale" s
+              COALESCE(SUM(s."subtotalAmount") FILTER (WHERE NOT s."isRefund"), 0)::text AS "grossAmount",
+              COALESCE(SUM(s."discountAmount") FILTER (WHERE NOT s."isRefund"), 0)::text AS "discountAmount",
+              COALESCE(SUM(s."totalAmount") FILTER (WHERE NOT s."isRefund"), 0)::text AS "netAmount",
+              COALESCE(SUM(s."totalAmount") FILTER (WHERE s."isRefund"), 0)::text AS "refundAmount",
+              COALESCE(SUM(s."totalAmount"), 0)::text AS "combinedNetAmount",
+              COUNT(*) FILTER (WHERE NOT s."isRefund" AND s."membershipApplicationId" IS NOT NULL)::int AS "memberSaleCount",
+              COUNT(*) FILTER (WHERE NOT s."isRefund" AND s."membershipDiscountPercent" = 20)::int AS "chronicSaleCount",
+              COALESCE(SUM(s."discountAmount") FILTER (WHERE NOT s."isRefund" AND s."membershipDiscountPercent" = 20), 0)::text AS "chronicDiscountAmount",
+              COUNT(*) FILTER (WHERE NOT s."isRefund" AND s."membershipDiscountPercent" = 15)::int AS "generalSaleCount",
+              COALESCE(SUM(s."discountAmount") FILTER (WHERE NOT s."isRefund" AND s."membershipDiscountPercent" = 15), 0)::text AS "generalDiscountAmount"
+            FROM "Sale" s
             WHERE s."createdAt" >= ${range.from}
               AND s."createdAt" < ${range.to}
               AND s."voidedAt" IS NULL
@@ -99,7 +105,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
               b.name AS "branchName",
               u.name AS "userName",
               al."saleId",
-              al.details::text AS details
+              al.details AS details
             FROM "AuditLog" al
             JOIN "Branch" b ON b.id = al."branchId"
             JOIN "User" u ON u.id = al."userId"
@@ -109,6 +115,7 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             ORDER BY al."createdAt" DESC
             LIMIT 200
         `),
+        getSalesFreshness({ role, branchId: branchId ?? null }),
     ]);
 
     return {
@@ -116,21 +123,24 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
         sales: sales.map((row) => ({
             day: row.day,
             paymentMethod: row.paymentMethod,
+            isRefund: row.isRefund,
             product: row.product,
             revenue: row.revenue,
             saleCount: Number(row.saleCount),
             lineCount: Number(row.lineCount),
         })),
-          membershipSales: membershipSales[0] ?? {
+        membershipSales: membershipSales[0] ?? {
             grossAmount: "0",
             discountAmount: "0",
             netAmount: "0",
+            refundAmount: "0",
+            combinedNetAmount: "0",
             memberSaleCount: 0,
             chronicSaleCount: 0,
             chronicDiscountAmount: "0",
             generalSaleCount: 0,
             generalDiscountAmount: "0",
-          },
+        },
         lowStock: filterLowStockRows(lowStock.map((row) => ({
             branchId: row.branchId,
             branchName: row.branchName,
@@ -164,8 +174,9 @@ export async function getReportsData({ branchId, from, to }: { branchId?: string
             branchName: row.branchName,
             userName: row.userName,
             saleId: row.saleId,
-            details: typeof row.details === "string" ? row.details : JSON.stringify(row.details),
+            details: JSON.stringify(row.details),
         })),
+        freshness,
         range: { from: range.range.from, to: range.range.to },
     };
 }

@@ -24,7 +24,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         to: params.to ?? today,
     };
 
-    const data = await getReportsData({ branchId, from: range.from, to: range.to });
+    const data = await getReportsData({ branchId, role: session.user.role, from: range.from, to: range.to });
 
     return <ReportsDashboard name={session.user.name} role={session.user.role as "ADMIN" | "BRANCH_MANAGER"} branchId={branchId} branches={branches} data={data} />;
 }

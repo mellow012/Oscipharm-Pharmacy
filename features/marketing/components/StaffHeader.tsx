@@ -11,6 +11,7 @@ export function StaffHeader() {
             </Link>
 
             <div className="flex items-center gap-3">
+                <Link href="/staff/sales" className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-muted transition hover:text-primary">Sales</Link>
                 <Link href="/" className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-muted transition hover:text-primary">
                     Public site
                 </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { pluralizeLabel } from "@/lib/plural";
 import { useMemo, useState } from "react";
 
 type Category = { id: string; name: string };
@@ -95,7 +96,7 @@ export function ProductBrowser({ categories, products }: ProductBrowserProps) {
                         >
                             <div className="mb-8 flex items-start justify-between gap-3">
                                 <span className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-warn">In stock</span>
-                                <span className="font-mono text-xs text-muted">{product.stock} {product.unitLabel}s</span>
+                                <span className="font-mono text-xs text-muted">{product.stock} {pluralizeLabel(product.stock, product.unitLabel)}</span>
                             </div>
                             <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{product.ingredientName ?? "Uncategorized"}</p>
                             <h3 className="mt-2 text-2xl text-ink group-hover:text-primary">{product.brandName}</h3>

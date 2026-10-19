@@ -4,11 +4,14 @@ import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { can } from "@/lib/permissions";
+import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
+import type { SalesFreshness } from "@/features/reports/lib/sales-freshness";
 
 const sections = [
     { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage" as const, accent: "border-primary" },
     { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive" as const, accent: "border-warn" },
     { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:receive" as const, accent: "border-primary" },
+    { label: "Sales", description: "Browse imported sales and refunds", href: "/staff/sales", permission: "reports:branch:view" as const, accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage" as const, accent: "border-warn" },
     { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view" as const, accent: "border-warn" },
     { label: "Admin", description: "Manage users and branches", href: "/admin", permission: "users:manage" as const, accent: "border-primary" },
@@ -17,9 +20,10 @@ const sections = [
 type HomeDashboardProps = {
     name: string;
     role: Role;
+    freshness: SalesFreshness;
 };
 
-export function HomeDashboard({ name, role }: HomeDashboardProps) {
+export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
     const accessibleSections = sections.filter(
         (section) => section.permission === null || can(role, section.permission)
     );
@@ -27,6 +31,7 @@ export function HomeDashboard({ name, role }: HomeDashboardProps) {
     return (
         <main className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
             <StaffHeader />
+            <div className="mt-5"><SalesFreshnessBanner freshness={freshness} /></div>
             <header className="mb-10 pt-8">
                 <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">OsciPharm staff</p>
                 <h1 className="text-4xl text-ink">Good to see you, {name}</h1>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pluralizeLabel } from "@/lib/plural";
 import { useActionState } from "react";
 import { createAroniumProductLink, deleteAroniumProductLink } from "@/features/catalog/lib/aronium-actions";
 import { StaffVariantForm } from "@/features/catalog/components/StaffVariantForm";
@@ -141,7 +142,7 @@ export function StaffCatalogDetailSheet({
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded border border-border bg-surface p-3">
                             <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Pack size</div>
-                            <div className="mt-2 font-medium text-ink">{variant.packSize} {variant.unitLabel}s</div>
+                            <div className="mt-2 font-medium text-ink">{variant.packSize} {pluralizeLabel(variant.packSize, variant.unitLabel)}</div>
                         </div>
                         <div className="rounded border border-border bg-surface p-3">
                             <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Status</div>
@@ -169,7 +170,7 @@ export function StaffCatalogDetailSheet({
                     <div className="mt-6">
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Aronium codes</h4>
-                            <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">{variant.aroniumProductLinks.length} linked</span>
+                            <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">{variant.aroniumProductLinks.length} {pluralizeLabel(variant.aroniumProductLinks.length, "code")} linked</span>
                         </div>
 
                         {variant.aroniumProductLinks.length > 0 ? (

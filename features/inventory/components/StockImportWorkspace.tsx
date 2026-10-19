@@ -146,7 +146,7 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
       <StaffHeader />
       <header className="border-b border-border py-8">
         <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Inventory workspace</p>
-        <h1 className="mt-2 text-4xl text-ink">Stock import</h1>
+        <h1 className="mt-2 text-4xl text-ink">{tab === "STOCK" ? "Stock import" : "Sales import"}</h1>
         {data.branch ? <p className="mt-2 text-muted">{data.branch.name}</p> : null}
       </header>
 

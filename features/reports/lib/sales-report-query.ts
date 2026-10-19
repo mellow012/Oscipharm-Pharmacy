@@ -6,7 +6,8 @@ export function buildSalesReportQuery(input: { branchId?: string | null; from: D
     SELECT
       ((s."createdAt" AT TIME ZONE 'Africa/Blantyre')::date)::text AS day,
       s."paymentMethod"::text AS "paymentMethod",
-      COALESCE(ingredient.name || ' · ' || v."brandName", 'Unspecified product') AS product,
+      s."isRefund" AS "isRefund",
+      COALESCE(NULLIF(ingredient.name || ' · ', ' · '), '') || COALESCE(v."brandName", 'Unspecified product') AS product,
       SUM(si."subtotal")::text AS revenue,
       COUNT(DISTINCT s.id)::int AS "saleCount",
       COUNT(si.id)::int AS "lineCount"
@@ -18,7 +19,7 @@ export function buildSalesReportQuery(input: { branchId?: string | null; from: D
       AND s."createdAt" < ${input.to}
       AND s."voidedAt" IS NULL
       ${branchScope}
-    GROUP BY ((s."createdAt" AT TIME ZONE 'Africa/Blantyre')::date), s."paymentMethod", COALESCE(ingredient.name || ' · ' || v."brandName", 'Unspecified product')
+    GROUP BY ((s."createdAt" AT TIME ZONE 'Africa/Blantyre')::date), s."paymentMethod", s."isRefund", COALESCE(NULLIF(ingredient.name || ' · ', ' · '), '') || COALESCE(v."brandName", 'Unspecified product')
     ORDER BY day DESC, "paymentMethod" ASC, product ASC
   `;
 }

@@ -1,5 +1,6 @@
 import type { ReportsData } from "@/features/reports/types";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
+import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 
 function money(value: string | number) {
     const amount = typeof value === "string" ? Number(value) : value;
@@ -22,6 +23,7 @@ export function ReportsDashboard({
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <StaffHeader />
+            <div className="mt-5"><SalesFreshnessBanner freshness={data.freshness} /></div>
 
             <header className="border-b border-border py-8">
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Reports</p>
@@ -54,7 +56,7 @@ export function ReportsDashboard({
                 </form>
             </section>
 
-            <section aria-label="Sales and membership totals" className="mb-8 grid border-y border-border sm:grid-cols-2 lg:grid-cols-4">
+            <section aria-label="Sales and membership totals" className="mb-8 grid border-y border-border sm:grid-cols-2 lg:grid-cols-5">
                 <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
                     <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Gross sales</p>
                     <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.grossAmount)}</p>
@@ -65,7 +67,11 @@ export function ReportsDashboard({
                 </div>
                 <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
                     <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Net revenue</p>
-                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.netAmount)}</p>
+                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.combinedNetAmount)}</p>
+                </div>
+                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
+                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Refunds</p>
+                    <p className="mt-2 text-2xl text-danger">{money(data.membershipSales.refundAmount)}</p>
                 </div>
                 <div className="px-5 py-5">
                     <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Member sales</p>
@@ -100,6 +106,7 @@ export function ReportsDashboard({
                         <thead className="border-b border-border bg-surface-strong">
                             <tr>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Day</th>
+                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Type</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Payment</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Product</th>
                                 <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Gross item value</th>
@@ -109,15 +116,16 @@ export function ReportsDashboard({
                         </thead>
                         <tbody>
                             {data.sales.length ? data.sales.map((row) => (
-                                <tr key={`${row.day}-${row.paymentMethod}-${row.product}`} className="border-b border-border last:border-b-0">
+                                <tr key={`${row.day}-${row.paymentMethod}-${row.isRefund}-${row.product}`} className="border-b border-border last:border-b-0">
                                     <td className="px-4 py-3 text-sm text-ink">{row.day}</td>
+                                    <td className="px-4 py-3 text-sm text-ink">{row.isRefund ? "Refund" : "Sale"}</td>
                                     <td className="px-4 py-3 text-sm text-muted">{row.paymentMethod}</td>
                                     <td className="px-4 py-3 text-sm text-muted">{row.product}</td>
                                     <td className="px-4 py-3 font-mono text-sm text-ink">{money(row.revenue)}</td>
                                     <td className="px-4 py-3 text-sm text-ink">{row.saleCount}</td>
                                     <td className="px-4 py-3 text-sm text-ink">{row.lineCount}</td>
                                 </tr>
-                            )) : <tr><td colSpan={6} className="px-4 py-6 text-sm text-muted">No sales in this range.</td></tr>}
+                            )) : <tr><td colSpan={7} className="px-4 py-6 text-sm text-muted">No sales in this range.</td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -228,7 +236,7 @@ export function ReportsDashboard({
                                     <td className="px-4 py-3 text-sm text-muted">{row.branchName}</td>
                                     <td className="px-4 py-3 text-sm text-muted">{row.userName}</td>
                                     <td className="px-4 py-3 font-mono text-xs text-ink">{row.saleId ?? "—"}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.details}</td>
+                                    <td className="px-4 py-3 text-sm text-muted"><AuditDetails value={row.details} /></td>
                                 </tr>
                             )) : <tr><td colSpan={6} className="px-4 py-6 text-sm text-muted">No audit events in this range.</td></tr>}
                         </tbody>
@@ -237,4 +245,11 @@ export function ReportsDashboard({
             </section>
         </main>
     );
+}
+
+function AuditDetails({ value }: { value: string }) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(value); } catch { parsed = value; }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return <span>{String(parsed)}</span>;
+    return <dl className="space-y-1">{Object.entries(parsed as Record<string, unknown>).map(([key, detail]) => <div key={key}><dt className="inline font-medium text-ink">{key.replace(/([A-Z])/g, " $1")}: </dt><dd className="inline">{typeof detail === "object" && detail !== null ? JSON.stringify(detail) : String(detail)}</dd></div>)}</dl>;
 }

@@ -25,4 +25,6 @@ test("sales report preserves signed refund subtotals and includes history-only f
     assert.match(query, /SUM\(si\."subtotal"\)/);
     assert.doesNotMatch(query, /ABS\(si\."subtotal"\)/);
     assert.doesNotMatch(query, /"stockAffected"/);
+    assert.match(query, /COALESCE\(v\."brandName", 'Unspecified product'\)/);
+    assert.match(query, /s\."isRefund"/);
 });

@@ -9,6 +9,7 @@ export type BranchOption = {
 export type SalesRow = {
     day: string;
     paymentMethod: string;
+    isRefund: boolean;
     product: string;
     revenue: string;
     saleCount: number;
@@ -24,6 +25,8 @@ export type MembershipSalesSummary = {
     chronicDiscountAmount: string;
     generalSaleCount: number;
     generalDiscountAmount: string;
+    refundAmount: string;
+    combinedNetAmount: string;
 };
 
 export type LowStockRow = {
@@ -64,4 +67,5 @@ export type ReportsData = {
     expiryNotRecorded: { count: number; groups: ExpiryNotRecordedGroup[] };
     audit: AuditRow[];
     range: { from: string; to: string };
+    freshness: import("@/features/reports/lib/sales-freshness").SalesFreshness;
 };
