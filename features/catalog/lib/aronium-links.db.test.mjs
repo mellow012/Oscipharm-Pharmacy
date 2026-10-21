@@ -45,6 +45,8 @@ test("database rejects duplicate Aronium codes and duplicate variant-mode pairs"
             (error) => error?.code === "P2002",
         );
     } finally {
+        await prisma.auditLog.deleteMany({ where: { userId: user.id } });
+        await prisma.aroniumProductLink.deleteMany({ where: { createdById: user.id } });
         await prisma.aroniumProductLink.deleteMany({ where: { variantId: variant.id } });
         await prisma.variant.delete({ where: { id: variant.id } });
         await prisma.ingredient.delete({ where: { id: ingredient.id } });

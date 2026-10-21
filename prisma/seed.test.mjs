@@ -14,6 +14,17 @@ test("seed leaves exactly one canonical branch and no placeholder test users", a
     const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
 
     try {
+        await prisma.saleItem.deleteMany({});
+        await prisma.sale.deleteMany({});
+        await prisma.auditLog.deleteMany({});
+        await prisma.aroniumProductLink.deleteMany({});
+        await prisma.newsImage.deleteMany({});
+        await prisma.news.deleteMany({});
+        await prisma.batch.deleteMany({});
+        await prisma.branchPrice.deleteMany({});
+        await prisma.importRun.deleteMany({});
+        await prisma.user.deleteMany({});
+        await prisma.branch.deleteMany({});
         await seedCanonicalBranch(prisma);
 
         const [branchCount, branches, users, categories, ingredients, variants] = await Promise.all([
