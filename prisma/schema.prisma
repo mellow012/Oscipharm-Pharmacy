@@ -50,6 +50,7 @@ enum AuditAction {
   ARONIUM_LINK_CREATED
   ARONIUM_LINK_DELETED
   IMPORT_COMMITTED
+  PASSWORD_RESET_COMPLETED
 }
 
 enum MembershipStatus {
@@ -71,6 +72,8 @@ enum MembershipContactPreference {
 enum AuthThrottleScope {
   EMAIL
   IP
+  RESET_EMAIL
+  RESET_IP
 }
 
 // ---------------------------------------------------------------------------
@@ -119,17 +122,31 @@ model User {
   name      String
   email     String   @unique
   passwordHash String
+  passwordChangedAt DateTime?
   role      Role
   branchId  String?           // null for Admin (cross-branch); required for Branch Manager/POS
   branch    Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
 
+  passwordResetTokens PasswordResetToken[]
   sales     Sale[]
   importRuns ImportRun[]
   auditLogs AuditLog[]
   aroniumProductLinks AroniumProductLink[]
   newsCreated News[] @relation("NewsCreatedBy")
   newsUpdated News[] @relation("NewsUpdatedBy")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
 }
 
 model AuthThrottle {

@@ -20,6 +20,11 @@ const ROUTE_RULES: { prefix: string; roles: string[] }[] = [
 export default withAuth(
     function middleware(req) {
         const { pathname } = req.nextUrl;
+        if (pathname.startsWith("/reset-password/")) {
+            const response = NextResponse.next();
+            response.headers.set("Referrer-Policy", "no-referrer");
+            return response;
+        }
         const role = req.nextauth.token?.role as string | undefined;
 
         const rule = ROUTE_RULES.find((r) => pathname.startsWith(r.prefix));
@@ -32,7 +37,8 @@ export default withAuth(
     {
         callbacks: {
             // Just confirms a session exists; the role check above handles the rest.
-            authorized: ({ token }) => !!token,
+            authorized: ({ token, req }) =>
+                req.nextUrl.pathname.startsWith("/reset-password/") || (!!token && !token.invalid),
         },
     }
 );
@@ -43,5 +49,6 @@ export const config = {
         "/inventory/:path*",
         "/reports/:path*",
         "/staff/:path*",
+        "/reset-password/:path*",
     ],
 };

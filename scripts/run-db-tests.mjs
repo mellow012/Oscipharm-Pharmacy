@@ -16,6 +16,7 @@ const testFiles = [
     "features/inventory/lib/stock-import-service.db.test.mjs",
     "features/inventory/lib/sales-import-service.db.test.mjs",
     "features/auth/lib/auth-throttle.db.test.mjs",
+    "features/auth/lib/password-reset.db.test.mjs",
     "prisma/seed.test.mjs",
 ];
 const child = spawn(process.execPath, ["--experimental-strip-types", "--test", "--test-concurrency=1", ...testFiles], {

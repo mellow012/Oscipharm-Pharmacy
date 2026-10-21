@@ -60,7 +60,10 @@ try {
 
   await prisma.user.update({
     where: { email },
-    data: { passwordHash: await bcrypt.hash(password, 10) },
+    data: {
+      passwordHash: await bcrypt.hash(password, 10),
+      passwordChangedAt: new Date(),
+    },
   });
 
   console.log(`Updated password hash for ${email}.`);

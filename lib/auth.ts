@@ -13,6 +13,7 @@ import {
     recordAuthFailure,
     resetAuthEmailFailures,
 } from "../features/auth/lib/auth-throttle";
+import { isSessionStale } from "./session-stale";
 
 const DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
@@ -48,6 +49,7 @@ declare module "next-auth/jwt" {
         id: string;
         role: "ADMIN" | "BRANCH_MANAGER" | "POS";
         branchId: string | null;
+        invalid?: boolean;
     }
 }
 
@@ -108,11 +110,35 @@ export const authOptions: NextAuthOptions = {
                 token.id = user.id;
                 token.role = user.role;
                 token.branchId = user.branchId;
+                token.invalid = false;
+                return token;
             }
+
+            if (token.invalid) return token;
+
+            if (!token.id) {
+                token.invalid = true;
+                return token;
+            }
+
+            const currentUser = await prisma.user.findUnique({
+                where: { id: token.id },
+                select: { id: true, passwordChangedAt: true, role: true, branchId: true },
+            });
+            if (!currentUser || isSessionStale(typeof token.iat === "number" ? token.iat : undefined, currentUser.passwordChangedAt)) {
+                token.invalid = true;
+                return token;
+            }
+            token.role = currentUser.role;
+            token.branchId = currentUser.branchId;
+            token.invalid = false;
             return token;
         },
         // Expose role + branchId on the session object used client- and server-side
         async session({ session, token }) {
+            if (token.invalid) {
+                return { ...session, user: undefined } as unknown as typeof session;
+            }
             session.user.id = token.id;
             session.user.role = token.role;
             session.user.branchId = token.branchId;
