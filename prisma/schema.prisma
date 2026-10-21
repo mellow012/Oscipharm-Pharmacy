@@ -68,6 +68,11 @@ enum MembershipContactPreference {
   EMAIL
 }
 
+enum AuthThrottleScope {
+  EMAIL
+  IP
+}
+
 // ---------------------------------------------------------------------------
 // CORE ORG STRUCTURE
 // ---------------------------------------------------------------------------
@@ -125,6 +130,19 @@ model User {
   aroniumProductLinks AroniumProductLink[]
   newsCreated News[] @relation("NewsCreatedBy")
   newsUpdated News[] @relation("NewsUpdatedBy")
+}
+
+model AuthThrottle {
+  id               String           @id @default(cuid())
+  scope            AuthThrottleScope
+  subjectHash      String
+  failedAttempts   Int              @default(0)
+  windowStartedAt  DateTime         @default(now()) @db.Timestamp(3)
+  lockedUntil      DateTime?        @db.Timestamp(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamp(3)
+
+  @@unique([scope, subjectHash])
+  @@index([lockedUntil])
 }
 
 // ---------------------------------------------------------------------------

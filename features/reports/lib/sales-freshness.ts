@@ -12,14 +12,12 @@ export type SalesFreshness = SalesFreshnessInput & {
 };
 
 export function calculateSalesFreshness(input: SalesFreshnessInput, now = new Date()): SalesFreshness {
-  if (input.lastStockImportAt === null && input.lastSalesImportAt === null) return { ...input, level: "none" };
-  const timestamps = [input.lastStockImportAt, input.lastSalesImportAt, input.latestSaleAt]
-    .filter((value): value is Date | string => value !== null)
-    .map((value) => new Date(value).getTime());
-  if (!timestamps.length) return { ...input, level: "none" };
-  const age = now.getTime() - Math.max(...timestamps);
+  if (input.latestSaleAt === null) return { ...input, level: "none" };
+  const latestSaleAt = new Date(input.latestSaleAt).getTime();
+  if (!Number.isFinite(latestSaleAt)) return { ...input, level: "none" };
+  const age = now.getTime() - latestSaleAt;
   return {
     ...input,
-    level: age >= SALES_FRESHNESS_CRITICAL_MS ? "critical" : age >= SALES_FRESHNESS_WARNING_MS ? "warning" : "fresh",
+    level: age > SALES_FRESHNESS_CRITICAL_MS ? "critical" : age > SALES_FRESHNESS_WARNING_MS ? "warning" : "fresh",
   };
 }

@@ -27,4 +27,6 @@ test("sales report preserves signed refund subtotals and includes history-only f
     assert.doesNotMatch(query, /"stockAffected"/);
     assert.match(query, /COALESCE\(v\."brandName", 'Unspecified product'\)/);
     assert.match(query, /s\."isRefund"/);
+    assert.match(query, /s\."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Africa\/Blantyre'/);
+    assert.doesNotMatch(query, /s\."createdAt" AT TIME ZONE 'Africa\/Blantyre'/);
 });

@@ -2,6 +2,27 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import {
+    AUTH_THROTTLE_SCOPES,
+    cleanupAuthThrottleRows,
+    getAuthThrottleSecret,
+    getTrustedClientIp,
+    hashAuthThrottleSubject,
+    isAuthSubjectLocked,
+    normalizeAuthEmail,
+    recordAuthFailure,
+    resetAuthEmailFailures,
+} from "../features/auth/lib/auth-throttle";
+
+const DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+async function recordFailedLogin(emailHash: string, ipHash: string | null) {
+    await Promise.all([
+        recordAuthFailure(prisma, AUTH_THROTTLE_SCOPES.email, emailHash),
+        ...(ipHash ? [recordAuthFailure(prisma, AUTH_THROTTLE_SCOPES.ip, ipHash)] : []),
+    ]);
+    void cleanupAuthThrottleRows(prisma).catch((error) => console.error("Authentication throttle cleanup failed.", error));
+}
 
 // Extend the default session/user/JWT types so role + branchId are typed
 // everywhere they're used (route guards, UI conditionals, etc).
@@ -42,16 +63,33 @@ export const authOptions: NextAuthOptions = {
                 email: { label: "Email", type: "email" },
                 password: { label: "Password", type: "password" },
             },
-            async authorize(credentials) {
+            async authorize(credentials, request) {
                 if (!credentials?.email || !credentials?.password) return null;
-
+                let secret: string;
+                try {
+                    secret = getAuthThrottleSecret();
+                } catch (error) {
+                    console.error(error instanceof Error ? error.message : "AUTH_THROTTLE_SECRET is missing.");
+                    throw error;
+                }
+                const email = normalizeAuthEmail(credentials.email);
+                const emailHash = hashAuthThrottleSubject(AUTH_THROTTLE_SCOPES.email, email, secret);
+                const ip = request?.headers ? getTrustedClientIp(request.headers) : null;
+                const ipHash = ip ? hashAuthThrottleSubject(AUTH_THROTTLE_SCOPES.ip, ip, secret) : null;
+                const [emailLocked, ipLocked] = await Promise.all([
+                    isAuthSubjectLocked(prisma, AUTH_THROTTLE_SCOPES.email, emailHash),
+                    ipHash ? isAuthSubjectLocked(prisma, AUTH_THROTTLE_SCOPES.ip, ipHash) : Promise.resolve(false),
+                ]);
+                if (emailLocked || ipLocked) return null;
                 const user = await prisma.user.findUnique({
-                    where: { email: credentials.email },
+                    where: { email },
                 });
-                if (!user) return null;
-
-                const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-                if (!valid) return null;
+                const valid = await bcrypt.compare(credentials.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+                if (!user || !valid) {
+                    await recordFailedLogin(emailHash, ipHash);
+                    return null;
+                }
+                await resetAuthEmailFailures(prisma, emailHash);
 
                 return {
                     id: user.id,
