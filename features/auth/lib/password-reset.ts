@@ -76,13 +76,10 @@ export async function redeemPasswordResetToken(token: string, newPassword: strin
         });
         await tx.passwordResetToken.deleteMany({ where: { userId, tokenHash: { not: tokenHash } } });
 
-        const branchId = user.branchId ?? (await tx.branch.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
-        if (!branchId) throw new Error("Cannot audit password reset without a branch.");
-
         await tx.auditLog.create({
             data: {
                 action: "PASSWORD_RESET_COMPLETED",
-                branchId,
+                branchId: user.branchId,
                 userId,
                 details: { event: "password_reset_completed" },
                 createdAt: now,

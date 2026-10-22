@@ -233,7 +233,7 @@ export function ReportsDashboard({
                                 <tr key={`${row.createdAt}-${row.action}-${row.saleId ?? row.userName}`} className="border-b border-border last:border-b-0 align-top">
                                     <td className="px-4 py-3 text-sm text-muted">{new Date(row.createdAt).toLocaleString("en-MW")}</td>
                                     <td className="px-4 py-3 text-sm text-ink">{row.action}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.branchName}</td>
+                                    <td className="px-4 py-3 text-sm text-muted">{row.branchName ?? "Global"}</td>
                                     <td className="px-4 py-3 text-sm text-muted">{row.userName}</td>
                                     <td className="px-4 py-3 font-mono text-xs text-ink">{row.saleId ?? "—"}</td>
                                     <td className="px-4 py-3 text-sm text-muted"><AuditDetails value={row.details} /></td>

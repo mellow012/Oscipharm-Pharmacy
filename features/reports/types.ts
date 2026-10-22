@@ -52,7 +52,7 @@ export type ExpiryRow = {
 export type AuditRow = {
     createdAt: string;
     action: string;
-    branchName: string;
+    branchName: string | null;
     userName: string;
     saleId: string | null;
     details: string;

@@ -12,6 +12,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     const session = await getServerSession(authOptions);
     if (!session?.user) redirect("/login");
     if (!can(session.user.role, "reports:branch:view")) redirect("/unauthorized");
+    if (session.user.role !== "ADMIN" && !session.user.branchId) redirect("/staff");
 
     const params = await searchParams;
     const branches = session.user.role === "ADMIN" ? await getReportBranches() : [];

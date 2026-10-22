@@ -45,10 +45,13 @@ export async function getReportBranches(): Promise<BranchOption[]> {
 }
 
 export async function getReportsData({ branchId, role, from, to }: { branchId?: string | null; role: Role; from?: string; to?: string }): Promise<ReportsData> {
+    if (role !== "ADMIN" && !branchId) {
+        throw new Error("Branch scope is required for non-admin reports.");
+    }
     const range = toDateRange(from, to);
 
     const [branches, sales, membershipSales, lowStock, expiry, expiryNotRecordedRows, audit, freshness] = await Promise.all([
-        getReportBranches(),
+        role === "ADMIN" ? getReportBranches() : Promise.resolve([]),
         prisma.$queryRaw<Array<SalesRow & { revenue: string; saleCount: bigint; lineCount: bigint }>>(buildSalesReportQuery({ branchId, from: range.from, to: range.to })),
         prisma.$queryRaw<Array<{
             grossAmount: string;
@@ -107,7 +110,7 @@ export async function getReportsData({ branchId, role, from, to }: { branchId?: 
               al."saleId",
               al.details AS details
             FROM "AuditLog" al
-            JOIN "Branch" b ON b.id = al."branchId"
+            LEFT JOIN "Branch" b ON b.id = al."branchId"
             JOIN "User" u ON u.id = al."userId"
             WHERE al."createdAt" >= ${range.from}
               AND al."createdAt" < ${range.to}

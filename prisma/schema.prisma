@@ -51,6 +51,11 @@ enum AuditAction {
   ARONIUM_LINK_DELETED
   IMPORT_COMMITTED
   PASSWORD_RESET_COMPLETED
+  STAFF_DEACTIVATED
+  STAFF_REACTIVATED
+  STAFF_ROLE_CHANGED
+  STAFF_BRANCH_CHANGED
+  STAFF_RESET_LINK_SENT
 }
 
 enum MembershipStatus {
@@ -123,6 +128,7 @@ model User {
   email     String   @unique
   passwordHash String
   passwordChangedAt DateTime?
+  isActive Boolean @default(true)
   role      Role
   branchId  String?           // null for Admin (cross-branch); required for Branch Manager/POS
   branch    Branch?  @relation(fields: [branchId], references: [id])
@@ -378,8 +384,8 @@ model SaleItem {
 model AuditLog {
   id        String      @id @default(cuid())
   action    AuditAction
-  branchId  String
-  branch    Branch      @relation(fields: [branchId], references: [id])
+  branchId  String?
+  branch    Branch?     @relation(fields: [branchId], references: [id], onDelete: Restrict)
   userId    String
   user      User        @relation(fields: [userId], references: [id])
 

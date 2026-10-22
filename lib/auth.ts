@@ -13,7 +13,7 @@ import {
     recordAuthFailure,
     resetAuthEmailFailures,
 } from "../features/auth/lib/auth-throttle";
-import { isSessionStale } from "./session-stale";
+import { shouldInvalidateSession } from "./session-stale";
 
 const DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
@@ -87,7 +87,7 @@ export const authOptions: NextAuthOptions = {
                     where: { email },
                 });
                 const valid = await bcrypt.compare(credentials.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
-                if (!user || !valid) {
+                if (!user || !user.isActive || !valid) {
                     await recordFailedLogin(emailHash, ipHash);
                     return null;
                 }
@@ -123,9 +123,18 @@ export const authOptions: NextAuthOptions = {
 
             const currentUser = await prisma.user.findUnique({
                 where: { id: token.id },
-                select: { id: true, passwordChangedAt: true, role: true, branchId: true },
+                select: { id: true, isActive: true, passwordChangedAt: true, role: true, branchId: true },
             });
-            if (!currentUser || isSessionStale(typeof token.iat === "number" ? token.iat : undefined, currentUser.passwordChangedAt)) {
+            if (!currentUser) {
+                token.invalid = true;
+                return token;
+            }
+            if (shouldInvalidateSession({
+                exists: true,
+                isActive: currentUser.isActive,
+                iat: typeof token.iat === "number" ? token.iat : undefined,
+                passwordChangedAt: currentUser.passwordChangedAt,
+            })) {
                 token.invalid = true;
                 return token;
             }

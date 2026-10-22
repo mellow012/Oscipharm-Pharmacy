@@ -10,7 +10,7 @@ type AdminDashboardProps = {
 const roleLabels: Record<Role, string> = {
     ADMIN: "Admin",
     BRANCH_MANAGER: "Branch manager",
-    POS: "POS",
+    POS: "Sales",
 };
 
 export function AdminDashboard({ name, data }: AdminDashboardProps) {
