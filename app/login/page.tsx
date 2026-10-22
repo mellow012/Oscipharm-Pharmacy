@@ -1,7 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id) redirect("/staff");
+
     return (
         <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-6 py-12">
             <section className="w-full border border-border bg-surface p-8 shadow-sm">

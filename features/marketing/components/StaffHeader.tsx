@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 export function StaffHeader() {
+    const pathname = usePathname();
+
     return (
         <nav className="flex items-center justify-between gap-4 border-b border-border pb-5">
             <Link href="/staff" className="font-mono text-xs uppercase tracking-[0.14em] text-warn transition hover:text-primary">
@@ -11,6 +14,9 @@ export function StaffHeader() {
             </Link>
 
             <div className="flex items-center gap-3">
+                {pathname !== "/staff" ? (
+                    <Link href="/staff" className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-muted transition hover:text-primary">Back to staff</Link>
+                ) : null}
                 <Link href="/staff/sales" className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-muted transition hover:text-primary">Sales</Link>
                 <Link href="/" className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-muted transition hover:text-primary">
                     Public site

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getNewsForAdmin } from "@/features/news/lib/queries";
@@ -15,6 +16,7 @@ export default async function AdminNewsPage() {
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
+            <Link href="/staff" className="mb-4 inline-block text-sm text-primary hover:underline">← Back to staff</Link>
             <header className="mb-6 flex items-center justify-between border-b border-border pb-6">
                 <div>
                     <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin</p>

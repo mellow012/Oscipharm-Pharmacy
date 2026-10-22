@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StaffCatalogDetailSheet } from "@/features/catalog/components/StaffCatalogDetailSheet";
 import { StaffCatalogSidebar } from "@/features/catalog/components/StaffCatalogSidebar";
@@ -175,6 +176,7 @@ export function StaffCatalogWorkspace({
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8">
+            <Link href="/staff" className="mb-4 inline-block text-sm text-primary hover:underline">← Back to staff</Link>
             <div className="mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <p className="mb-2 font-mono text-xs uppercase tracking-[0.18em] text-warn">Staff catalog</p>
