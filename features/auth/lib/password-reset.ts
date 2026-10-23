@@ -31,7 +31,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
     }
 
     const link = buildPasswordResetUrl(appUrl, token);
-    await sendMail({
+    return sendMail({
         to,
         subject: "Reset your OsciPharm password",
         text: `We received a request to reset your password. Use this link within 30 minutes:\n\n${link}\n\nIf you did not request this, you can ignore this email.`,

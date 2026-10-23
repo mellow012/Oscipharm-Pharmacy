@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 
-export async function sendMail({ to, subject, text }: { to: string; subject: string; text: string }) {
+export type MailResult = { sent: true } | { sent: false; reason: "not_configured" };
+
+export async function sendMail({ to, subject, text }: { to: string; subject: string; text: string }): Promise<MailResult> {
     const host = process.env.SMTP_HOST;
     const port = Number(process.env.SMTP_PORT ?? 587);
     const user = process.env.SMTP_USER;
@@ -9,11 +11,11 @@ export async function sendMail({ to, subject, text }: { to: string; subject: str
 
     if (!host || !from) {
         if (process.env.NODE_ENV !== "production") {
-            console.log(`Password reset email preview for ${to}:\n${text}`);
+            console.log("SMTP not configured; email preview omitted.");
         } else {
             console.error("SMTP not configured; password reset email not sent");
         }
-        return;
+        return { sent: false, reason: "not_configured" };
     }
 
     const transport = nodemailer.createTransport({
@@ -37,4 +39,5 @@ export async function sendMail({ to, subject, text }: { to: string; subject: str
         });
         throw error;
     }
+    return { sent: true };
 }

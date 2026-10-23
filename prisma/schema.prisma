@@ -56,6 +56,11 @@ enum AuditAction {
   STAFF_ROLE_CHANGED
   STAFF_BRANCH_CHANGED
   STAFF_RESET_LINK_SENT
+  NEWS_CREATED
+  NEWS_UPDATED
+  NEWS_PUBLISHED
+  NEWS_UNPUBLISHED
+  NEWS_DELETED
 }
 
 enum MembershipStatus {
@@ -79,6 +84,16 @@ enum AuthThrottleScope {
   IP
   RESET_EMAIL
   RESET_IP
+}
+
+enum NewsType {
+  NEWS
+  EVENT
+}
+
+enum NewsStatus {
+  PREVIEW
+  PUBLISHED
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +270,11 @@ model News {
   slug        String      @unique
   body        String
   excerpt     String?
+  type        NewsType    @default(NEWS)
+  status      NewsStatus  @default(PREVIEW)
+  eventStartsAt DateTime?
+  eventEndsAt DateTime?
+  eventLocation String?
   publishedAt DateTime    @default(now())
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

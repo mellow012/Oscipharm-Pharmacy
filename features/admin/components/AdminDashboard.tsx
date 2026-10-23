@@ -31,9 +31,14 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
                     <h1 className="text-5xl leading-[0.98] text-ink">Good to see you, {name}.</h1>
                     <p className="mt-3 max-w-xl text-lg text-muted">A clear view of staff, branches, and the current pharmacy operation.</p>
                 </div>
-                <Link href="/admin/memberships" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
-                    Membership applications <span aria-hidden="true">-&gt;</span>
-                </Link>
+                <div className="flex flex-wrap gap-3">
+                    <Link href="/admin/staff" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
+                        Manage staff <span aria-hidden="true">-&gt;</span>
+                    </Link>
+                    <Link href="/admin/memberships" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
+                        Membership applications <span aria-hidden="true">-&gt;</span>
+                    </Link>
+                </div>
             </header>
 
             <section aria-label="Pharmacy totals" className="grid border-b border-border sm:grid-cols-2 lg:grid-cols-4">
@@ -74,13 +79,16 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
                     </div>
                     <div className="divide-y divide-border border-y border-border">
                         {data.users.map((user) => (
-                            <div key={user.id} className="py-4">
+                            <div key={user.id} className={`py-4 ${user.isActive ? "" : "opacity-50"}`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <h3 className="truncate text-lg text-ink">{user.name}</h3>
                                         <p className="truncate text-sm text-muted">{user.email}</p>
                                     </div>
-                                    <span className="shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-primary">{roleLabels[user.role]}</span>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        {!user.isActive ? <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">Inactive</span> : null}
+                                        <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-primary">{roleLabels[user.role]}</span>
+                                    </div>
                                 </div>
                                 <p className="mt-2 text-xs text-muted">{user.branch?.name ?? "Cross-branch access"}</p>
                             </div>

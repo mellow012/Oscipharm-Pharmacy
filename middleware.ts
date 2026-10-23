@@ -10,6 +10,8 @@ const ROUTE_RULES: { prefix: string; roles: string[] }[] = [
     { prefix: "/admin", roles: ["ADMIN"] },
     { prefix: "/inventory", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/reports", roles: ["ADMIN", "BRANCH_MANAGER"] },
+    { prefix: "/staff/news", roles: ["ADMIN", "BRANCH_MANAGER"] },
+    { prefix: "/staff/team", roles: ["ADMIN", "BRANCH_MANAGER"] },
     // /staff is the shared landing after login for every role — no role
     // restriction here, just requires a session (enforced by `authorized`
     // below). Per-role visibility is handled by HomeDashboard filtering

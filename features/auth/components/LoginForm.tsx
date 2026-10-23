@@ -8,6 +8,7 @@ export function LoginForm() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -50,14 +51,25 @@ export function LoginForm() {
                 <label htmlFor="password" className="mb-2 block text-sm font-medium text-fg">
                     Password
                 </label>
-                <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    className="w-full border border-border bg-surface px-4 py-3 text-fg outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
+                <div className="flex border border-border bg-surface focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                    <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        required
+                        className="min-w-0 flex-1 bg-transparent px-4 py-3 text-fg outline-none"
+                    />
+                    <button
+                        type="button"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="px-4 text-sm font-medium text-primary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                        {showPassword ? "Hide" : "Show"}
+                    </button>
+                </div>
             </div>
             {error ? (
                 <p role="alert" className="border-l-4 border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

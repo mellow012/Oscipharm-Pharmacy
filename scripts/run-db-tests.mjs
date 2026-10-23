@@ -9,8 +9,6 @@ try {
     if (error.code !== "ENOENT") throw error;
 }
 
-const testDatabaseUrl = requireTestDatabaseUrl();
-const appDatabaseUrl = process.env.DATABASE_URL ?? "";
 const testFiles = [
     "features/catalog/lib/aronium-links.db.test.mjs",
     "features/inventory/lib/stock-import-service.db.test.mjs",
@@ -18,9 +16,22 @@ const testFiles = [
     "features/auth/lib/auth-throttle.db.test.mjs",
     "features/auth/lib/password-reset.db.test.mjs",
     "features/auth/lib/staff-lifecycle.db.test.mjs",
+    "features/admin/lib/staff-service.db.test.mjs",
+    "features/news/lib/news-service.db.test.mjs",
     "prisma/seed.test.mjs",
 ];
-const child = spawn(process.execPath, ["--experimental-strip-types", "--test", "--test-concurrency=1", ...testFiles], {
+const requestedFiles = process.argv.slice(2);
+const invalidFiles = requestedFiles.filter((file) => !testFiles.includes(file));
+if (invalidFiles.length) {
+    console.error(`Unknown DB test file: ${invalidFiles.join(", ")}`);
+    console.error("Choose a file from the configured DB test list.");
+    process.exit(1);
+}
+
+const testDatabaseUrl = requireTestDatabaseUrl();
+const appDatabaseUrl = process.env.DATABASE_URL ?? "";
+const selectedFiles = requestedFiles.length ? requestedFiles : testFiles;
+const child = spawn(process.execPath, ["--experimental-strip-types", "--test", "--test-concurrency=1", ...selectedFiles], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
     stdio: "inherit",
     env: {

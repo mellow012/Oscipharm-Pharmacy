@@ -3,16 +3,19 @@
 import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
-import { can } from "@/lib/permissions";
+import { can, type Permission } from "@/lib/permissions";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 import type { SalesFreshness } from "@/features/reports/lib/sales-freshness";
 
-const sections = [
+type HomeSection = { label: string; description: string; href: string; permission: Permission | null; accent: string };
+
+const sections: HomeSection[] = [
     { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage" as const, accent: "border-primary" },
     { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive" as const, accent: "border-warn" },
     { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:receive" as const, accent: "border-primary" },
     { label: "Sales", description: "Browse imported sales and refunds", href: "/staff/sales", permission: "reports:branch:view" as const, accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage" as const, accent: "border-warn" },
+    { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage" as const, accent: "border-primary" },
     { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view" as const, accent: "border-warn" },
     { label: "Admin", description: "Manage users and branches", href: "/admin", permission: "users:manage" as const, accent: "border-primary" },
 ];
@@ -27,6 +30,12 @@ export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
     const accessibleSections = sections.filter(
         (section) => section.permission === null || can(role, section.permission)
     );
+    if (role === "BRANCH_MANAGER") {
+        accessibleSections.push({ label: "Team", description: "View staff assigned to your branch", href: "/staff/team", permission: null, accent: "border-warn" });
+    }
+    if (role === "ADMIN") {
+        accessibleSections.push({ label: "Staff", description: "Manage staff accounts", href: "/admin/staff", permission: null, accent: "border-primary" });
+    }
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
