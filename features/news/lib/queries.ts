@@ -4,7 +4,10 @@ import { eventEffectiveEnd, isUpcomingEvent, orderAll, orderPastEvents, orderUpc
 import { publicAnyNewsWhere, publicNewsWhere } from "./news-rules.ts";
 
 const publicInclude = {
-    images: { orderBy: { sortOrder: "asc" as const } },
+    images: {
+        orderBy: [{ sortOrder: "asc" as const }, { id: "asc" as const }],
+        select: { id: true, url: true, altText: true, caption: true, sortOrder: true },
+    },
     createdBy: { select: { id: true, name: true } },
 };
 

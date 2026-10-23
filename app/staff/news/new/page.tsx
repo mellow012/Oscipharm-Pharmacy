@@ -21,6 +21,7 @@ export default async function NewStaffNewsPage() {
             </header>
             <section className="py-7">
                 <NewsForm initial={{ title: "", type: "NEWS", excerpt: null, body: "", eventStartsAt: "", eventEndsAt: "", eventLocation: null }} />
+                <p className="mt-8 border-t border-border pt-5 text-sm text-muted">Save the post first, then add photos.</p>
             </section>
         </main>
     );

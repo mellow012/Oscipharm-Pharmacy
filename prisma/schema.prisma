@@ -291,7 +291,9 @@ model NewsImage {
   newsId    String
   news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
   url       String
+  storagePath String?
   altText   String?
+  caption   String?
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 }

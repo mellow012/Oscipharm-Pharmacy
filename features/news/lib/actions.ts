@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { authOptions } from "../../../lib/auth.ts";
+import { createStorage } from "../../../lib/supabase-storage.ts";
 import { createNewsPost, deleteNewsPost, getNewsPostForActor, publishNewsPost, unpublishNewsPost, updateNewsPost } from "./news-service.ts";
 import type { NewsActionResult, NewsInputPayload } from "../types.ts";
 
@@ -50,8 +51,17 @@ export async function deleteNewsPostAction(postId: string): Promise<NewsActionRe
     const actorId = await getActorId();
     if (isActionFailure(actorId)) return actorId;
     const post = await getNewsPostForActor(actorId, postId);
+    const storagePaths = post?.images.map((image) => image.storagePath).filter((path): path is string => Boolean(path)) ?? [];
     const result = await deleteNewsPost(actorId, postId);
     if (!result.ok) return result;
+    const storage = createStorage();
+    for (const path of storagePaths) {
+        try {
+            await storage.remove(path);
+        } catch {
+            // Failed object cleanup is best effort after the database deletion.
+        }
+    }
     revalidatePath("/staff/news");
     revalidatePath("/news");
     if (post) revalidatePath(`/news/${post.slug}`);

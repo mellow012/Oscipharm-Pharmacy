@@ -184,7 +184,10 @@ export async function getNewsPostForActor(actorId: string, postId: string) {
     if (!actor || !can(actor.role, "news:manage") || !actor.isActive) return null;
     const post = await prisma.news.findUnique({
         where: { id: postId },
-        include: { createdBy: { select: { id: true, name: true } } },
+        include: {
+            createdBy: { select: { id: true, name: true } },
+            images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+        },
     });
     if (!post || !canAccess(actor, post.createdById)) return null;
     return post;

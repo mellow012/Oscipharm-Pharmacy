@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { NewsForm } from "@/features/news/components/NewsForm";
+import { NewsGalleryEditor } from "@/features/news/components/NewsGalleryEditor";
 import { getNewsPostForActor } from "@/features/news/lib/news-service";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -37,6 +38,10 @@ export default async function EditStaffNewsPage({ params }: { params: Promise<{ 
                         eventEndsAt: post.eventEndsAt ? formatBlantyreInputValue(post.eventEndsAt) : "",
                         eventLocation: post.eventLocation,
                     }}
+                />
+                <NewsGalleryEditor
+                    postId={post.id}
+                    images={post.images.map(({ id: imageId, url, altText, caption, sortOrder }) => ({ id: imageId, url, altText, caption, sortOrder }))}
                 />
             </section>
         </main>

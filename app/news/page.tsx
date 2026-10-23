@@ -15,6 +15,7 @@ type PublicPost = {
     publishedAt: Date;
     eventStartsAt: Date | null;
     createdBy: { name: string };
+    images: Array<{ id: string; url: string; altText: string | null; sortOrder: number }>;
 };
 
 function NewsCard({ post }: { post: PublicPost }) {
@@ -30,6 +31,11 @@ function NewsCard({ post }: { post: PublicPost }) {
                     <span>By {post.createdBy.name}</span>
                 </div>
             </div>
+            {post.images[0] ? (
+                <div className="mb-4 aspect-[4/3] overflow-hidden rounded">
+                    <img src={post.images[0].url} alt={post.images[0].altText ?? post.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                </div>
+            ) : null}
             <h2 className="text-2xl text-ink">{post.title}</h2>
             {post.excerpt ? <p className="mt-3 text-muted">{post.excerpt}</p> : null}
             <Link href={`/news/${post.slug}`} className="mt-4 inline-block text-primary hover:underline">{isEvent ? "View event" : "Read article"}</Link>

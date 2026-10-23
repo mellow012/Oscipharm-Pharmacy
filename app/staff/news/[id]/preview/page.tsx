@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { NewsPostActions } from "@/features/news/components/NewsPostActions";
+import { NewsGallery } from "@/features/news/components/NewsGallery";
 import { getNewsPostForActor } from "@/features/news/lib/news-service";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -48,6 +49,7 @@ export default async function StaffNewsPreviewPage({ params }: { params: Promise
                     </dl>
                 ) : null}
                 {post.excerpt ? <p className="mt-5 text-lg text-muted">{post.excerpt}</p> : null}
+                <NewsGallery images={post.images} title={post.title} />
                 <div className="mt-6 whitespace-pre-wrap text-base leading-7 text-ink">{post.body}</div>
             </article>
         </main>

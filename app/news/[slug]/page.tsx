@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { formatBlantyreDateTime } from "@/lib/timezone";
 import { getNewsBySlug } from "@/features/news/lib/queries";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
+import { NewsGallery } from "@/features/news/components/NewsGallery";
 
 export const dynamic = "force-dynamic";
 
@@ -27,13 +28,7 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ sl
                         {post.eventLocation ? <div><dt className="text-muted">Location</dt><dd className="mt-1 text-ink">{post.eventLocation}</dd></div> : null}
                     </dl>
                 ) : null}
-                {post.images.length ? (
-                    <div className="mt-6 grid gap-4">
-                        {post.images.map((image) => (
-                            <img key={image.id} src={image.url} alt={image.altText ?? post.title} className="max-h-[420px] w-full rounded object-cover" />
-                        ))}
-                    </div>
-                ) : null}
+                <NewsGallery images={post.images} title={post.title} />
                 <div className="mt-6 whitespace-pre-wrap text-base leading-7 text-ink">{post.body}</div>
             </article>
         </main>
