@@ -113,7 +113,7 @@ test("news service enforces ownership, lifecycle, audit, and event constraints",
         const deleteAudit = await prisma.auditLog.findFirstOrThrow({ where: { userId: admin.id, action: "NEWS_DELETED" } });
         assert.deepEqual(deleteAudit.details, { newsId: created.data.id, slug: created.data.slug, title: "Admin edited again", type: "NEWS" });
     } finally {
-        await prisma.news.deleteMany({ where: { id: { in: createdIds } } });
+        await prisma.news.deleteMany({ where: { createdById: { in: users.map((user) => user.id) } } });
         await prisma.auditLog.deleteMany({ where: { userId: { in: users.map((user) => user.id) } } });
         await prisma.user.deleteMany({ where: { id: { in: users.map((user) => user.id) } } });
         await prisma.branch.delete({ where: { id: branch.id } });

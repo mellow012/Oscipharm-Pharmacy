@@ -108,3 +108,7 @@ export function slugWithSuffix(base: string, attempt: number) {
 export function publicNewsWhere(type: NewsTypeValue) {
     return { status: "PUBLISHED" as const, type };
 }
+
+export function publicAnyNewsWhere() {
+    return { status: "PUBLISHED" as const };
+}
