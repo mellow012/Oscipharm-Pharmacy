@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { ReceiveBatchForm } from "@/features/inventory/components/ReceiveBatchForm";
 import { PricingForm } from "@/features/inventory/components/PricingForm";
 import { BatchExpiryForm } from "@/features/inventory/components/BatchExpiryForm";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { getExpiryStatus } from "@/features/inventory/utils/expiry";
 import type { InventoryData } from "@/features/inventory/types";
 import { pluralizeLabel } from "@/lib/plural";
@@ -13,8 +12,7 @@ export function InventoryDashboard({ name, role, branchId, branches, data }: { n
     const router = useRouter();
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <header className="flex flex-col gap-6 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
                 <div>
                     <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">Inventory workspace</p>
@@ -48,6 +46,6 @@ export function InventoryDashboard({ name, role, branchId, branches, data }: { n
                 <div className="mb-5 flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Branch pricing</p><h2 className="mt-2 text-3xl text-ink">Prices and reorder points</h2></div><p className="max-w-sm text-sm text-muted">Unit prices are not applicable when a product is sold by pack only.</p></div>
                 <div className="border-y border-border">{data.variants.map((variant) => <PricingForm key={variant.id} variant={variant} branchId={branchId} includeBranchId={role === "ADMIN"} />)}</div>
             </section>
-        </main>
+        </div>
     );
 }

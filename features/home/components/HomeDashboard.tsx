@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { Role } from "@prisma/client";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { can, type Permission } from "@/lib/permissions";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 import type { SalesFreshness } from "@/features/reports/lib/sales-freshness";
@@ -38,8 +37,7 @@ export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
     }
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
             <div className="mt-5"><SalesFreshnessBanner freshness={freshness} /></div>
             <header className="mb-10 pt-8">
                 <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">OsciPharm staff</p>
@@ -61,6 +59,6 @@ export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
                     </Link>
                 ))}
             </div>
-        </main>
+        </div>
     );
 }

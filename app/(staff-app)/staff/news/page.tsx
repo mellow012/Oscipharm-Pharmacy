@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { NewsPostActions } from "@/features/news/components/NewsPostActions";
 import { listNewsForActor } from "@/features/news/lib/news-service";
 import { authOptions } from "@/lib/auth";
@@ -19,8 +18,7 @@ export default async function StaffNewsPage() {
     if (!result.ok) redirect("/unauthorized");
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
             <header className="flex flex-wrap items-end justify-between gap-5 border-b border-border py-7">
                 <div>
                     <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Staff workspace</p>
@@ -56,6 +54,6 @@ export default async function StaffNewsPage() {
                 ))}
                 {!result.data.length ? <p className="py-8 text-sm text-muted">No posts yet.</p> : null}
             </div>
-        </main>
+        </div>
     );
 }

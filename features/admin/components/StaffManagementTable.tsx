@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { deactivateStaffAccount, reactivateStaffAccount, sendStaffPasswordReset, updateStaffRoleAndBranch } from "@/features/admin/lib/staff-actions";
 import { roleLabel, STAFF_ROLES, type StaffRole } from "@/features/admin/lib/staff-rules";
 import type { StaffBranchOption, StaffSummary } from "@/features/admin/lib/staff-types";
@@ -15,8 +14,7 @@ export function StaffManagementTable({ users, branches, actorId }: {
     const router = useRouter();
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 sm:px-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 sm:px-8">
             <header className="mb-6 border-b border-border pb-6">
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
                 <h1 className="mt-2 text-3xl text-ink">Staff management</h1>
@@ -41,7 +39,7 @@ export function StaffManagementTable({ users, branches, actorId }: {
                     </tbody>
                 </table>
             </div>
-        </main>
+        </div>
     );
 }
 

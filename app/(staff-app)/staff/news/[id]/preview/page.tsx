@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { NewsPostActions } from "@/features/news/components/NewsPostActions";
 import { NewsGallery } from "@/features/news/components/NewsGallery";
 import { getNewsPostForActor } from "@/features/news/lib/news-service";
@@ -22,8 +21,7 @@ export default async function StaffNewsPreviewPage({ params }: { params: Promise
     if (!post) notFound();
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-8 sm:px-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-4xl px-5 py-8 sm:px-8">
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-y border-border py-4">
                 <p className={post.status === "PREVIEW" ? "font-mono text-sm uppercase text-warn" : "font-mono text-sm uppercase text-primary"}>
                     {post.status === "PREVIEW" ? "Preview - not public" : "Live"}
@@ -52,6 +50,6 @@ export default async function StaffNewsPreviewPage({ params }: { params: Promise
                 <NewsGallery images={post.images} title={post.title} />
                 <div className="mt-6 whitespace-pre-wrap text-base leading-7 text-ink">{post.body}</div>
             </article>
-        </main>
+        </div>
     );
 }

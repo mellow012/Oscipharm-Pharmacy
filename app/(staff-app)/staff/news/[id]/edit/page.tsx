@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { NewsForm } from "@/features/news/components/NewsForm";
 import { NewsGalleryEditor } from "@/features/news/components/NewsGalleryEditor";
 import { getNewsPostForActor } from "@/features/news/lib/news-service";
@@ -19,8 +18,7 @@ export default async function EditStaffNewsPage({ params }: { params: Promise<{ 
     if (!post) notFound();
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-3xl px-5 py-8 sm:px-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-3xl px-5 py-8 sm:px-8">
             <header className="border-b border-border py-7">
                 <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">News and events</p>
                 <h1 className="mt-2 text-3xl text-ink">Edit post</h1>
@@ -44,6 +42,6 @@ export default async function EditStaffNewsPage({ params }: { params: Promise<{ 
                     images={post.images.map(({ id: imageId, url, altText, caption, sortOrder }) => ({ id: imageId, url, altText, caption, sortOrder }))}
                 />
             </section>
-        </main>
+        </div>
     );
 }

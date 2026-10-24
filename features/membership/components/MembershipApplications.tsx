@@ -2,14 +2,12 @@ import { MembershipStatus, MembershipTier } from "@prisma/client";
 import { reviewMembershipApplication } from "@/features/membership/lib/actions";
 import { membershipDiscountPercent, membershipTierLabels } from "@/features/membership/lib/policy";
 import { membershipTopicLabels, type MembershipTopic } from "@/features/membership/types";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 
 type Applications = Awaited<ReturnType<typeof import("@/features/membership/lib/queries").getMembershipApplications>>;
 
 export function MembershipApplications({ applications }: { applications: Applications }) {
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Admin workspace</p>
@@ -63,6 +61,6 @@ export function MembershipApplications({ applications }: { applications: Applica
             ) : (
                 <p className="border-b border-border py-10 text-muted">No membership requests yet.</p>
             )}
-        </main>
+        </div>
     );
 }

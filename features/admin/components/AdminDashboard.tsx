@@ -1,6 +1,5 @@
 import type { Role } from "@prisma/client";
 import Link from "next/link";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 
 type AdminDashboardProps = {
     name: string;
@@ -22,8 +21,7 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
     ];
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
 
             <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
                 <div>
@@ -96,6 +94,6 @@ export function AdminDashboard({ name, data }: AdminDashboardProps) {
                     </div>
                 </section>
             </div>
-        </main>
+        </div>
     );
 }

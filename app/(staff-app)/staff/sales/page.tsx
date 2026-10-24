@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
-import { getSalesListData, SALES_PAGE_SIZE } from "@/features/reports/lib/sales-queries";
+import { getSalesListData } from "@/features/reports/lib/sales-queries";
 import { parseSalesListFilters } from "@/features/reports/lib/sales-filter";
 import { can } from "@/lib/permissions";
 import { authOptions } from "@/lib/auth";
@@ -20,8 +19,7 @@ export default async function StaffSalesPage({ searchParams }: { searchParams: P
   const query = new URLSearchParams({ from: filters.from, to: filters.to, type: filters.type, search: filters.search, ...(filters.importRunId ? { importRunId: filters.importRunId } : {}) });
   const pageHref = (page: number) => `/staff/sales?${new URLSearchParams({ ...Object.fromEntries(query.entries()), page: String(page) }).toString()}`;
 
-  return <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-    <StaffHeader />
+  return <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
     <div className="mt-5"><SalesFreshnessBanner freshness={data.freshness} /></div>
     <header className="border-b border-border py-8"><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Receipts</p><h1 className="mt-2 text-4xl text-ink">Sales and refunds</h1></header>
     {filters.importRunId ? <p className="mt-4 text-sm text-muted">Showing receipts from import run <span className="font-mono">{filters.importRunId}</span><Link href="/staff/sales" className="ml-3 text-primary hover:underline">Clear run filter</Link></p> : null}
@@ -36,7 +34,7 @@ export default async function StaffSalesPage({ searchParams }: { searchParams: P
     <section aria-label="Filtered sales totals" className="grid border-b border-border sm:grid-cols-3"><Metric label="Sales total" value={formatMwk(Number(data.totals.sales))}/><Metric label="Refunds total" value={formatMwk(Number(data.totals.refunds))}/><Metric label="Net" value={formatMwk(Number(data.totals.net))}/></section>
     <div className="mt-5 overflow-x-auto border-y border-border"><table className="w-full min-w-[780px] text-left"><thead className="border-b border-border text-xs uppercase text-muted"><tr><th className="px-3 py-3 font-normal">Date/time</th><th className="px-3 py-3 font-normal">Document</th><th className="px-3 py-3 font-normal">Type</th><th className="px-3 py-3 font-normal">Lines</th><th className="px-3 py-3 text-right font-normal">Total</th><th className="px-3 py-3 font-normal">Branch</th></tr></thead><tbody className="divide-y divide-border">{data.sales.map((sale) => <tr key={sale.id} className="group relative cursor-pointer outline-none transition-colors hover:bg-surface focus-within:bg-surface"><td className="px-3 py-3 text-sm text-muted">{new Intl.DateTimeFormat("en-MW", { timeZone: "Africa/Blantyre", dateStyle: "medium", timeStyle: "short" }).format(sale.createdAt)}</td><td className="px-3 py-3 font-mono text-sm"><Link href={`/staff/sales/${sale.id}`} className="text-primary after:absolute after:inset-0 after:z-0 after:content-[''] group-hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{sale.sourceDocumentNumber ?? sale.id}</Link></td><td className="px-3 py-3 text-sm">{sale.isRefund ? "Refund" : "Sale"}</td><td className="px-3 py-3 text-sm">{sale._count.items}</td><td className="px-3 py-3 text-right font-mono text-sm">{formatMwk(Number(sale.totalAmount))}</td><td className="px-3 py-3 text-sm text-muted">{sale.branch.name}</td></tr>)}{!data.sales.length ? <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted">No receipts match these filters.</td></tr> : null}</tbody></table></div>
     <nav aria-label="Sales pages" className="flex items-center justify-between py-4 text-sm"><span className="text-muted">Page {filters.page} of {data.pageCount} · {data.totalCount} receipts</span><div className="flex gap-3">{filters.page > 1 ? <Link className="border border-border px-3 py-2" href={pageHref(filters.page - 1)}>Previous</Link> : null}{filters.page < data.pageCount ? <Link className="border border-border px-3 py-2" href={pageHref(filters.page + 1)}>Next</Link> : null}</div></nav>
-  </main>;
+  </div>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <div className="border-b border-border px-4 py-4 sm:border-r"><p className="text-xs uppercase text-muted">{label}</p><p className="mt-2 font-mono text-lg text-ink">{value}</p></div>; }

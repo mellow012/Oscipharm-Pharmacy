@@ -15,8 +15,8 @@ export default async function StockImportPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const data = await loadImportPageData(params.branchId);
   if (data.error) {
-    return <main className="mx-auto max-w-4xl px-5 py-8"><p role="alert" className="border-l-4 border-danger bg-danger-bg px-4 py-3 text-danger">{data.error}</p></main>;
+    return <div className="mx-auto max-w-4xl px-5 py-8"><p role="alert" className="border-l-4 border-danger bg-danger-bg px-4 py-3 text-danger">{data.error}</p></div>;
   }
   if (!data.branch) redirect("/staff");
-  return <StockImportWorkspace data={data} requestedBranchId={params.branchId} />;
+  return <StockImportWorkspace data={data} />;
 }

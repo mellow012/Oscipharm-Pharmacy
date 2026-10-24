@@ -1,5 +1,4 @@
 import type { ReportsData } from "@/features/reports/types";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 
 function money(value: string | number) {
@@ -21,8 +20,7 @@ export function ReportsDashboard({
     data: ReportsData;
 }) {
     return (
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <div className="mt-5"><SalesFreshnessBanner freshness={data.freshness} /></div>
 
             <header className="border-b border-border py-8">
@@ -243,7 +241,7 @@ export function ReportsDashboard({
                     </table>
                 </div>
             </section>
-        </main>
+        </div>
     );
 }
 

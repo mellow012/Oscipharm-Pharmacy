@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { listTeamForManager } from "@/features/admin/lib/staff-service";
 import { roleLabel } from "@/features/admin/lib/staff-rules";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +16,7 @@ export default async function StaffTeamPage() {
     if (!result.ok) redirect("/unauthorized");
 
     return (
-        <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
-            <StaffHeader />
+        <div className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
             <header className="mb-6 border-b border-border pb-6">
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Staff workspace</p>
                 <h1 className="mt-2 text-3xl text-ink">Team</h1>
@@ -38,6 +36,6 @@ export default async function StaffTeamPage() {
                 ))}
                 {!result.users.length ? <p className="py-8 text-sm text-muted">No staff accounts found.</p> : null}
             </div>
-        </main>
+        </div>
     );
 }

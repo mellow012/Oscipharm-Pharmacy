@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { StaffHeader } from "@/features/marketing/components/StaffHeader";
 import { commitStockImportSlice, previewStockImport } from "@/features/inventory/lib/import-actions";
 import { SalesImportPanel } from "@/features/inventory/components/SalesImportPanel";
 import type { ImportPreview } from "@/features/inventory/lib/stock-import-service";
@@ -49,7 +48,7 @@ function countsOf(value: unknown): Record<string, unknown> {
   return {};
 }
 
-export function StockImportWorkspace({ data, requestedBranchId }: { data: PageData; requestedBranchId?: string }) {
+export function StockImportWorkspace({ data }: { data: PageData }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [tab, setTab] = useState<"STOCK" | "SALES">("STOCK");
@@ -142,8 +141,7 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
   const previewCounts = preview?.preview.counts;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-      <StaffHeader />
+    <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
       <header className="border-b border-border py-8">
         <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Inventory workspace</p>
         <h1 className="mt-2 text-4xl text-ink">{tab === "STOCK" ? "Stock import" : "Sales import"}</h1>
@@ -236,7 +234,7 @@ export function StockImportWorkspace({ data, requestedBranchId }: { data: PageDa
         </div>
       </section>
       </> : <SalesImportPanel branchId={branchId} salesRuns={data.salesRuns} committingRun={data.salesCommittingRun} />}
-    </main>
+    </div>
   );
 }
 
