@@ -9,19 +9,30 @@ import { buildPasswordResetUrl, getPasswordResetExpiry, isPasswordResetTokenVali
 
 export { buildPasswordResetUrl, getPasswordResetExpiry, isPasswordResetTokenValid } from "./password-reset-policy.ts";
 
+export async function getActiveUserForPasswordResetRequest(email: string) {
+    return prisma.user.findUnique({
+        where: { email, isActive: true },
+        select: { id: true, email: true },
+    });
+}
+
 export async function createPasswordResetTokenForUser(userId: string) {
     const token = generateToken();
     const tokenHash = hashToken(token);
     const createdAt = new Date();
     const expiresAt = getPasswordResetExpiry(createdAt);
 
-    await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const created = await prisma.$transaction(async (tx) => {
+        const activeUser = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT "id" FROM "User" WHERE "id" = ${userId} AND "isActive" = TRUE FOR UPDATE
+        `;
+        if (!activeUser.length) return false;
         await tx.passwordResetToken.deleteMany({ where: { userId } });
         await tx.passwordResetToken.create({ data: { userId, tokenHash, createdAt, expiresAt } });
+        return true;
     });
 
-    return { token, expiresAt };
+    return created ? { token, expiresAt } : null;
 }
 
 export async function sendPasswordResetEmail(to: string, token: string) {
@@ -41,9 +52,9 @@ export async function sendPasswordResetEmail(to: string, token: string) {
 export async function getValidPasswordResetToken(token: string, now = new Date()) {
     const resetToken = await prisma.passwordResetToken.findUnique({
         where: { tokenHash: hashToken(token) },
-        select: { id: true, userId: true, expiresAt: true, usedAt: true },
+        select: { id: true, userId: true, expiresAt: true, usedAt: true, user: { select: { isActive: true } } },
     });
-    if (!resetToken || !isPasswordResetTokenValid(resetToken, now)) return null;
+    if (!resetToken || !resetToken.user.isActive || !isPasswordResetTokenValid(resetToken, now)) return null;
     return resetToken;
 }
 
@@ -53,6 +64,19 @@ export async function redeemPasswordResetToken(token: string, newPassword: strin
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_PASSWORD_COST);
 
     return prisma.$transaction(async (tx) => {
+        const candidate = await tx.passwordResetToken.findUnique({
+            where: { tokenHash },
+            select: { userId: true },
+        });
+        if (!candidate) return null;
+
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${candidate.userId} FOR UPDATE`;
+        const user = await tx.user.findUnique({
+            where: { id: candidate.userId },
+            select: { id: true, email: true, branchId: true, isActive: true },
+        });
+        if (!user?.isActive) return null;
+
         const claimed = await tx.$queryRaw<Array<{ userId: string }>>`
             UPDATE "PasswordResetToken"
             SET "usedAt" = ${now}
@@ -63,12 +87,6 @@ export async function redeemPasswordResetToken(token: string, newPassword: strin
         `;
         const userId = claimed[0]?.userId;
         if (!userId) return null;
-
-        const user = await tx.user.findUnique({
-            where: { id: userId },
-            select: { id: true, email: true, branchId: true },
-        });
-        if (!user) return null;
 
         await tx.user.update({
             where: { id: userId },

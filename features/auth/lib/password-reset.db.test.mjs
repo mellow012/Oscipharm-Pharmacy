@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { databaseTarget, requireTestDatabaseUrl } from "../../../scripts/test-database-safety.mjs";
 import { hashToken } from "../../../lib/tokens.ts";
 import { AUTH_EMAIL_MAX_FAILED_ATTEMPTS, AUTH_THROTTLE_SCOPES, getAuthThrottleSecret, hashAuthThrottleSubject, isAuthSubjectLocked, recordAuthFailure, recordPasswordResetRequestThrottle } from "./auth-throttle.ts";
-import { createPasswordResetTokenForUser, redeemPasswordResetToken } from "./password-reset.ts";
+import { createPasswordResetTokenForUser, getActiveUserForPasswordResetRequest, getValidPasswordResetToken, redeemPasswordResetToken } from "./password-reset.ts";
 
 const testDatabaseUrl = requireTestDatabaseUrl();
 assert.ok(process.env.DATABASE_URL, "DB test must run via npm run test:db");
@@ -66,6 +66,33 @@ test("new reset request invalidates the previous token", async () => {
     const newToken = await createPasswordResetTokenForUser(context.user.id, prisma);
     assert.equal(await redeemPasswordResetToken(oldToken.token, "OldPassword123", prisma), null);
     assert.equal((await redeemPasswordResetToken(newToken.token, "NewPassword123", prisma))?.id, context.user.id);
+  } finally {
+    await clean(context);
+  }
+});
+
+test("password reset requests do not resolve inactive users", async () => {
+  const context = await createUser(`inactive-request-${Date.now()}`);
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { isActive: false } });
+    const before = await prisma.passwordResetToken.count({ where: { userId: context.user.id } });
+
+    assert.equal(await getActiveUserForPasswordResetRequest(context.user.email), null);
+    assert.equal(await prisma.passwordResetToken.count({ where: { userId: context.user.id } }), before);
+  } finally {
+    await clean(context);
+  }
+});
+
+test("inactive users cannot validate or redeem previously issued reset tokens", async () => {
+  const context = await createUser(`inactive-redemption-${Date.now()}`);
+  try {
+    const reset = await createPasswordResetTokenForUser(context.user.id);
+    await prisma.user.update({ where: { id: context.user.id }, data: { isActive: false } });
+
+    assert.equal(await getValidPasswordResetToken(reset.token), null);
+    assert.equal(await redeemPasswordResetToken(reset.token, "RejectedPassword123"), null);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: context.user.id } })).passwordHash, "initial-hash");
   } finally {
     await clean(context);
   }

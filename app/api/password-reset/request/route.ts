@@ -8,7 +8,7 @@ import {
     normalizeAuthEmail,
     recordPasswordResetRequestThrottle,
 } from "@/features/auth/lib/auth-throttle";
-import { createPasswordResetTokenForUser, sendPasswordResetEmail } from "@/features/auth/lib/password-reset";
+import { createPasswordResetTokenForUser, getActiveUserForPasswordResetRequest, sendPasswordResetEmail } from "@/features/auth/lib/password-reset";
 
 const GENERIC_MESSAGE = "If an account exists for that email, a reset link has been sent.";
 
@@ -25,12 +25,11 @@ export async function POST(request: Request) {
         if (allowed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             after(async () => {
                 try {
-                    const user = await prisma.user.findUnique({
-                        where: { email },
-                        select: { id: true, email: true },
-                    });
+                    const user = await getActiveUserForPasswordResetRequest(email);
                     if (!user) return;
-                    const { token } = await createPasswordResetTokenForUser(user.id);
+                    const reset = await createPasswordResetTokenForUser(user.id);
+                    if (!reset) return;
+                    const { token } = reset;
                     await sendPasswordResetEmail(user.email, token);
                 } catch (error) {
                     const details = error as { name?: unknown; code?: unknown };

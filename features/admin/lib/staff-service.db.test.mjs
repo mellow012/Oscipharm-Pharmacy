@@ -221,7 +221,10 @@ test("reset link rejects inactive targets and reports missing SMTP without a sen
     for (const key of envKeys.filter((name) => name !== "APP_URL")) delete process.env[key];
     console.log = () => {};
 
-    assert.equal((await sendStaffResetLink(admin.id, inactive.id)).ok, false);
+    assert.deepEqual(await sendStaffResetLink(admin.id, inactive.id), {
+      ok: false,
+      message: "Reactivate this account before sending a reset link.",
+    });
     const notSent = await sendStaffResetLink(admin.id, active.id);
     assert.deepEqual(notSent, { ok: false, message: "Email could not be sent. The previous reset link no longer works; try again." });
     assert.equal(await prisma.auditLog.count({ where: { userId: admin.id, action: "STAFF_RESET_LINK_SENT" } }), 0);

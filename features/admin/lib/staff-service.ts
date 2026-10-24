@@ -205,7 +205,9 @@ export async function sendStaffResetLink(actorId: string, userId: string): Promi
 
     let delivery;
     try {
-        const { token } = await createPasswordResetTokenForUser(target.id);
+        const reset = await createPasswordResetTokenForUser(target.id);
+        if (!reset) return { ok: false, message: "Reactivate this account before sending a reset link." };
+        const { token } = reset;
         delivery = await sendPasswordResetEmail(target.email, token);
     } catch (error) {
         const details = error as { name?: unknown; code?: unknown };
