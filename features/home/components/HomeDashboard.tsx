@@ -2,22 +2,9 @@
 
 import Link from "next/link";
 import type { Role } from "@prisma/client";
-import { can, type Permission } from "@/lib/permissions";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 import type { SalesFreshness } from "@/features/reports/lib/sales-freshness";
-
-type HomeSection = { label: string; description: string; href: string; permission: Permission | null; accent: string };
-
-const sections: HomeSection[] = [
-    { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage" as const, accent: "border-primary" },
-    { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive" as const, accent: "border-warn" },
-    { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:receive" as const, accent: "border-primary" },
-    { label: "Sales", description: "Browse imported sales and refunds", href: "/staff/sales", permission: "reports:branch:view" as const, accent: "border-primary" },
-    { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage" as const, accent: "border-warn" },
-    { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage" as const, accent: "border-primary" },
-    { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view" as const, accent: "border-warn" },
-    { label: "Admin", description: "Manage users and branches", href: "/admin", permission: "users:manage" as const, accent: "border-primary" },
-];
+import { getHomeTileGroups } from "@/features/home/lib/home-tiles";
 
 type HomeDashboardProps = {
     name: string;
@@ -26,15 +13,7 @@ type HomeDashboardProps = {
 };
 
 export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
-    const accessibleSections = sections.filter(
-        (section) => section.permission === null || can(role, section.permission)
-    );
-    if (role === "BRANCH_MANAGER") {
-        accessibleSections.push({ label: "Team", description: "View staff assigned to your branch", href: "/staff/team", permission: null, accent: "border-warn" });
-    }
-    if (role === "ADMIN") {
-        accessibleSections.push({ label: "Staff", description: "Manage staff accounts", href: "/admin/staff", permission: null, accent: "border-primary" });
-    }
+    const groups = getHomeTileGroups(role);
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
@@ -44,21 +23,30 @@ export function HomeDashboard({ name, role, freshness }: HomeDashboardProps) {
                 <h1 className="text-4xl text-ink">Good to see you, {name}</h1>
                 <p className="mt-2 text-muted">Choose a workspace to continue.</p>
             </header>
-            <div className="border-y border-border">
-                {accessibleSections.map((section) => (
-                    <Link
-                        key={section.label}
-                        href={section.href}
-                        className={`group flex items-center justify-between gap-6 border-b border-border border-l-4 bg-surface px-5 py-5 transition last:border-b-0 hover:bg-white ${section.accent}`}
-                    >
-                        <div>
-                            <h2 className="text-xl text-ink group-hover:text-primary">{section.label}</h2>
-                            <p className="mt-1 text-sm text-muted">{section.description}</p>
-                        </div>
-                        <span aria-hidden="true" className="text-xl text-warn transition-transform group-hover:translate-x-1">-&gt;</span>
-                    </Link>
-                ))}
-            </div>
+            {groups.length === 0 ? <p className="text-sm text-muted">No workspaces are available for your account yet.</p> : (
+                <div className="space-y-8">
+                    {groups.map((group) => (
+                        <section key={group.label} aria-labelledby={`home-group-${group.layout}`}>
+                            <h2 id={`home-group-${group.layout}`} className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">{group.label}</h2>
+                            <div className={group.layout === "daily" ? "grid grid-cols-1 gap-3 md:grid-cols-2" : "grid grid-cols-2 gap-2 lg:grid-cols-3 lg:gap-3"}>
+                                {group.tiles.map((tile) => (
+                                    <Link
+                                        key={tile.href}
+                                        href={tile.href}
+                                        className={`group flex min-h-11 items-center justify-between ${group.layout === "daily" ? "gap-3" : "gap-2"} border border-border border-l-4 bg-surface text-ink transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${tile.accent} ${group.layout === "daily" ? "min-h-[88px] px-4 py-3 sm:px-5" : "min-h-14 px-3 py-3 sm:px-4"}`}
+                                    >
+                                        <span className="min-w-0">
+                                            <span className={`block min-w-0 break-words hyphens-auto font-display leading-tight group-hover:text-primary ${group.layout === "daily" ? "text-xl" : "text-base sm:text-lg"}`}>{tile.label}</span>
+                                            {group.layout === "daily" ? <span className="mt-1 block text-sm text-muted">{tile.description}</span> : null}
+                                        </span>
+                                        <span aria-hidden="true" className="shrink-0 text-lg text-primary transition-transform group-hover:translate-x-1">-&gt;</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
