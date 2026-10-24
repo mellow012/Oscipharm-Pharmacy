@@ -17,6 +17,7 @@ const testFiles = [
     "features/auth/lib/password-reset.db.test.mjs",
     "features/auth/lib/staff-lifecycle.db.test.mjs",
     "features/admin/lib/staff-service.db.test.mjs",
+    "features/admin/lib/branch-service.db.test.mjs",
     "features/news/lib/news-service.db.test.mjs",
     "features/news/lib/image-service.db.test.mjs",
     "prisma/seed.test.mjs",

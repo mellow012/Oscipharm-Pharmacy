@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
 import { getAuthorizedBranchId, type StaffSession } from "@/features/catalog/lib/aronium-actions";
 import { firstVariantInputError, hasDuplicateVariant, looseSaleUnitLinkError, newCatalogNameErrors, variantInputSchema, type VariantFieldErrors, type VariantInput } from "@/features/catalog/lib/variant-validation";
 
@@ -133,6 +134,7 @@ export async function saveStaffVariant(
 
     try {
         const saved = await prisma.$transaction(async (tx) => {
+            if (!(await lockActiveBranch(tx, branchId))) return null;
             const resolvedCategoryId = category?.id ?? (input.categoryMode === "new"
                 ? (await tx.category.create({ data: { name: input.categoryName } })).id
                 : null);
@@ -191,6 +193,7 @@ export async function saveStaffVariant(
             });
             return variant.id;
         });
+        if (!saved) return { errors: { form: INACTIVE_BRANCH_WRITE_ERROR } };
 
         revalidatePath("/staff/catalog");
         revalidatePath("/catalog");

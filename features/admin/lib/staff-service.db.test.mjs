@@ -175,6 +175,36 @@ test("invalid role and branch assignments are rejected without changing the user
   }
 });
 
+test("staff cannot be assigned to an inactive branch", async () => {
+  const branch = await createBranch("inactive-assignment");
+  const admin = await createUser({ label: "inactive-assignment-admin", role: "ADMIN" });
+  const target = await createUser({ label: "inactive-assignment-target", role: "POS", branchId: branch.id });
+  try {
+    await prisma.branch.update({ where: { id: branch.id }, data: { isActive: false } });
+    const result = await changeStaffRoleAndBranch(admin.id, { userId: target.id, role: "BRANCH_MANAGER", branchId: branch.id });
+    assert.equal(result.ok, false);
+    assert.match(result.message, /inactive/i);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "POS");
+  } finally {
+    await cleanup({ users: [admin, target], branches: [branch] });
+  }
+});
+
+test("inactive staff cannot be reactivated while their assigned branch is inactive", async () => {
+  const branch = await createBranch("inactive-reactivation");
+  const admin = await createUser({ label: "inactive-reactivation-admin", role: "ADMIN" });
+  const target = await createUser({ label: "inactive-reactivation-target", role: "POS", branchId: branch.id, isActive: false });
+  try {
+    await prisma.branch.update({ where: { id: branch.id }, data: { isActive: false } });
+    const result = await reactivateStaff(admin.id, target.id);
+    assert.equal(result.ok, false);
+    assert.match(result.message, /inactive branch/i);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).isActive, false);
+  } finally {
+    await cleanup({ users: [admin, target], branches: [branch] });
+  }
+});
+
 test("manager team list includes only the manager's branch and never an Admin", async () => {
   const branchA = await createBranch("team-a");
   const branchB = await createBranch("team-b");

@@ -56,6 +56,10 @@ enum AuditAction {
   STAFF_ROLE_CHANGED
   STAFF_BRANCH_CHANGED
   STAFF_RESET_LINK_SENT
+  BRANCH_CREATED
+  BRANCH_UPDATED
+  BRANCH_DEACTIVATED
+  BRANCH_REACTIVATED
   NEWS_CREATED
   NEWS_UPDATED
   NEWS_PUBLISHED
@@ -102,8 +106,9 @@ enum NewsStatus {
 
 model Branch {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @unique
   location  String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   users         User[]

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
+import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
 import { allocateFefoBatches } from "../../pos/lib/checkout-core.ts";
 import { getMalawiDateKey } from "../../../lib/timezone.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
@@ -55,9 +56,10 @@ async function actorIdFromSession(): Promise<string | null> {
 async function assertActor(db: Db, branchId: string, userId: string) {
   const [user, branch] = await Promise.all([
     db.user.findUnique({ where: { id: userId }, select: { role: true, branchId: true } }),
-    db.branch.findUnique({ where: { id: branchId }, select: { id: true } }),
+    db.branch.findUnique({ where: { id: branchId }, select: { id: true, isActive: true } }),
   ]);
   if (!branch) throw new Error("Choose a valid branch.");
+  if (!branch.isActive) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
   if (!user || (user.role !== "ADMIN" && !(user.role === "BRANCH_MANAGER" && user.branchId === branchId))) {
     throw new Error("Only an Admin or the Branch Manager for this branch can import sales.");
   }
@@ -417,6 +419,7 @@ async function commitSalesWith(db: Db, runId: string, buffer: FileBuffer, resolv
         if (globalIndex < completedBefore) continue;
         if (processedAnyDocument && Date.now() - sliceStartedAt >= (options.timeLimitMs ?? DOCUMENT_SLICE_MS)) return false;
         const transactionResult = await db.$transaction(async (tx) => {
+          if (!(await lockActiveBranch(tx, run.branchId))) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
           await lockImportBranch(tx, run.branchId);
           const context = await prefetchSalesChunk(tx, run, [document]);
           const result = await commitDocument(tx, { run, actorId, document, todayKey: getMalawiDateKey(new Date()), context });
@@ -450,6 +453,7 @@ async function commitSalesWith(db: Db, runId: string, buffer: FileBuffer, resolv
   if (!slice.done) return { processed: processedDocuments, total: documents.length, done: false };
   const finalCounts = { ...counters, completedDocuments: documents.length, completedChunks: documents.length };
   await db.$transaction(async (tx) => {
+    if (!(await lockActiveBranch(tx, run.branchId))) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
     await tx.importRun.update({ where: { id: run.id }, data: { status: "COMMITTED", committedAt: new Date(), counts: finalCounts as Prisma.InputJsonValue } });
     await tx.auditLog.create({ data: { action: "IMPORT_COMMITTED", branchId: run.branchId, userId: actorId, details: { importRunId: run.id, kind: "SALES", ...finalCounts } } });
   }, { timeout: 30_000, maxWait: 10_000 });

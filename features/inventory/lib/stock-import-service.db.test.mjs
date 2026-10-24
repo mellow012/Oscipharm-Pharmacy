@@ -121,6 +121,19 @@ test("same committed stock file is blocked on re-upload", async () => {
   }
 });
 
+test("stock import commit is rejected after its branch is deactivated", async () => {
+  const context = await setup();
+  try {
+    const buffer = await createWorkbook([{ code: `inactive-${context.unique}`, name: "Inactive Branch Product", quantity: 2 }]);
+    const result = await preview(context, buffer);
+    await prisma.branch.update({ where: { id: context.branch.id }, data: { isActive: false } });
+    await assert.rejects(() => context.service.commitImport(result.run.id, buffer), /inactive/i);
+    assert.equal(await prisma.batch.count({ where: { importRunId: result.run.id } }), 0);
+  } finally {
+    await cleanup(context);
+  }
+});
+
 test("resume after a committed first chunk does not duplicate batches", async () => {
   const context = await setup();
   try {

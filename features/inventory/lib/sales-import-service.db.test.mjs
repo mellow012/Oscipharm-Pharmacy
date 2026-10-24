@@ -124,6 +124,18 @@ test("same file is a no-op and overlapping re-export imports only new documents"
   } finally { await cleanup(context); }
 });
 
+test("sales import commit is rejected after its branch is deactivated", async () => {
+  const context = await setup();
+  try {
+    const code = `inactive-sales-${context.suffix}`;
+    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `INACTIVE-${context.suffix}`, "", code, "Product", "1", "pack", 100, 100]]);
+    const preview = await importSales(context, buffer);
+    await prisma.branch.update({ where: { id: context.branch.id }, data: { isActive: false } });
+    await assert.rejects(() => commitFully(context, preview.run, buffer), /inactive/i);
+    assert.equal(await prisma.sale.count({ where: { branchId: context.branch.id } }), 0);
+  } finally { await cleanup(context); }
+});
+
 test("refund restores original allocated batch and missing original goes to RETURN batch", async () => {
   const context = await setup();
   try {

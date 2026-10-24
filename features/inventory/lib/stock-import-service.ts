@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
+import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
 import { parseStockExport, type StockRow } from "./stock-parser.ts";
 
@@ -182,8 +183,9 @@ async function assertImportPermission(db: DatabaseClient, branchId: string, user
   if (!user || (user.role !== "ADMIN" && !(user.role === "BRANCH_MANAGER" && user.branchId === branchId))) {
     throw new Error("Only an Admin or the Branch Manager for this branch can import stock.");
   }
-  const branch = await db.branch.findUnique({ where: { id: branchId }, select: { id: true } });
+  const branch = await db.branch.findUnique({ where: { id: branchId }, select: { id: true, isActive: true } });
   if (!branch) throw new Error("Choose a valid branch.");
+  if (!branch.isActive) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
 }
 
 async function findExistingLinks(db: DatabaseClient, codes: string[]) {
@@ -315,6 +317,7 @@ async function commitImportWith(
       const codes = chunk.map((row) => row.code);
       let queryCount = 0;
       await db.$transaction(async (tx) => {
+        if (!(await lockActiveBranch(tx, run.branchId))) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
         await lockImportBranch(tx, run.branchId);
         queryCount += 1;
         const prefetchedLinks = await tx.aroniumProductLink.findMany({ where: { aroniumCode: { in: codes } }, select: { aroniumCode: true, variantId: true } });
@@ -415,6 +418,7 @@ async function commitImportWith(
   }
 
   const committed = await db.$transaction(async (tx) => {
+    if (!(await lockActiveBranch(tx, run.branchId))) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
     const updatedRun = await tx.importRun.update({
       where: { id: run.id },
       data: { status: "COMMITTED", committedAt: new Date(), counts: finalCounts as Prisma.InputJsonValue },

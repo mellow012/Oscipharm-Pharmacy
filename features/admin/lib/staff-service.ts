@@ -81,9 +81,14 @@ export async function changeStaffRoleAndBranch(actorId: string, input: {
 
     const role = input.role as Role;
     const result = await prisma.$transaction(async (tx): Promise<StaffActionResult> => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 1)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 2)`;
         const currentActor = await requireAdmin(tx, actorId);
         if (!currentActor) return { ok: false, message: "You are not authorized to manage staff." };
+        if (branchId) {
+            const targetBranch = await tx.branch.findUnique({ where: { id: branchId }, select: { id: true, isActive: true } });
+            if (!targetBranch) return { ok: false, message: "The selected branch does not exist." };
+            if (!targetBranch.isActive) return { ok: false, message: "Cannot assign staff to an inactive branch." };
+        }
         const target = await tx.user.findUnique({
             where: { id: input.userId },
             select: { id: true, role: true, branchId: true, isActive: true },
@@ -169,6 +174,7 @@ export async function reactivateStaff(actorId: string, userId: string): Promise<
     if (!actor) return { ok: false, message: "You are not authorized to manage staff." };
 
     return prisma.$transaction(async (tx): Promise<StaffActionResult> => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 2)`;
         const currentActor = await requireAdmin(tx, actorId);
         if (!currentActor) return { ok: false, message: "You are not authorized to manage staff." };
         const target = await tx.user.findUnique({
@@ -179,6 +185,10 @@ export async function reactivateStaff(actorId: string, userId: string): Promise<
         const valid = validateRoleBranch({ role: target.role, branchId: target.branchId });
         if (!valid.ok) return valid;
         if (target.isActive) return { ok: true, message: "Staff account is already active." };
+        if (target.branchId) {
+            const branch = await tx.branch.findUnique({ where: { id: target.branchId }, select: { isActive: true } });
+            if (!branch?.isActive) return { ok: false, message: "Cannot reactivate staff assigned to an inactive branch." };
+        }
 
         await tx.user.update({ where: { id: userId }, data: { isActive: true } });
         await tx.auditLog.create({

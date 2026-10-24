@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isExpiredInMalawi } from "@/lib/timezone";
+import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
 import type { ActionState } from "@/features/inventory/types";
 
 function getText(formData: FormData, field: string) {
@@ -21,7 +22,7 @@ function resolveExpiry(value: string) {
 async function resolveBranch(formData: FormData, role: string, sessionBranchId: string | null) {
     const branchId = role === "ADMIN" ? getText(formData, "branchId") : sessionBranchId;
     if (!branchId) return null;
-    return prisma.branch.findUnique({ where: { id: branchId }, select: { id: true } });
+    return prisma.branch.findUnique({ where: { id: branchId, isActive: true }, select: { id: true } });
 }
 
 export async function receiveBatch(_previousState: ActionState, formData: FormData): Promise<ActionState> {
@@ -48,7 +49,8 @@ export async function receiveBatch(_previousState: ActionState, formData: FormDa
     if (!variant) return { error: "Choose a valid product variant." };
 
     const quantityRemaining = quantityReceived * variant.packSize;
-    await prisma.$transaction(async (tx) => {
+    const wrote = await prisma.$transaction(async (tx) => {
+        if (!(await lockActiveBranch(tx, branch.id))) return false;
         const batch = await tx.batch.create({
             data: { variantId, branchId: branch.id, batchNumber, quantityReceived, quantityRemaining, expiryDate, receivedById: session.user.id },
         });
@@ -60,7 +62,9 @@ export async function receiveBatch(_previousState: ActionState, formData: FormDa
                 details: { batchId: batch.id, variantId, batchNumber, quantityReceivedPacks: quantityReceived, quantityRemainingUnits: quantityRemaining, packSize: variant.packSize, expiryDate: expiryText },
             },
         });
+        return true;
     });
+    if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");
     return { success: `Received ${quantityReceived} pack${quantityReceived === 1 ? "" : "s"} of ${variant.brandName}.` };
@@ -92,7 +96,8 @@ export async function updateBranchPrice(_previousState: ActionState, formData: F
         && existing.reorderThreshold === reorderThreshold;
     if (unchanged) return { success: "No pricing changes were needed." };
 
-    await prisma.$transaction(async (tx) => {
+    const wrote = await prisma.$transaction(async (tx) => {
+        if (!(await lockActiveBranch(tx, branch.id))) return false;
         await tx.branchPrice.upsert({
             where: { variantId_branchId: { variantId, branchId: branch.id } },
             create: { variantId, branchId: branch.id, pricePerPack, pricePerUnit, reorderThreshold, updatedById: session.user.id },
@@ -106,7 +111,9 @@ export async function updateBranchPrice(_previousState: ActionState, formData: F
                 details: { variantId, oldPricePerPack: existing?.pricePerPack.toString() ?? null, newPricePerPack: pricePerPack.toString(), oldPricePerUnit: existing?.pricePerUnit.toString() ?? null, newPricePerUnit: pricePerUnit.toString(), oldReorderThreshold: existing?.reorderThreshold ?? null, newReorderThreshold: reorderThreshold },
             },
         });
+        return true;
     });
+    if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");
     return { success: "Pricing updated." };
@@ -130,7 +137,8 @@ export async function updateBatchExpiry(_previousState: ActionState, formData: F
     if (session.user.role !== "ADMIN" && session.user.branchId !== batch.branchId) return { error: "You are not allowed to edit this branch's batches." };
     if (batch.expiryDateKnown && batch.expiryDate.toISOString().slice(0, 10) === expiryText) return { success: "No expiry changes were needed." };
 
-    await prisma.$transaction(async (tx) => {
+    const wrote = await prisma.$transaction(async (tx) => {
+        if (!(await lockActiveBranch(tx, batch.branchId))) return false;
         await tx.batch.update({ where: { id: batch.id }, data: { expiryDate, expiryDateKnown: true } });
         await tx.auditLog.create({
             data: {
@@ -147,7 +155,9 @@ export async function updateBatchExpiry(_previousState: ActionState, formData: F
                 },
             },
         });
+        return true;
     });
+    if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");
     revalidatePath("/reports");
