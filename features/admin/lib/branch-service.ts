@@ -104,6 +104,20 @@ export async function deactivateBranch(actorId: string, branchId: string): Promi
                 message: `Cannot deactivate this branch while ${activeStaffCount} active staff member${activeStaffCount === 1 ? " is" : "s are"} assigned.`,
             };
         }
+        const now = new Date();
+        await tx.staffInvitation.updateMany({
+            where: { branchId, status: "PENDING", expiresAt: { lte: now } },
+            data: { status: "EXPIRED" },
+        });
+        const pendingInvitationCount = await tx.staffInvitation.count({
+            where: { branchId, status: "PENDING", expiresAt: { gt: now } },
+        });
+        if (pendingInvitationCount > 0) {
+            return {
+                ok: false,
+                message: `Cannot deactivate this branch while ${pendingInvitationCount} pending invitation${pendingInvitationCount === 1 ? " exists" : "s exist"}. Revoke them first.`,
+            };
+        }
         const activeBranchCount = await tx.branch.count({ where: { isActive: true } });
         if (activeBranchCount <= 1) return { ok: false, message: "At least one active branch must remain." };
         const before: BranchSnapshot = { name: branch.name, location: branch.location, isActive: branch.isActive };
@@ -111,7 +125,7 @@ export async function deactivateBranch(actorId: string, branchId: string): Promi
         const after: BranchSnapshot = { name: updated.name, location: updated.location, isActive: updated.isActive };
         await tx.auditLog.create({ data: { action: "BRANCH_DEACTIVATED", branchId, userId: actorId, details: { before, after } } });
         return { ok: true, message: "Branch deactivated." };
-    });
+    }, { timeout: 30_000, maxWait: 10_000 });
 }
 
 export async function reactivateBranch(actorId: string, branchId: string): Promise<BranchResult> {
@@ -126,5 +140,5 @@ export async function reactivateBranch(actorId: string, branchId: string): Promi
         const after: BranchSnapshot = { name: updated.name, location: updated.location, isActive: updated.isActive };
         await tx.auditLog.create({ data: { action: "BRANCH_REACTIVATED", branchId, userId: actorId, details: { before, after } } });
         return { ok: true, message: "Branch reactivated." };
-    });
+    }, { timeout: 30_000, maxWait: 10_000 });
 }

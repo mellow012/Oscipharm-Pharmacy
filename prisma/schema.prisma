@@ -41,6 +41,13 @@ enum ImportRunStatus {
   UNDONE
 }
 
+enum StaffInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 enum AuditAction {
   STOCK_RECEIVED
   STOCK_ADJUSTED
@@ -60,6 +67,10 @@ enum AuditAction {
   BRANCH_UPDATED
   BRANCH_DEACTIVATED
   BRANCH_REACTIVATED
+  STAFF_INVITATION_CREATED
+  STAFF_INVITATION_RESENT
+  STAFF_INVITATION_REVOKED
+  STAFF_INVITATION_ACCEPTED
   NEWS_CREATED
   NEWS_UPDATED
   NEWS_PUBLISHED
@@ -112,6 +123,7 @@ model Branch {
   createdAt DateTime @default(now())
 
   users         User[]
+  staffInvitations StaffInvitation[]
   batches       Batch[]
   prices        BranchPrice[]
   sales         Sale[]
@@ -155,6 +167,8 @@ model User {
   createdAt DateTime @default(now())
 
   passwordResetTokens PasswordResetToken[]
+  staffInvitationsSent StaffInvitation[] @relation("StaffInvitationInvitedBy")
+  staffInvitationAccepted StaffInvitation? @relation("StaffInvitationAcceptedUser")
   sales     Sale[]
   importRuns ImportRun[]
   auditLogs AuditLog[]
@@ -173,6 +187,28 @@ model PasswordResetToken {
   usedAt    DateTime?
 
   @@index([userId])
+}
+
+model StaffInvitation {
+  id             String                @id @default(cuid())
+  email          String
+  role           Role
+  branchId       String?
+  branch         Branch?               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  invitedById    String
+  invitedBy      User                  @relation("StaffInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedUserId String?               @unique
+  acceptedUser   User?                 @relation("StaffInvitationAcceptedUser", fields: [acceptedUserId], references: [id], onDelete: SetNull)
+  tokenHash      String                @unique
+  status         StaffInvitationStatus @default(PENDING)
+  createdAt      DateTime              @default(now())
+  expiresAt      DateTime
+  emailSentAt    DateTime?
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+
+  @@index([status, expiresAt])
+  @@index([branchId, status, expiresAt])
 }
 
 model AuthThrottle {
