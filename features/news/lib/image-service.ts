@@ -161,7 +161,7 @@ export async function attachImage({
                 });
                 await writeAudit(tx, currentActor, created.id, "add");
                 return { created };
-            });
+            }, { maxWait: 10_000, timeout: 30_000 });
             if ("error" in data && data.error) {
                 await removeBestEffort(storage, storagePath);
                 return fail(data.error, data.status);
@@ -199,7 +199,7 @@ export async function deleteImage({ prisma, storage, actorId, imageId }: {
             const remaining = await tx.newsImage.findMany({ where: { newsId: image.newsId }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } });
             await renumber(tx, image.newsId, remaining.map((row) => row.id));
             await writeAudit(tx, currentActor, imageId, "delete");
-        });
+        }, { maxWait: 10_000, timeout: 30_000 });
         if (image.storagePath) {
             try {
                 await storage.remove(image.storagePath);
@@ -235,7 +235,7 @@ export async function moveImage({ prisma, actorId, imageId, direction }: {
             const images = await renumber(tx, image.newsId, ids);
             await writeAudit(tx, currentActor, imageId, "move");
             return { images, postId: image.newsId, slug: image.news.slug };
-        });
+        }, { maxWait: 10_000, timeout: 30_000 });
         if (!data) return fail("Image not found or access denied.", 403);
         return { ok: true, message: "Image order updated.", data };
     } catch {
@@ -270,7 +270,7 @@ export async function updateImageText({ prisma, actorId, imageId, altText, capti
             });
             await writeAudit(tx, currentActor, imageId, "text");
             return saved;
-        });
+        }, { maxWait: 10_000, timeout: 30_000 });
         if (!updated) return fail("Image not found or access denied.", 403);
         return { ok: true, message: "Image text saved.", data: { postId: image.newsId, slug: image.news.slug, image: updated } };
     } catch {
