@@ -111,5 +111,5 @@ export async function redeemPasswordResetToken(token: string, newPassword: strin
         `;
 
         return user;
-    });
+    }, { maxWait: 10_000, timeout: 30_000 });
 }
