@@ -91,8 +91,8 @@ test("sales import allocates across opening-stock batches in FEFO order", async 
   try {
     const { link } = await createStock(context, `fefo-${context.suffix}`);
     const first = await prisma.batch.findFirstOrThrow({ where: { branchId: context.branch.id, variantId: link.variantId, importRunId: { not: null } } });
-    await prisma.batch.update({ where: { id: first.id }, data: { expiryDate: new Date("2026-11-01T00:00:00Z"), expiryDateKnown: true, quantityRemaining: 3 } });
-    const second = await prisma.batch.create({ data: { branchId: context.branch.id, variantId: link.variantId, batchNumber: "LATER", quantityReceived: 10, quantityRemaining: 10, expiryDate: new Date("2027-01-01T00:00:00Z"), receivedById: context.user.id } });
+    await prisma.batch.update({ where: { id: first.id }, data: { expiryDate: new Date(Date.now() + 60 * 86400000), expiryDateKnown: true, quantityRemaining: 3 } });
+    const second = await prisma.batch.create({ data: { branchId: context.branch.id, variantId: link.variantId, batchNumber: "LATER", quantityReceived: 10, quantityRemaining: 10, expiryDate: new Date(Date.now() + 120 * 86400000), expiryDateKnown: true, receivedById: context.user.id } });
     const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `SALE-${context.suffix}-1`, "", `fefo-${context.suffix}`, "Product", "8", "pack", 800, 800]]);
     const preview = await importSales(context, buffer);
     await commitFully(context, preview.run, buffer);
