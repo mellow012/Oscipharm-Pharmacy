@@ -16,14 +16,14 @@ export type HomeTileGroup = {
 };
 
 const DAILY_TILES: HomeTile[] = [
-    { label: "Sales", description: "Browse sales and refunds", href: "/staff/sales", permission: "reports:branch:view", accent: "border-primary" },
-    { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "stock:receive", accent: "border-warn" },
+    { label: "Sales", description: "Browse sales and refunds", href: "/staff/sales", permission: "sales:view", accent: "border-primary" },
+    { label: "Inventory", description: "Receive stock and manage batches", href: "/inventory", permission: "inventory:view", accent: "border-warn" },
 ];
 
 const MORE_TILES: HomeTile[] = [
-    { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:manage", accent: "border-primary" },
+    { label: "Catalog", description: "Review products and Aronium codes", href: "/staff/catalog", permission: "catalog:view", accent: "border-primary" },
     { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view", accent: "border-warn" },
-    { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:receive", accent: "border-primary" },
+    { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:import", accent: "border-primary" },
     { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage", accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage", accent: "border-warn" },
     { label: "Administration", description: "Manage users and branches", href: "/admin", permission: "users:manage", accent: "border-primary" },

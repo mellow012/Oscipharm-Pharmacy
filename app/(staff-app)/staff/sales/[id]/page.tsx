@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function StaffSaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
-  if (!can(session.user.role, "reports:branch:view")) redirect("/unauthorized");
+  if (!can(session.user.role, "sales:view")) redirect("/unauthorized");
   const sale = await getSaleDetail({ role: session.user.role, branchId: session.user.branchId }, (await params).id);
   if (!sale) notFound();
   const timestamp = new Intl.DateTimeFormat("en-MW", { timeZone: "Africa/Blantyre", dateStyle: "full", timeStyle: "short" }).format(sale.createdAt);

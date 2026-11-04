@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
+import { can } from "../../../lib/permissions.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
 import { parseStockExport, type StockRow } from "./stock-parser.ts";
 
@@ -179,9 +180,9 @@ function countsForRows(
 }
 
 async function assertImportPermission(db: DatabaseClient, branchId: string, userId: string) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true, branchId: true } });
-  if (!user || (user.role !== "ADMIN" && !(user.role === "BRANCH_MANAGER" && user.branchId === branchId))) {
-    throw new Error("Only an Admin or the Branch Manager for this branch can import stock.");
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true, branchId: true, isActive: true } });
+  if (!user || !user.isActive || !can(user.role, "stock:import") || (user.role !== "ADMIN" && user.branchId !== branchId)) {
+    throw new Error("Only an Admin, or an active Branch Manager or POS user assigned to this branch, can import stock.");
   }
   const branch = await db.branch.findUnique({ where: { id: branchId }, select: { id: true, isActive: true } });
   if (!branch) throw new Error("Choose a valid branch.");

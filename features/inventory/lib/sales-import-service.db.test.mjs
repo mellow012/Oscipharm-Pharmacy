@@ -136,6 +136,47 @@ test("sales import commit is rejected after its branch is deactivated", async ()
   } finally { await cleanup(context); }
 });
 
+test("POS can preview sales import for its own branch", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
+    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `POS-${context.suffix}`, "", `pos-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
+    const result = await importSales(context, buffer);
+    assert.equal(result.status, "PREVIEW");
+  } finally { await cleanup(context); }
+});
+
+test("POS cannot preview sales import for another branch", async () => {
+  const context = await setup();
+  const otherBranch = await prisma.branch.create({ data: { name: `Other Sales Import ${context.suffix}` } });
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
+    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `POS-OTHER-${context.suffix}`, "", `pos-other-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
+    await assert.rejects(() => context.salesService.createPreview({ branchId: otherBranch.id, userId: context.user.id, filename: "sales.xlsx", buffer }), /Only an Admin/);
+  } finally {
+    await prisma.branch.delete({ where: { id: otherBranch.id } });
+    await cleanup(context);
+  }
+});
+
+test("POS without a branch cannot preview sales import", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } });
+    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `POS-NONE-${context.suffix}`, "", `pos-none-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
+    await assert.rejects(() => importSales(context, buffer), /Only an Admin/);
+  } finally { await cleanup(context); }
+});
+
+test("inactive manager cannot preview sales import", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { isActive: false } });
+    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `INACTIVE-USER-${context.suffix}`, "", `inactive-user-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
+    await assert.rejects(() => importSales(context, buffer), /Only an Admin/);
+  } finally { await cleanup(context); }
+});
+
 test("refund restores original allocated batch and missing original goes to RETURN batch", async () => {
   const context = await setup();
   try {

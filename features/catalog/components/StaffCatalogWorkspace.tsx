@@ -13,12 +13,14 @@ export function StaffCatalogWorkspace({
     branchId,
     branches,
     role,
+    canManage,
 }: {
     categories: StaffCatalogCategory[];
     uncategorizedVariants: StaffCatalogUncategorizedVariant[];
     branchId: string;
     branches: Array<{ id: string; name: string }>;
-    role: "ADMIN" | "BRANCH_MANAGER";
+    role: "ADMIN" | "BRANCH_MANAGER" | "POS";
+    canManage: boolean;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -194,7 +196,7 @@ export function StaffCatalogWorkspace({
                         </select>
                     </label>
                 ) : null}
-                    <button type="button" onClick={() => { setSelectedVariantId(null); setCreatingVariant(true); }} className="border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-fg">Add variant</button>
+                    {canManage ? <button type="button" onClick={() => { setSelectedVariantId(null); setCreatingVariant(true); }} className="border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-fg">Add variant</button> : null}
                 </div>
             </div>
 
@@ -274,6 +276,7 @@ export function StaffCatalogWorkspace({
                     variant={selectedVariant}
                     branchId={branchId}
                     categories={categories}
+                    canManage={canManage}
                     onSaved={(variantId) => {
                         setCreatingVariant(false);
                         setSelectedVariantId(variantId);

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
+import { can } from "../../../lib/permissions.ts";
 import { allocateFefoBatches } from "../../pos/lib/checkout-core.ts";
 import { getMalawiDateKey } from "../../../lib/timezone.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
@@ -55,13 +56,13 @@ async function actorIdFromSession(): Promise<string | null> {
 
 async function assertActor(db: Db, branchId: string, userId: string) {
   const [user, branch] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { role: true, branchId: true } }),
+    db.user.findUnique({ where: { id: userId }, select: { role: true, branchId: true, isActive: true } }),
     db.branch.findUnique({ where: { id: branchId }, select: { id: true, isActive: true } }),
   ]);
   if (!branch) throw new Error("Choose a valid branch.");
   if (!branch.isActive) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
-  if (!user || (user.role !== "ADMIN" && !(user.role === "BRANCH_MANAGER" && user.branchId === branchId))) {
-    throw new Error("Only an Admin or the Branch Manager for this branch can import sales.");
+  if (!user || !user.isActive || !can(user.role, "stock:import") || (user.role !== "ADMIN" && user.branchId !== branchId)) {
+    throw new Error("Only an Admin, or an active Branch Manager or POS user assigned to this branch, can import sales.");
   }
 }
 

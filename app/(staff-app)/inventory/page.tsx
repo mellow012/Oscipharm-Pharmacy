@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ branchId?: string }> }) {
     const session = await getServerSession(authOptions);
     if (!session?.user) redirect("/login");
-    if (!can(session.user.role, "stock:receive") && !can(session.user.role, "price:set")) redirect("/unauthorized");
+    if (!can(session.user.role, "inventory:view")) redirect("/unauthorized");
 
     const requestedBranchId = (await searchParams).branchId;
     const branches = session.user.role === "ADMIN" ? await getInventoryBranches() : [];
@@ -20,5 +20,5 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
     const data = await getInventoryData(branchId);
     if (!data.branch) redirect("/staff");
 
-    return <InventoryDashboard name={session.user.name} role={session.user.role as "ADMIN" | "BRANCH_MANAGER"} branchId={branchId} branches={branches} data={data} />;
+    return <InventoryDashboard name={session.user.name} role={session.user.role as "ADMIN" | "BRANCH_MANAGER" | "POS"} branchId={branchId} branches={branches} data={data} canReceive={can(session.user.role, "stock:receive")} canSetPrice={can(session.user.role, "price:set")} canAdjust={can(session.user.role, "stock:adjust")} />;
 }

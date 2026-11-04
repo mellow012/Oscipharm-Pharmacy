@@ -214,8 +214,7 @@ export function StockImportWorkspace({ data }: { data: PageData }) {
           </div>
           <div className="grid gap-4 border-b border-border pb-6 sm:grid-cols-3">
             <Metric label="Quantity" value={`${previewCounts.totals.quantity} packs`} />
-            <Metric label="Cost" value={money(previewCounts.totals.cost)} />
-            <Metric label="Value" value={money(previewCounts.totals.value)} />
+            {data.actorRole !== "POS" ? <><Metric label="Cost" value={money(previewCounts.totals.cost)} /><Metric label="Value" value={money(previewCounts.totals.value)} /></> : null}
           </div>
           <RowsTable preview={preview.preview} />
         </section>
@@ -228,7 +227,7 @@ export function StockImportWorkspace({ data }: { data: PageData }) {
             <thead className="border-b border-border text-xs uppercase text-muted"><tr><th className="px-3 py-3 font-normal">Imported</th><th className="px-3 py-3 font-normal">Stock as of</th><th className="px-3 py-3 font-normal">File</th><th className="px-3 py-3 font-normal">Status</th><th className="px-3 py-3 font-normal">Counts</th><th className="px-3 py-3 font-normal">Run by</th></tr></thead>
             <tbody className="divide-y divide-border">{data.runs.map((run) => {
               const counts = countsOf(run.counts);
-              return <tr key={run.id}><td className="px-3 py-3 text-sm text-muted">{new Date(run.committedAt ?? run.createdAt).toLocaleString("en-MW")}</td><td className="px-3 py-3 text-sm text-muted">{run.asOf ? new Date(run.asOf).toLocaleString("en-MW", { timeZone: "Africa/Blantyre" }) : "—"}</td><td className="px-3 py-3 text-sm text-ink">{run.filename}</td><td className="px-3 py-3 text-sm text-ink">{run.status}</td><td className="px-3 py-3 text-xs text-muted">{String(counts.committedRows ?? counts.totalRows ?? 0)} rows · {String(counts.newProducts ?? 0)} new · {String(counts.existingProducts ?? 0)} existing · {String(counts.skippedRowCount ?? 0)} skipped · {money(Number(counts.totals && typeof counts.totals === "object" ? (counts.totals as Record<string, unknown>).value ?? 0 : 0))} value</td><td className="px-3 py-3 text-sm text-muted">{run.uploadedBy}</td></tr>;
+              return <tr key={run.id}><td className="px-3 py-3 text-sm text-muted">{new Date(run.committedAt ?? run.createdAt).toLocaleString("en-MW")}</td><td className="px-3 py-3 text-sm text-muted">{run.asOf ? new Date(run.asOf).toLocaleString("en-MW", { timeZone: "Africa/Blantyre" }) : "—"}</td><td className="px-3 py-3 text-sm text-ink">{run.filename}</td><td className="px-3 py-3 text-sm text-ink">{run.status}</td><td className="px-3 py-3 text-xs text-muted">{String(counts.committedRows ?? counts.totalRows ?? 0)} rows · {String(counts.newProducts ?? 0)} new · {String(counts.existingProducts ?? 0)} existing · {String(counts.skippedRowCount ?? 0)} skipped{data.actorRole !== "POS" ? ` · ${money(Number(counts.totals && typeof counts.totals === "object" ? (counts.totals as Record<string, unknown>).value ?? 0 : 0))} value` : ""}</td><td className="px-3 py-3 text-sm text-muted">{run.uploadedBy}</td></tr>;
             })}{data.runs.length === 0 ? <tr><td colSpan={6} className="px-3 py-6 text-sm text-muted">No stock imports for this branch.</td></tr> : null}</tbody>
           </table>
         </div>

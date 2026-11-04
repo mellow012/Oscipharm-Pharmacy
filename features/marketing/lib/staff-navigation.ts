@@ -14,11 +14,19 @@ export type StaffNavigation = {
 };
 
 const STAFF_ITEMS: StaffNavigationItem[] = [
-    { href: "/staff", label: "Home", permission: "reports:branch:view" },
-    { href: "/staff/sales", label: "Sales", permission: "reports:branch:view" },
-    { href: "/inventory", label: "Inventory", permission: "stock:receive" },
-    { href: "/staff/catalog", label: "Catalog", permission: "catalog:manage" },
+    { href: "/staff", label: "Home", permission: "sales:view" },
+    { href: "/staff/sales", label: "Sales", permission: "sales:view" },
+    { href: "/inventory", label: "Inventory", permission: "inventory:view" },
+    { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
     { href: "/reports", label: "Reports", permission: "reports:branch:view" },
+];
+
+const POS_ITEMS: StaffNavigationItem[] = [
+    { href: "/staff", label: "Home", permission: "sales:view" },
+    { href: "/staff/sales", label: "Sales", permission: "sales:view" },
+    { href: "/inventory", label: "Inventory", permission: "inventory:view" },
+    { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
+    { href: "/staff/import", label: "Stock import", permission: "stock:import" },
 ];
 
 const ADMIN_ITEMS: StaffNavigationItem[] = [
@@ -41,7 +49,7 @@ export function getStaffNavigation(role: Role | null): StaffNavigation {
 
     const allowed = (item: StaffNavigationItem) => can(role, item.permission);
     return {
-        staff: role === "POS" ? [] : STAFF_ITEMS.filter(allowed),
+        staff: (role === "POS" ? POS_ITEMS : STAFF_ITEMS).filter(allowed),
         admin: ADMIN_ITEMS.filter((item) => {
             if (item.label === "Team") return role === "BRANCH_MANAGER";
             return allowed(item);

@@ -65,6 +65,7 @@ export function StaffCatalogDetailSheet({
     variant,
     branchId,
     categories,
+    canManage,
     onSaved,
     onClose,
 }: {
@@ -85,10 +86,11 @@ export function StaffCatalogDetailSheet({
     } | null;
     branchId: string;
     categories: StaffCatalogCategory[];
+    canManage: boolean;
     onSaved: (variantId: string) => void;
     onClose: () => void;
 }) {
-    const [editing, setEditing] = useState(!variant);
+    const [editing, setEditing] = useState(!variant && canManage);
     const panelRef = useRef<HTMLDivElement | null>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -124,7 +126,7 @@ export function StaffCatalogDetailSheet({
                         <button type="button" onClick={onClose} className="rounded border border-border px-2 py-1 text-sm text-muted hover:text-primary">Close</button>
                     </div>
 
-                    {editing ? (
+                    {editing && canManage ? (
                         <StaffVariantForm
                             categories={categories}
                             branchId={branchId}
@@ -137,7 +139,7 @@ export function StaffCatalogDetailSheet({
                         />
                     ) : variant ? <>
                         <div className="mb-4 flex justify-end">
-                            <button type="button" onClick={() => setEditing(true)} className="border border-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-primary hover:bg-primary hover:text-primary-fg">Edit</button>
+                            {canManage ? <button type="button" onClick={() => setEditing(true)} className="border border-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-primary hover:bg-primary hover:text-primary-fg">Edit</button> : null}
                         </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded border border-border bg-surface p-3">
@@ -181,7 +183,7 @@ export function StaffCatalogDetailSheet({
                                             <span className="font-medium text-ink">{link.aroniumCode}</span>
                                             <span className="ml-2 text-muted">({link.mode})</span>
                                         </span>
-                                        <DeleteAroniumForm linkId={link.id} branchId={branchId} />
+                                        {canManage ? <DeleteAroniumForm linkId={link.id} branchId={branchId} /> : null}
                                     </li>
                                 ))}
                             </ul>
@@ -189,7 +191,7 @@ export function StaffCatalogDetailSheet({
                             <p className="mb-4 text-sm text-muted">No Aronium codes linked yet.</p>
                         )}
 
-                        <AroniumForm variantId={variant.id} allowsLooseSale={variant.allowsLooseSale} branchId={branchId} />
+                        {canManage ? <AroniumForm variantId={variant.id} allowsLooseSale={variant.allowsLooseSale} branchId={branchId} /> : null}
                     </div>
                     </> : null}
                 </div>

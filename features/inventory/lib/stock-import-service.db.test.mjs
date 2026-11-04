@@ -134,6 +134,52 @@ test("stock import commit is rejected after its branch is deactivated", async ()
   }
 });
 
+test("POS can preview stock import for its own branch", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
+    const result = await preview(context, await createWorkbook([{ code: "pos-own", name: "POS Own Branch", quantity: 1 }]));
+    assert.equal(result.status, "PREVIEW");
+  } finally {
+    await cleanup(context);
+  }
+});
+
+test("POS cannot preview stock import for another branch", async () => {
+  const context = await setup();
+  const otherBranch = await prisma.branch.create({ data: { name: `Other Import Test ${context.unique}` } });
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
+    const buffer = await createWorkbook([{ code: "pos-other", name: "POS Other Branch", quantity: 1 }]);
+    await assert.rejects(() => context.service.createPreview({ branchId: otherBranch.id, userId: context.user.id, filename: "stock.xlsx", buffer, asOf: new Date("2026-10-17T10:00:00.000Z") }), /Only an Admin/);
+  } finally {
+    await prisma.branch.delete({ where: { id: otherBranch.id } });
+    await cleanup(context);
+  }
+});
+
+test("POS without a branch cannot preview stock import", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } });
+    const buffer = await createWorkbook([{ code: "pos-none", name: "POS No Branch", quantity: 1 }]);
+    await assert.rejects(() => preview(context, buffer), /Only an Admin/);
+  } finally {
+    await cleanup(context);
+  }
+});
+
+test("inactive manager cannot preview stock import", async () => {
+  const context = await setup();
+  try {
+    await prisma.user.update({ where: { id: context.user.id }, data: { isActive: false } });
+    const buffer = await createWorkbook([{ code: "inactive-user", name: "Inactive Manager", quantity: 1 }]);
+    await assert.rejects(() => preview(context, buffer), /Only an Admin/);
+  } finally {
+    await cleanup(context);
+  }
+});
+
 test("resume after a committed first chunk does not duplicate batches", async () => {
   const context = await setup();
   try {

@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 const ROUTE_RULES: { prefix: string; roles: string[] }[] = [
     { prefix: "/admin/memberships", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/admin", roles: ["ADMIN"] },
-    { prefix: "/inventory", roles: ["ADMIN", "BRANCH_MANAGER"] },
+    { prefix: "/inventory", roles: ["ADMIN", "BRANCH_MANAGER", "POS"] },
     { prefix: "/reports", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/staff/news", roles: ["ADMIN", "BRANCH_MANAGER"] },
     { prefix: "/staff/team", roles: ["ADMIN", "BRANCH_MANAGER"] },

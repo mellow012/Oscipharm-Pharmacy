@@ -20,9 +20,9 @@ test("Branch Manager sees only their existing staff-area permissions and Team ta
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
-test("Sales/POS sees only the Account menu", () => {
+test("Sales/POS sees its own staff navigation", () => {
   const navigation = getStaffNavigation("POS");
-  assert.deepEqual(labels(navigation.staff), []);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Stock import"]);
   assert.deepEqual(labels(navigation.admin), []);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });

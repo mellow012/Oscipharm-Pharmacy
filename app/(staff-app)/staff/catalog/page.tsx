@@ -14,7 +14,7 @@ export default async function StaffCatalogPage({
 }) {
     const session = await getServerSession(authOptions);
     if (!session?.user) redirect("/login");
-    if (!can(session.user.role, "catalog:manage")) redirect("/unauthorized");
+    if (!can(session.user.role, "catalog:view")) redirect("/unauthorized");
 
     const params = await searchParams;
     const availableBranches = session.user.role === "ADMIN" ? await getStaffCatalogBranches() : [];
@@ -30,7 +30,8 @@ export default async function StaffCatalogPage({
             uncategorizedVariants={uncategorizedVariants}
             branchId={branchId}
             branches={availableBranches}
-            role={session.user.role as "ADMIN" | "BRANCH_MANAGER"}
+            role={session.user.role as "ADMIN" | "BRANCH_MANAGER" | "POS"}
+            canManage={can(session.user.role, "catalog:manage")}
         />
     );
 }

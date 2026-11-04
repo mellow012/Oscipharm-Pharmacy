@@ -1,19 +1,22 @@
 "use server";
 
 import { getServerSession } from "next-auth";
+import type { Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { stripCostFieldsForRole } from "@/features/inventory/lib/import-preview-access";
 import { createPreview, commitImport } from "@/features/inventory/lib/stock-import-service";
 import { createSalesPreview, commitSalesSlice } from "@/features/inventory/lib/sales-import-service";
 
 const IMPORT_XLSX_MESSAGE = "Please export the Stock report with Aronium's Excel button";
 const SALES_XLSX_MESSAGE = "Please export the Sales Item list with Aronium's Excel button.";
 
-type ImportActor = { id: string; role: string; branchId: string | null };
+type ImportActor = { id: string; role: Role; branchId: string | null };
 
 async function getImportActor(): Promise<ImportActor> {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !["ADMIN", "BRANCH_MANAGER"].includes(session.user.role)) {
+  if (!session?.user || !can(session.user.role, "stock:import")) {
     throw new Error("You are not allowed to import stock.");
   }
   return { id: session.user.id, role: session.user.role, branchId: session.user.branchId };
@@ -104,14 +107,14 @@ export async function loadImportPageData(requestedBranchId?: string) {
         createdAt: run.createdAt.toISOString(),
         committedAt: run.committedAt?.toISOString() ?? null,
         asOf: run.asOf?.toISOString() ?? null,
-        counts: run.counts,
+        counts: stripCostFieldsForRole(actor.role, run.counts),
         uploadedBy: run.uploadedBy.name,
       })),
       committingRun: runs.find((run) => run.status === "COMMITTING")
         ? {
             id: runs.find((run) => run.status === "COMMITTING")!.id,
             filename: runs.find((run) => run.status === "COMMITTING")!.filename,
-            counts: runs.find((run) => run.status === "COMMITTING")!.counts,
+            counts: stripCostFieldsForRole(actor.role, runs.find((run) => run.status === "COMMITTING")!.counts),
           }
         : null,
       salesRuns: salesRuns.map((run) => ({
@@ -121,7 +124,7 @@ export async function loadImportPageData(requestedBranchId?: string) {
         createdAt: run.createdAt.toISOString(),
         committedAt: run.committedAt?.toISOString() ?? null,
         asOf: null,
-        counts: run.counts,
+        counts: stripCostFieldsForRole(actor.role, run.counts),
         uploadedBy: run.uploadedBy.name,
       })),
       salesCommittingRun: salesRuns.find((run) => run.status === "COMMITTING")
@@ -155,7 +158,7 @@ export async function previewStockImport(formData: FormData) {
       status: result.status,
       runId: result.run.id,
       filename: result.run.filename,
-      preview: result.preview,
+      preview: stripCostFieldsForRole(actor.role, result.preview),
     };
   } catch (error) {
     return { ok: false as const, error: plainError(error) };
@@ -169,7 +172,7 @@ export async function previewSalesImport(formData: FormData) {
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await createSalesPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
     if (result.status === "COMMITTING") return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, processed: result.resume.processed, total: result.resume.total };
-    return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, preview: result.preview };
+    return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, preview: stripCostFieldsForRole(actor.role, result.preview) };
   } catch (error) {
     return { ok: false as const, error: salesPlainError(error) };
   }
@@ -177,12 +180,12 @@ export async function previewSalesImport(formData: FormData) {
 
 export async function commitSalesImportSlice(formData: FormData) {
   try {
-    await getImportActor();
+    const actor = await getImportActor();
     const runId = String(formData.get("runId") ?? "");
     if (!runId) throw new Error("Sales import run was not found.");
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await commitSalesSlice(runId, Buffer.from(await file.arrayBuffer()), 8_000);
-    return { ok: true as const, processed: result.processed, total: result.total, done: result.done, counts: result.counts ?? null };
+    return { ok: true as const, processed: result.processed, total: result.total, done: result.done, counts: result.counts ? stripCostFieldsForRole(actor.role, result.counts) : null };
   } catch (error) {
     return { ok: false as const, error: salesPlainError(error) };
   }

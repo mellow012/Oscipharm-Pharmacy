@@ -49,7 +49,10 @@ test("Branch Manager retains the existing Home destinations in the agreed group 
   ]);
 });
 
-test("Sales/POS has no Home tiles or empty group headings", () => {
-  assert.deepEqual(destinations("POS"), []);
-  assert.deepEqual(groupSummary("POS"), []);
+test("Sales/POS sees its own Home destinations", () => {
+  assert.deepEqual(destinations("POS"), ["/inventory", "/staff/catalog", "/staff/import", "/staff/sales"]);
+  assert.deepEqual(groupSummary("POS"), [
+    { label: "Daily work", layout: "daily", destinations: ["/staff/sales", "/inventory"] },
+    { label: "More", layout: "more", destinations: ["/staff/catalog", "/staff/import"] },
+  ]);
 });

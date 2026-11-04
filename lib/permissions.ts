@@ -3,6 +3,10 @@ import { Role } from "@prisma/client";
 // Every distinct action the app can gate. Keep this list flat and specific —
 // it's easier to grant a role a new permission than to untangle a vague one.
 export type Permission =
+    | "sales:view"
+    | "catalog:view"
+    | "inventory:view"
+    | "stock:import"
     | "stock:receive"       // record a new batch
     | "stock:adjust"        // manual stock corrections
     | "price:set"           // set/update branch pricing
@@ -19,6 +23,10 @@ export type Permission =
 // the thing to move into the DB for a v2 — for now it's intentionally static.
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     ADMIN: [
+        "sales:view",
+        "catalog:view",
+        "inventory:view",
+        "stock:import",
         "stock:receive",
         "stock:adjust",
         "price:set",
@@ -32,6 +40,10 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "membership:manage",
     ],
     BRANCH_MANAGER: [
+        "sales:view",
+        "catalog:view",
+        "inventory:view",
+        "stock:import",
         "stock:receive",
         "stock:adjust",
         "price:set",
@@ -41,7 +53,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "reports:branch:view",
         "membership:manage",
     ],
-    POS: ["pos:checkout"],
+    POS: ["sales:view", "catalog:view", "inventory:view", "stock:import", "pos:checkout"],
 };
 
 export function can(role: Role, permission: Permission): boolean {

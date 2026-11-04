@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { StockImportWorkspace } from "@/features/inventory/components/StockImportWorkspace";
 import { loadImportPageData } from "@/features/inventory/lib/import-actions";
 import { authOptions } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,7 +11,7 @@ export const maxDuration = 60;
 export default async function StockImportPage({ searchParams }: { searchParams: Promise<{ branchId?: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "ADMIN" && session.user.role !== "BRANCH_MANAGER") redirect("/unauthorized");
+  if (!can(session.user.role, "stock:import")) redirect("/unauthorized");
 
   const params = await searchParams;
   const data = await loadImportPageData(params.branchId);

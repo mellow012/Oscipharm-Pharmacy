@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function StaffSalesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
-  if (!can(session.user.role, "reports:branch:view")) redirect("/unauthorized");
+  if (!can(session.user.role, "sales:view")) redirect("/unauthorized");
   const filters = parseSalesListFilters(await searchParams);
   const data = await getSalesListData({ role: session.user.role, branchId: session.user.branchId }, filters);
   const query = new URLSearchParams({ from: filters.from, to: filters.to, type: filters.type, search: filters.search, ...(filters.importRunId ? { importRunId: filters.importRunId } : {}) });
