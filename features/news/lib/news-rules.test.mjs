@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decideNewsAccess, limits, publicNewsWhere, slugWithSuffix, validateNewsInput } from "./news-rules.ts";
+import { canMutateNews, canViewNewsInStaff, decideNewsAccess, limits, publicNewsWhere, slugWithSuffix, validateNewsInput } from "./news-rules.ts";
 
 const validNews = { title: "Update", type: "NEWS", excerpt: "", body: "Text" };
 const validEvent = { title: "Event", type: "EVENT", excerpt: "", body: "Text", eventStartsAt: "2026-10-22T10:00", eventEndsAt: "", eventLocation: "" };
@@ -34,16 +34,25 @@ test("accepts field length limits and rejects values beyond them", () => {
     assert.equal(validateNewsInput({ ...validEvent, eventLocation: "l".repeat(limits.location + 1) }, "create").ok, false);
 });
 
-test("news access permits admins and an active manager's own posts only", () => {
+test("staff news view and mutation access respects role, activity, ownership, and status", () => {
     const admin = { id: "admin", role: "ADMIN", isActive: true };
     const manager = { id: "manager-a", role: "BRANCH_MANAGER", isActive: true };
-    assert.equal(decideNewsAccess({ actor: admin, canManageNews: true, authorId: "other" }), true);
+    const publishedByOther = { createdById: "manager-b", status: "PUBLISHED" };
+    const previewByOther = { createdById: "manager-b", status: "PREVIEW" };
+    const ownPreview = { createdById: "manager-a", status: "PREVIEW" };
+    assert.equal(canViewNewsInStaff(admin, publishedByOther), true);
+    assert.equal(canMutateNews(admin, publishedByOther), true);
+    assert.equal(canViewNewsInStaff(manager, ownPreview), true);
+    assert.equal(canMutateNews(manager, ownPreview), true);
+    assert.equal(canViewNewsInStaff(manager, publishedByOther), true);
+    assert.equal(canMutateNews(manager, publishedByOther), false);
+    assert.equal(canViewNewsInStaff(manager, previewByOther), false);
+    assert.equal(canMutateNews(manager, previewByOther), false);
+    assert.equal(canViewNewsInStaff({ ...manager, isActive: false }, ownPreview), false);
+    assert.equal(canMutateNews({ ...manager, isActive: false }, ownPreview), false);
+    assert.equal(canViewNewsInStaff({ id: "pos", role: "POS", isActive: true }, publishedByOther), false);
+    assert.equal(canMutateNews({ id: "pos", role: "POS", isActive: true }, publishedByOther), false);
     assert.equal(decideNewsAccess({ actor: manager, canManageNews: true, authorId: "manager-a" }), true);
-    assert.equal(decideNewsAccess({ actor: manager, canManageNews: true, authorId: "manager-b" }), false);
-    assert.equal(decideNewsAccess({ actor: { id: "pos", role: "POS", isActive: true }, canManageNews: false, authorId: "pos" }), false);
-    assert.equal(decideNewsAccess({ actor: { ...manager, isActive: false }, canManageNews: true, authorId: "manager-a" }), false);
-    assert.equal(decideNewsAccess({ actor: null, canManageNews: true, authorId: "manager-a" }), false);
-    assert.equal(decideNewsAccess({ actor: admin, canManageNews: false, authorId: "other" }), false);
 });
 
 test("slug suffixes preserve the base on first attempt and cap at 120 characters", () => {

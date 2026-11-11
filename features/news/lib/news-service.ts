@@ -1,11 +1,12 @@
 import { Prisma, type NewsStatus, type NewsType, type Role } from "@prisma/client";
 import { can } from "../../../lib/permissions.ts";
 import { prisma } from "../../../lib/prisma.ts";
-import { decideNewsAccess, slugWithSuffix, validateNewsInput } from "./news-rules.ts";
+import { canMutateNews, canViewNewsInStaff, slugWithSuffix, validateNewsInput } from "./news-rules.ts";
 import { slugify } from "./news.ts";
 
 type Actor = { id: string; role: Role; branchId: string | null; isActive: boolean };
 type ServiceResult<T> = { ok: true; data: T } | { ok: false; message: string };
+const NEWS_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 async function readActor(actorId: string): Promise<Actor | null> {
     return prisma.user.findUnique({
@@ -14,12 +15,8 @@ async function readActor(actorId: string): Promise<Actor | null> {
     });
 }
 
-function canAccess(actor: Actor | null, authorId: string) {
-    return decideNewsAccess({
-        actor,
-        canManageNews: actor ? can(actor.role, "news:manage") : false,
-        authorId,
-    });
+function canAccess(actor: Actor | null, post: { createdById: string; status: NewsStatus }) {
+    return canMutateNews(actor, post);
 }
 
 function accessFailure(): ServiceResult<never> {
@@ -61,7 +58,7 @@ async function createAudit(
 
 export async function createNewsPost(actorId: string, raw: unknown): Promise<ServiceResult<{ id: string; slug: string }>> {
     const actor = await readActor(actorId);
-    if (!actor || !canAccess(actor, actor.id)) return accessFailure();
+    if (!actor || !canMutateNews(actor, { createdById: actor.id, status: "PREVIEW" })) return accessFailure();
 
     const validation = validateNewsInput(raw, "create");
     if (!validation.ok) return validation;
@@ -82,7 +79,7 @@ export async function createNewsPost(actorId: string, raw: unknown): Promise<Ser
                 });
                 await createAudit(tx, actor, "NEWS_CREATED", created);
                 return created;
-            });
+            }, NEWS_TRANSACTION_OPTIONS);
             return { ok: true, data: { id: post.id, slug: post.slug } };
         } catch (error) {
             if (isSlugConflict(error)) continue;
@@ -98,7 +95,7 @@ export async function updateNewsPost(actorId: string, postId: string, raw: unkno
     if (!actor) return accessFailure();
     const existing = await prisma.news.findUnique({ where: { id: postId } });
     if (!existing) return { ok: false, message: "Post not found." };
-    if (!canAccess(actor, existing.createdById)) return accessFailure();
+    if (!canAccess(actor, existing)) return accessFailure();
 
     const input = raw && typeof raw === "object" && !Array.isArray(raw)
         ? { ...(raw as Record<string, unknown>), type: existing.type }
@@ -121,7 +118,7 @@ export async function updateNewsPost(actorId: string, postId: string, raw: unkno
         });
         await createAudit(tx, actor, "NEWS_UPDATED", updated, changedFields);
         return updated;
-    });
+    }, NEWS_TRANSACTION_OPTIONS);
 
     return { ok: true, data: { id: post.id, slug: post.slug } };
 }
@@ -131,15 +128,15 @@ export async function deleteNewsPost(actorId: string, postId: string): Promise<S
     if (!actor) return accessFailure();
     const existing = await prisma.news.findUnique({
         where: { id: postId },
-        select: { id: true, slug: true, title: true, type: true, createdById: true },
+        select: { id: true, slug: true, title: true, type: true, status: true, createdById: true },
     });
     if (!existing) return { ok: false, message: "Post not found." };
-    if (!canAccess(actor, existing.createdById)) return accessFailure();
+    if (!canAccess(actor, existing)) return accessFailure();
 
     await prisma.$transaction(async (tx) => {
         await tx.news.delete({ where: { id: existing.id } });
         await createAudit(tx, actor, "NEWS_DELETED", existing);
-    });
+    }, NEWS_TRANSACTION_OPTIONS);
     return { ok: true, data: null };
 }
 
@@ -151,7 +148,7 @@ async function setNewsStatus(actorId: string, postId: string, status: NewsStatus
         select: { id: true, slug: true, title: true, type: true, status: true, createdById: true },
     });
     if (!existing) return { ok: false, message: "Post not found." };
-    if (!canAccess(actor, existing.createdById)) return accessFailure();
+    if (!canAccess(actor, existing)) return accessFailure();
     if (existing.status === status) return { ok: true, data: { id: existing.id, slug: existing.slug } };
 
     const action = status === "PUBLISHED" ? "NEWS_PUBLISHED" : "NEWS_UNPUBLISHED";
@@ -167,7 +164,7 @@ async function setNewsStatus(actorId: string, postId: string, status: NewsStatus
         });
         await createAudit(tx, actor, action, updated);
         return updated;
-    });
+    }, NEWS_TRANSACTION_OPTIONS);
     return { ok: true, data: { id: post.id, slug: post.slug } };
 }
 
@@ -189,7 +186,7 @@ export async function getNewsPostForActor(actorId: string, postId: string) {
             images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
         },
     });
-    if (!post || !canAccess(actor, post.createdById)) return null;
+    if (!post || !canAccess(actor, post)) return null;
     return post;
 }
 
@@ -205,9 +202,9 @@ export async function listNewsForActor(actorId: string): Promise<ServiceResult<A
     createdBy: { id: string; name: string };
 }>>> {
     const actor = await readActor(actorId);
-    if (!actor || !canAccess(actor, actor.id)) return accessFailure();
+    if (!actor || !can(actor.role, "news:manage") || !actor.isActive) return accessFailure();
     const posts = await prisma.news.findMany({
-        where: actor.role === "ADMIN" ? {} : { createdById: actor.id },
+        where: actor.role === "ADMIN" ? {} : { OR: [{ createdById: actor.id }, { status: "PUBLISHED" }] },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
         select: {
             id: true,
@@ -218,8 +215,12 @@ export async function listNewsForActor(actorId: string): Promise<ServiceResult<A
             publishedAt: true,
             createdAt: true,
             eventStartsAt: true,
+            createdById: true,
             createdBy: { select: { id: true, name: true } },
         },
     });
-    return { ok: true, data: posts };
+    const visiblePosts = posts
+        .filter((post) => canViewNewsInStaff(actor, post))
+        .map(({ createdById: _createdById, ...post }) => post);
+    return { ok: true, data: visiblePosts };
 }

@@ -1,4 +1,6 @@
 import { parseBlantyreLocalDateTime } from "../../../lib/timezone.ts";
+import type { NewsStatus, Role } from "@prisma/client";
+import { can } from "../../../lib/permissions.ts";
 
 export const limits = {
     title: 150,
@@ -82,21 +84,37 @@ export function validateNewsInput(raw: unknown, _mode: "create" | "edit"):
     };
 }
 
+type NewsAccessActor = { id: string; role: Role; isActive: boolean } | null;
+type NewsAccessPost = { createdById: string; status: NewsStatus };
+
+export function canMutateNews(actor: NewsAccessActor, post: NewsAccessPost): boolean {
+    return Boolean(
+        actor
+        && actor.isActive
+        && can(actor.role, "news:manage")
+        && (actor.role === "ADMIN" || actor.id === post.createdById)
+    );
+}
+
+export function canViewNewsInStaff(actor: NewsAccessActor, post: NewsAccessPost): boolean {
+    return Boolean(
+        actor
+        && actor.isActive
+        && can(actor.role, "news:manage")
+        && (actor.role === "ADMIN" || actor.id === post.createdById || post.status === "PUBLISHED")
+    );
+}
+
 export function decideNewsAccess({
     actor,
     canManageNews,
     authorId,
 }: {
-    actor: { id: string; role: string; isActive: boolean } | null;
+    actor: NewsAccessActor;
     canManageNews: boolean;
     authorId: string;
 }) {
-    return Boolean(
-        actor
-        && actor.isActive
-        && canManageNews
-        && (actor.role === "ADMIN" || actor.id === authorId)
-    );
+    return canManageNews && canMutateNews(actor, { createdById: authorId, status: "PREVIEW" });
 }
 
 export function slugWithSuffix(base: string, attempt: number) {

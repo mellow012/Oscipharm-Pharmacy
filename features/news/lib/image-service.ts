@@ -1,6 +1,5 @@
 import type { Prisma, PrismaClient, Role } from "@prisma/client";
-import { can } from "../../../lib/permissions.ts";
-import { decideNewsAccess } from "./news-rules.ts";
+import { canMutateNews } from "./news-rules.ts";
 import {
     ALT_MAX,
     buildStoragePath,
@@ -17,7 +16,7 @@ import {
 type Db = PrismaClient;
 type Tx = Prisma.TransactionClient;
 type Actor = { id: string; role: Role; branchId: string | null; isActive: boolean };
-type Post = { id: string; slug: string; createdById: string };
+type Post = { id: string; slug: string; createdById: string; status: "PREVIEW" | "PUBLISHED" };
 type ImageRecord = {
     id: string;
     newsId: string;
@@ -37,13 +36,8 @@ async function readActor(db: Db | Tx, actorId: string): Promise<Actor | null> {
     return db.user.findUnique({ where: { id: actorId }, select: { id: true, role: true, branchId: true, isActive: true } });
 }
 
-function canAccess(actor: Actor | null, authorId: string): boolean {
-    const roleAllowed = actor?.role === "ADMIN" || actor?.role === "BRANCH_MANAGER";
-    return decideNewsAccess({
-        actor,
-        canManageNews: Boolean(roleAllowed && actor && can(actor.role, "news:manage")),
-        authorId,
-    });
+function canAccess(actor: Actor | null, post: Pick<Post, "createdById" | "status">): boolean {
+    return canMutateNews(actor, post);
 }
 
 function fail(message: string, status: Failure["status"]): Failure {
@@ -51,13 +45,13 @@ function fail(message: string, status: Failure["status"]): Failure {
 }
 
 async function findPost(db: Db | Tx, postId: string): Promise<Post | null> {
-    return db.news.findUnique({ where: { id: postId }, select: { id: true, slug: true, createdById: true } });
+    return db.news.findUnique({ where: { id: postId }, select: { id: true, slug: true, createdById: true, status: true } });
 }
 
 async function findImage(db: Db | Tx, imageId: string): Promise<ImageRecord | null> {
     return db.newsImage.findUnique({
         where: { id: imageId },
-        include: { news: { select: { id: true, slug: true, createdById: true } } },
+        include: { news: { select: { id: true, slug: true, createdById: true, status: true } } },
     });
 }
 
@@ -121,7 +115,7 @@ export async function attachImage({
 
         const post = await findPost(prisma, postId);
         if (!post) return fail("Post not found.", 404);
-        if (!canAccess(actor, post.createdById)) return fail("You are not allowed to manage images.", 403);
+        if (!canAccess(actor, post)) return fail("You are not allowed to manage images.", 403);
         const imageCount = await prisma.newsImage.count({ where: { newsId: postId } });
         if (!canAddImage(imageCount)) return fail("A post can have at most 8 images.", 400);
 
@@ -144,7 +138,7 @@ export async function attachImage({
                 const currentActor = await readActor(tx, actorId);
                 const currentPost = await findPost(tx, postId);
                 if (!currentActor || !currentActor.isActive || !currentPost) return { error: "Post not found or access denied." as const, status: 403 as const };
-                if (!canAccess(currentActor, currentPost.createdById)) return { error: "Post not found or access denied." as const, status: 403 as const };
+                if (!canAccess(currentActor, currentPost)) return { error: "Post not found or access denied." as const, status: 403 as const };
                 const currentCount = await tx.newsImage.count({ where: { newsId: postId } });
                 if (!canAddImage(currentCount)) return { error: "A post can have at most 8 images." as const, status: 400 as const };
                 const maximum = await tx.newsImage.aggregate({ where: { newsId: postId }, _max: { sortOrder: true } });
@@ -187,12 +181,12 @@ export async function deleteImage({ prisma, storage, actorId, imageId }: {
         if (!actor || !actor.isActive) return fail("You are not allowed to manage images.", 403);
         const image = await findImage(prisma, imageId);
         if (!image) return fail("Image not found.", 404);
-        if (!canAccess(actor, image.news.createdById)) return fail("You are not allowed to manage images.", 403);
+        if (!canAccess(actor, image.news)) return fail("You are not allowed to manage images.", 403);
         await prisma.$transaction(async (tx) => {
             await tx.$queryRaw`SELECT "id" FROM "News" WHERE "id" = ${image.newsId} FOR UPDATE`;
             const currentActor = await readActor(tx, actorId);
             const currentImage = await findImage(tx, imageId);
-            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news.createdById)) {
+            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news)) {
                 throw new Error("Image could not be deleted.");
             }
             await tx.newsImage.delete({ where: { id: imageId } });
@@ -224,12 +218,12 @@ export async function moveImage({ prisma, actorId, imageId, direction }: {
         if (!actor || !actor.isActive) return fail("You are not allowed to manage images.", 403);
         const image = await findImage(prisma, imageId);
         if (!image) return fail("Image not found.", 404);
-        if (!canAccess(actor, image.news.createdById)) return fail("You are not allowed to manage images.", 403);
+        if (!canAccess(actor, image.news)) return fail("You are not allowed to manage images.", 403);
         const data = await prisma.$transaction(async (tx) => {
             await tx.$queryRaw`SELECT "id" FROM "News" WHERE "id" = ${image.newsId} FOR UPDATE`;
             const currentActor = await readActor(tx, actorId);
             const currentImage = await findImage(tx, imageId);
-            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news.createdById)) return null;
+            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news)) return null;
             const rows = await tx.newsImage.findMany({ where: { newsId: image.newsId }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } });
             const ids = reorderIds(rows.map((row) => row.id), imageId, direction);
             const images = await renumber(tx, image.newsId, ids);
@@ -255,14 +249,14 @@ export async function updateImageText({ prisma, actorId, imageId, altText, capti
         if (!actor || !actor.isActive) return fail("You are not allowed to manage images.", 403);
         const image = await findImage(prisma, imageId);
         if (!image) return fail("Image not found.", 404);
-        if (!canAccess(actor, image.news.createdById)) return fail("You are not allowed to manage images.", 403);
+        if (!canAccess(actor, image.news)) return fail("You are not allowed to manage images.", 403);
         const normalizedAlt = normalizeText(altText, ALT_MAX);
         const normalizedCaption = normalizeText(caption, CAPTION_MAX);
         if (!normalizedAlt.ok || !normalizedCaption.ok) return fail("Image text is too long or invalid.", 400);
         const updated = await prisma.$transaction(async (tx) => {
             const currentActor = await readActor(tx, actorId);
             const currentImage = await findImage(tx, imageId);
-            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news.createdById)) return null;
+            if (!currentActor || !currentActor.isActive || !currentImage || !canAccess(currentActor, currentImage.news)) return null;
             const saved = await tx.newsImage.update({
                 where: { id: imageId },
                 data: { altText: normalizedAlt.value, caption: normalizedCaption.value },

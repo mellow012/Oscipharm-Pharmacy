@@ -23,7 +23,7 @@ export default async function StaffNewsPage() {
                 <div>
                     <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Staff workspace</p>
                     <h1 className="mt-2 text-3xl text-ink">News and events</h1>
-                    {session.user.role === "BRANCH_MANAGER" ? <p className="mt-2 text-sm text-muted">You see and manage your own posts.</p> : null}
+                    {session.user.role === "BRANCH_MANAGER" ? <p className="mt-2 text-sm text-muted">You see published posts and manage your own.</p> : null}
                 </div>
                 <Link href="/staff/news/new" className="bg-primary px-4 py-2 font-medium text-white">New post</Link>
             </header>
@@ -42,13 +42,15 @@ export default async function StaffNewsPage() {
                                 {formatBlantyreDateTime(post.type === "EVENT" && post.eventStartsAt
                                     ? post.eventStartsAt
                                     : post.status === "PUBLISHED" ? post.publishedAt : post.createdAt)}
-                                {session.user.role === "ADMIN" ? ` · By ${post.createdBy.name}` : ""}
+                                {` · By ${post.createdBy.name}`}
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
-                            <Link href={`/staff/news/${post.id}/edit`} className="text-sm text-primary hover:underline">Edit</Link>
-                            <Link href={`/staff/news/${post.id}/preview`} className="text-sm text-primary hover:underline">Preview</Link>
-                            <NewsPostActions postId={post.id} status={post.status} />
+                            {session.user.role === "ADMIN" || post.createdBy.id === session.user.id ? <>
+                                <Link href={`/staff/news/${post.id}/edit`} className="text-sm text-primary hover:underline">Edit</Link>
+                                <Link href={`/staff/news/${post.id}/preview`} className="text-sm text-primary hover:underline">Preview</Link>
+                                <NewsPostActions postId={post.id} status={post.status} />
+                            </> : <Link href={`/news/${post.slug}`} className="text-sm text-primary hover:underline">View</Link>}
                         </div>
                     </article>
                 ))}

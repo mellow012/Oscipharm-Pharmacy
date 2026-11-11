@@ -3,7 +3,8 @@ import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 import { databaseTarget, requireTestDatabaseUrl } from "../../../scripts/test-database-safety.mjs";
 import { publicNewsWhere } from "./news-rules.ts";
-import { createNewsPost, deleteNewsPost, publishNewsPost, unpublishNewsPost, updateNewsPost } from "./news-service.ts";
+import { createNewsPost, deleteNewsPost, getNewsPostForActor, listNewsForActor, publishNewsPost, unpublishNewsPost, updateNewsPost } from "./news-service.ts";
+import { attachImage } from "./image-service.ts";
 
 const testDatabaseUrl = requireTestDatabaseUrl();
 assert.ok(process.env.DATABASE_URL, "DB test must run via npm run test:db");
@@ -46,6 +47,21 @@ test("news service enforces ownership, lifecycle, audit, and event constraints",
         assert.equal((await updateNewsPost(managerB.id, created.data.id, { title: "Tampered", type: "NEWS", excerpt: "", body: "Tampered" })).ok, false);
         assert.equal((await publishNewsPost(managerB.id, created.data.id)).ok, false);
         assert.equal((await deleteNewsPost(managerB.id, created.data.id)).ok, false);
+        const deniedImage = await attachImage({
+            prisma,
+            storage: {
+                isConfigured: () => true,
+                async upload() { throw new Error("must reject before upload"); },
+                async remove() { return { ok: true }; },
+            },
+            actorId: managerB.id,
+            postId: created.data.id,
+            bytes: new Uint8Array([0xff, 0xd8, 0xff, 0x00]),
+            altText: "",
+            caption: "",
+        });
+        assert.equal(deniedImage.ok, false);
+        if (!deniedImage.ok) assert.equal(deniedImage.status, 403);
         assert.equal(await prisma.auditLog.count({ where: { userId: managerB.id } }), auditsBeforeDenied);
         assert.equal((await prisma.news.findUniqueOrThrow({ where: { id: created.data.id } })).body, "Original body");
         assert.equal((await createNewsPost(inactive.id, { title: "Inactive", type: "NEWS", excerpt: "", body: "No" })).ok, false);
@@ -87,6 +103,13 @@ test("news service enforces ownership, lifecycle, audit, and event constraints",
         if (!published.ok) return;
         createdIds.push(published.data.id);
         await publishNewsPost(managerA.id, published.data.id);
+        const managerRows = await listNewsForActor(managerB.id);
+        assert.equal(managerRows.ok, true);
+        if (managerRows.ok) {
+            assert.ok(managerRows.data.some((post) => post.id === published.data.id));
+            assert.ok(!managerRows.data.some((post) => post.id === created.data.id));
+        }
+        assert.equal(await getNewsPostForActor(managerB.id, published.data.id), null);
         const publicRows = await prisma.news.findMany({ where: publicNewsWhere("NEWS"), select: { id: true, type: true, status: true } });
         assert.ok(publicRows.some((post) => post.id === published.data.id));
         assert.ok(publicRows.every((post) => post.status === "PUBLISHED" && post.type === "NEWS"));
