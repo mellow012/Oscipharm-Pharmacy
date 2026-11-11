@@ -6,6 +6,7 @@ type BranchDb = PrismaClient | Prisma.TransactionClient;
 type BranchSnapshot = { name: string; location: string | null; isActive: boolean };
 type BranchResult<T = null> = { ok: true; message: string; branch?: T } | { ok: false; message: string };
 type BranchInput = { name: unknown; location: unknown };
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 async function requireAdmin(db: BranchDb, actorId: string) {
     const actor = await db.user.findUnique({ where: { id: actorId }, select: { id: true, role: true, isActive: true } });
@@ -55,7 +56,7 @@ export async function createBranch(actorId: string, input: BranchInput): Promise
                 },
             });
             return { ok: true, message: "Branch created.", branch };
-        });
+        }, TRANSACTION_OPTIONS);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
             return { ok: false, message: "A branch with that name already exists." };
@@ -81,7 +82,7 @@ export async function updateBranch(actorId: string, branchId: string, input: Bra
                 data: { action: "BRANCH_UPDATED", branchId, userId: actorId, details: { before, after } },
             });
             return { ok: true, message: "Branch updated." };
-        });
+        }, TRANSACTION_OPTIONS);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
             return { ok: false, message: "A branch with that name already exists." };

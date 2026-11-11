@@ -10,6 +10,8 @@ import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-writ
 import { getAuthorizedBranchId, type StaffSession } from "@/features/catalog/lib/aronium-actions";
 import { firstVariantInputError, hasDuplicateVariant, looseSaleUnitLinkError, newCatalogNameErrors, variantInputSchema, type VariantFieldErrors, type VariantInput } from "@/features/catalog/lib/variant-validation";
 
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
+
 export type StaffVariantActionState = {
     errors?: VariantFieldErrors;
     success?: string;
@@ -192,7 +194,7 @@ export async function saveStaffVariant(
                 },
             });
             return variant.id;
-        });
+        }, TRANSACTION_OPTIONS);
         if (!saved) return { errors: { form: INACTIVE_BRANCH_WRITE_ERROR } };
 
         revalidatePath("/staff/catalog");

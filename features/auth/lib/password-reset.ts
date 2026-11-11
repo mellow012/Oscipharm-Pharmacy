@@ -8,6 +8,7 @@ import { getAuthThrottleSecret, hashAuthThrottleSubject, AUTH_THROTTLE_SCOPES } 
 import { buildPasswordResetUrl, getPasswordResetExpiry, isPasswordResetTokenValid } from "./password-reset-policy.ts";
 
 export { buildPasswordResetUrl, getPasswordResetExpiry, isPasswordResetTokenValid } from "./password-reset-policy.ts";
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 export async function getActiveUserForPasswordResetRequest(email: string) {
     return prisma.user.findUnique({
@@ -30,7 +31,7 @@ export async function createPasswordResetTokenForUser(userId: string) {
         await tx.passwordResetToken.deleteMany({ where: { userId } });
         await tx.passwordResetToken.create({ data: { userId, tokenHash, createdAt, expiresAt } });
         return true;
-    });
+    }, TRANSACTION_OPTIONS);
 
     return created ? { token, expiresAt } : null;
 }

@@ -72,7 +72,8 @@ test("image service enforces limits, ownership, cleanup, ordering and audit priv
         assert.equal(concurrentResults.filter((result) => result.ok).length, 1);
         assert.equal(await prisma.newsImage.count({ where: { newsId: concurrentPost.id } }), 8);
         assert.equal(storage.objects.size, beforeConcurrent + 1);
-        assert.equal(storage.state.removeCalls, removesBeforeConcurrent + 1);
+        // The rejected upload may fail before storage upload or be cleaned up afterward.
+        assert.ok([removesBeforeConcurrent, removesBeforeConcurrent + 1].includes(storage.state.removeCalls));
 
         const deniedCrossOwner = await attachImage({ ...owned, postId: postB.id });
         assert.equal(deniedCrossOwner.ok, false);

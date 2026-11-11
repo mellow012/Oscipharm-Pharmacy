@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { isExpiredInMalawi } from "@/lib/timezone";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
 import type { ActionState } from "@/features/inventory/types";
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 function getText(formData: FormData, field: string) {
     return String(formData.get(field) ?? "").trim();
@@ -63,7 +64,7 @@ export async function receiveBatch(_previousState: ActionState, formData: FormDa
             },
         });
         return true;
-    });
+    }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");
@@ -112,7 +113,7 @@ export async function updateBranchPrice(_previousState: ActionState, formData: F
             },
         });
         return true;
-    });
+    }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");
@@ -156,7 +157,7 @@ export async function updateBatchExpiry(_previousState: ActionState, formData: F
             },
         });
         return true;
-    });
+    }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
     revalidatePath("/inventory");

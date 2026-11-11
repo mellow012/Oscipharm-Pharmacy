@@ -8,6 +8,7 @@ import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { validateAroniumProductLink } from "@/features/catalog/lib/aronium-link-validation";
 import type { AroniumLinkActionState } from "@/features/catalog/types";
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 export type StaffSession = {
     user: { id: string; role: "ADMIN" | "BRANCH_MANAGER" | "POS"; branchId: string | null };
@@ -84,7 +85,7 @@ export async function createAroniumProductLink(
                     details: { linkId: link.id, variantId: link.variantId, aroniumCode: link.aroniumCode, mode: link.mode },
                 },
             });
-        });
+        }, TRANSACTION_OPTIONS);
     } catch (error) {
         const message = uniqueConstraintMessage(error);
         if (message) return { error: message };
@@ -121,7 +122,7 @@ export async function deleteAroniumProductLink(
                     details: { linkId: link.id, variantId: link.variantId, aroniumCode: link.aroniumCode, mode: link.mode },
                 },
             });
-        });
+        }, TRANSACTION_OPTIONS);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
             return { error: "This Aronium link no longer exists." };

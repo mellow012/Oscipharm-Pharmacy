@@ -6,6 +6,7 @@ import { decideSelfAction, validateRoleBranch, wouldRemoveLastActiveAdmin } from
 import type { StaffActionResult, StaffBranchesResult, StaffListResult, StaffSummary } from "./staff-types.ts";
 
 type Actor = { id: string; role: Role; branchId: string | null; isActive: boolean };
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 async function readActor(db: PrismaClient | Prisma.TransactionClient, actorId: string): Promise<Actor | null> {
     return db.user.findUnique({
@@ -128,7 +129,7 @@ export async function changeStaffRoleAndBranch(actorId: string, input: {
         });
         await tx.auditLog.createMany({ data: auditEntries });
         return { ok: true, message: "Staff account updated." };
-    });
+    }, TRANSACTION_OPTIONS);
     return result;
 }
 
@@ -166,7 +167,7 @@ export async function deactivateStaff(actorId: string, userId: string): Promise<
             },
         });
         return { ok: true, message: "Staff account deactivated." };
-    });
+    }, TRANSACTION_OPTIONS);
 }
 
 export async function reactivateStaff(actorId: string, userId: string): Promise<StaffActionResult> {
@@ -200,7 +201,7 @@ export async function reactivateStaff(actorId: string, userId: string): Promise<
             },
         });
         return { ok: true, message: "Staff account reactivated." };
-    });
+    }, TRANSACTION_OPTIONS);
 }
 
 export async function sendStaffResetLink(actorId: string, userId: string): Promise<StaffActionResult> {
