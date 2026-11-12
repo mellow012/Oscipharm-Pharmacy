@@ -19,6 +19,7 @@ const STAFF_ITEMS: StaffNavigationItem[] = [
     { href: "/inventory", label: "Inventory", permission: "inventory:view" },
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
     { href: "/reports", label: "Reports", permission: "reports:branch:view" },
+    { href: "/staff/news", label: "News and events", permission: "news:manage" },
 ];
 
 const POS_ITEMS: StaffNavigationItem[] = [
@@ -38,6 +39,13 @@ const ADMIN_ITEMS: StaffNavigationItem[] = [
 ];
 
 const NAV_ROOT_HREFS = new Set([STAFF_ITEMS[0].href, ADMIN_ITEMS[0].href]);
+
+export function shouldShowAdminNavigation(pathname: string): boolean {
+    return pathname === "/admin"
+        || pathname.startsWith("/admin/")
+        || pathname === "/staff/team"
+        || pathname.startsWith("/staff/team/");
+}
 
 export function isNavItemActive(href: string, pathname: string): boolean {
     if (NAV_ROOT_HREFS.has(href)) return pathname === href;

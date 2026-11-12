@@ -4,15 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Role } from "@prisma/client";
-import { getStaffNavigation, isNavItemActive } from "@/features/marketing/lib/staff-navigation";
-import { can } from "@/lib/permissions";
+import { getStaffNavigation, isNavItemActive, shouldShowAdminNavigation } from "@/features/marketing/lib/staff-navigation";
 
 export function StaffAppShell({ role, children }: { role: Role | null; children: React.ReactNode }) {
     const pathname = usePathname();
     const navigation = getStaffNavigation(role);
-    const showAdminTabs = pathname.startsWith("/admin")
-        || pathname === "/staff/team"
-        || (pathname.startsWith("/staff/news") && role !== null && can(role, "news:manage"));
+    const showAdminTabs = shouldShowAdminNavigation(pathname);
     const items = showAdminTabs ? navigation.admin : navigation.staff;
 
     return (

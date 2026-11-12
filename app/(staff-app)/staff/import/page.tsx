@@ -12,6 +12,7 @@ export default async function StockImportPage({ searchParams }: { searchParams: 
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
   if (!can(session.user.role, "stock:import")) redirect("/unauthorized");
+  if (session.user.role !== "ADMIN" && !session.user.branchId) redirect("/staff?notice=no-branch");
 
   const params = await searchParams;
   const data = await loadImportPageData(params.branchId);

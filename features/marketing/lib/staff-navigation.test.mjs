@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getStaffNavigation, isNavItemActive } from "./staff-navigation.ts";
+import { getStaffNavigation, isNavItemActive, shouldShowAdminNavigation } from "./staff-navigation.ts";
 
 function labels(items) {
   return items.map((item) => item.label);
@@ -8,14 +8,14 @@ function labels(items) {
 
 test("Admin sees permission-filtered staff and Admin navigation", () => {
   const navigation = getStaffNavigation("ADMIN");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Reports"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Reports", "News and events"]);
   assert.deepEqual(labels(navigation.admin), ["Overview", "Staff", "Memberships", "News and events"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
 test("Branch Manager sees only their existing staff-area permissions and Team tab", () => {
   const navigation = getStaffNavigation("BRANCH_MANAGER");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Reports"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Reports", "News and events"]);
   assert.deepEqual(labels(navigation.admin), ["Memberships", "News and events", "Team"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
@@ -36,15 +36,56 @@ test("Admin route tabs mark only the matching item active", () => {
   assert.deepEqual(activeLabels("/admin/memberships"), ["Memberships"]);
 });
 
-test("staff route tabs match nested pages without activating unrelated paths", () => {
+test("admin navigation path matching is limited to admin and Team routes", () => {
+  for (const pathname of ["/admin", "/admin/staff", "/admin/memberships", "/staff/team", "/staff/team/member-123"]) {
+    assert.equal(shouldShowAdminNavigation(pathname), true, pathname);
+  }
+  for (const pathname of [
+    "/staff",
+    "/staff/news",
+    "/staff/news/new",
+    "/staff/news/post-123/edit",
+    "/staff/sales",
+    "/staff/import",
+    "/staff/catalog",
+    "/inventory",
+    "/reports",
+    "/staffing",
+    "/administrator",
+    "/admin-x",
+    "/staff/teamwork",
+  ]) {
+    assert.equal(shouldShowAdminNavigation(pathname), false, pathname);
+  }
+});
+
+test("Branch Manager sees Admin navigation and the matching Team or Memberships tab", () => {
+  const navigation = getStaffNavigation("BRANCH_MANAGER");
+  const visibleItems = (pathname) => shouldShowAdminNavigation(pathname) ? navigation.admin : navigation.staff;
+  const activeLabels = (pathname) => visibleItems(pathname).filter((item) => isNavItemActive(item.href, pathname)).map((item) => item.label);
+
+  assert.deepEqual(labels(visibleItems("/staff/team")), labels(navigation.admin));
+  assert.deepEqual(activeLabels("/staff/team"), ["Team"]);
+  assert.deepEqual(labels(visibleItems("/admin/memberships")), labels(navigation.admin));
+  assert.deepEqual(activeLabels("/admin/memberships"), ["Memberships"]);
+});
+
+test("staff route tabs match nested pages and news stays in staff navigation", () => {
   const staffItems = getStaffNavigation("ADMIN").staff;
   const adminItems = getStaffNavigation("ADMIN").admin;
-  const allItems = [...staffItems, ...adminItems];
-  const activeLabels = (pathname) => allItems.filter((item) => isNavItemActive(item.href, pathname)).map((item) => item.label);
+  const visibleItems = (pathname) => shouldShowAdminNavigation(pathname) ? adminItems : staffItems;
+  const activeStaffLabels = (pathname) => staffItems.filter((item) => isNavItemActive(item.href, pathname)).map((item) => item.label);
+  const activeVisibleLabels = (pathname) => visibleItems(pathname).filter((item) => isNavItemActive(item.href, pathname)).map((item) => item.label);
 
-  assert.deepEqual(activeLabels("/staff"), ["Home"]);
-  assert.deepEqual(activeLabels("/staff/news/new"), ["News and events"]);
-  assert.deepEqual(activeLabels("/staff/sales/sale-123"), ["Sales"]);
-  assert.deepEqual(activeLabels("/staff/import"), []);
-  assert.deepEqual(activeLabels("/staffing"), []);
+  assert.deepEqual(activeStaffLabels("/staff"), ["Home"]);
+  for (const pathname of ["/staff/news", "/staff/news/new", "/staff/news/post-123/edit", "/staff/news/post-123/preview"]) {
+    assert.equal(shouldShowAdminNavigation(pathname), false);
+    assert.deepEqual(visibleItems(pathname), staffItems);
+    assert.deepEqual(activeStaffLabels(pathname), ["News and events"]);
+    assert.deepEqual(activeVisibleLabels(pathname), ["News and events"]);
+  }
+  assert.equal(shouldShowAdminNavigation("/admin"), true);
+  assert.deepEqual(activeStaffLabels("/staff/sales/sale-123"), ["Sales"]);
+  assert.deepEqual(activeStaffLabels("/staff/import"), []);
+  assert.deepEqual(activeStaffLabels("/staffing"), []);
 });

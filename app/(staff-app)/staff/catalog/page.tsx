@@ -20,7 +20,7 @@ export default async function StaffCatalogPage({
     const availableBranches = session.user.role === "ADMIN" ? await getStaffCatalogBranches() : [];
     const requestedBranchId = params.branchId && availableBranches.some((branch) => branch.id === params.branchId) ? params.branchId : null;
     const branchId = session.user.role === "ADMIN" ? requestedBranchId ?? availableBranches[0]?.id : session.user.branchId;
-    if (!branchId) redirect("/staff");
+    if (!branchId) redirect("/staff?notice=no-branch");
 
     const { categories, uncategorizedVariants } = await getStaffCatalogData(branchId);
 

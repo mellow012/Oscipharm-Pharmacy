@@ -15,7 +15,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
     const requestedBranchId = (await searchParams).branchId;
     const branches = session.user.role === "ADMIN" ? await getInventoryBranches() : [];
     const branchId = session.user.role === "ADMIN" ? requestedBranchId && branches.some((branch) => branch.id === requestedBranchId) ? requestedBranchId : branches[0]?.id : session.user.branchId;
-    if (!branchId) redirect("/staff");
+    if (!branchId) redirect("/staff?notice=no-branch");
 
     const data = await getInventoryData(branchId);
     if (!data.branch) redirect("/staff");
