@@ -22,6 +22,33 @@
   --radius-xl: 28px;
 }
 
+@keyframes route-loading-progress {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(0.8);
+  }
+}
+
+.route-loading-progress {
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: route-loading-progress 8s cubic-bezier(0.1, 0.6, 0.2, 1) 150ms forwards;
+}
+
+@keyframes route-loading-reduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
@@ -56,5 +83,11 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .route-loading-progress {
+    animation: route-loading-reduced 0.01ms linear 150ms forwards !important;
+    opacity: 0;
+    transform: none;
   }
 }

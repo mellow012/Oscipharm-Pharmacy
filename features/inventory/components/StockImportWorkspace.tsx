@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { commitStockImportSlice, previewStockImport } from "@/features/inventory/lib/import-actions";
 import { SalesImportPanel } from "@/features/inventory/components/SalesImportPanel";
@@ -50,6 +50,7 @@ function countsOf(value: unknown): Record<string, unknown> {
 
 export function StockImportWorkspace({ data }: { data: PageData }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [tab, setTab] = useState<"STOCK" | "SALES">("STOCK");
   const [asOf, setAsOf] = useState(malawiLocalNowValue);
@@ -154,8 +155,11 @@ export function StockImportWorkspace({ data }: { data: PageData }) {
       </nav>
 
       {data.actorRole === "ADMIN" ? (
-        <label className="mt-6 block max-w-sm text-sm text-muted">Branch
-          <select value={branchId} onChange={(event) => router.push(`/staff/import?branchId=${event.target.value}`)} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink">
+        <label className="mt-6 block max-w-sm text-sm text-muted"><span className="flex items-center justify-between">Branch<span aria-live="polite" className="h-4 w-16 shrink-0 text-right text-xs text-muted">{isPending ? "Loading..." : ""}</span></span>
+          <select value={branchId} disabled={isPending} onChange={(event) => {
+            const nextBranchId = event.target.value;
+            startTransition(() => router.push(`/staff/import?branchId=${nextBranchId}`));
+          }} className={`mt-2 w-full border border-border bg-white px-3 py-2 text-ink ${isPending ? "opacity-60" : ""}`}>
             {data.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
           </select>
         </label>

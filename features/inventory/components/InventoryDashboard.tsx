@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ReceiveBatchForm } from "@/features/inventory/components/ReceiveBatchForm";
 import { PricingForm } from "@/features/inventory/components/PricingForm";
@@ -10,6 +11,7 @@ import { pluralizeLabel } from "@/lib/plural";
 
 export function InventoryDashboard({ name, role, branchId, branches, data, canReceive, canSetPrice, canAdjust }: { name: string; role: "ADMIN" | "BRANCH_MANAGER" | "POS"; branchId: string; branches: Awaited<ReturnType<typeof import("@/features/inventory/lib/queries").getInventoryBranches>>; data: InventoryData; canReceive: boolean; canSetPrice: boolean; canAdjust: boolean }) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
@@ -21,8 +23,11 @@ export function InventoryDashboard({ name, role, branchId, branches, data, canRe
                 </div>
                 {role === "ADMIN" ? (
                     <label className="block min-w-64 text-sm text-muted">
-                        Working branch
-                        <select value={branchId} onChange={(event) => router.push(`/inventory?branchId=${event.target.value}`)} className="mt-2 w-full border border-border bg-surface px-3 py-3 text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15">
+                        <span className="flex items-center justify-between">Working branch<span aria-live="polite" className="h-4 w-16 shrink-0 text-right text-xs text-muted">{isPending ? "Loading..." : ""}</span></span>
+                        <select value={branchId} disabled={isPending} onChange={(event) => {
+                            const nextBranchId = event.target.value;
+                            startTransition(() => router.push(`/inventory?branchId=${nextBranchId}`));
+                        }} className={`mt-2 w-full border border-border bg-surface px-3 py-3 text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 ${isPending ? "opacity-60" : ""}`}>
                             {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
                         </select>
                     </label>

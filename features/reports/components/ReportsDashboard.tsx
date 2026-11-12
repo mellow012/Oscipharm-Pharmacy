@@ -1,5 +1,7 @@
+import Form from "next/form";
 import type { ReportsData } from "@/features/reports/types";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
+import { SubmitButton } from "@/features/marketing/components/SubmitButton";
 
 function money(value: string | number) {
     const amount = typeof value === "string" ? Number(value) : value;
@@ -30,7 +32,7 @@ export function ReportsDashboard({
             </header>
 
             <section className="py-6">
-                <form method="get" action="/reports" className="grid gap-4 rounded border border-border bg-surface p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
+                <Form action="/reports" className="grid gap-4 rounded border border-border bg-surface p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
                     {role === "ADMIN" ? (
                         <label className="text-sm text-muted">
                             Branch
@@ -50,8 +52,8 @@ export function ReportsDashboard({
                         To
                         <input name="to" type="date" defaultValue={data.range.to} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink" />
                     </label>
-                    <button type="submit" className="self-end border border-primary bg-primary px-4 py-2 font-medium text-primary-fg">Apply</button>
-                </form>
+                    <SubmitButton className="self-end border border-primary bg-primary px-4 py-2 font-medium text-primary-fg">Apply</SubmitButton>
+                </Form>
             </section>
 
             <section aria-label="Sales and membership totals" className="mb-8 grid border-y border-border sm:grid-cols-2 lg:grid-cols-5">

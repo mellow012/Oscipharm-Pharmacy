@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatBlantyreDateTime } from "@/lib/timezone";
 import { getPublicFeed } from "@/features/news/lib/queries";
+import { NewsTabLink } from "@/features/news/components/NewsTabLink";
 import { normalizeTab, type NewsTab } from "@/features/news/lib/news-feed";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
@@ -64,7 +65,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
                     <h1 className="mt-2 text-4xl text-ink">Pharmacy updates</h1>
                 </header>
                 <nav aria-label="News filters" className="mb-6 flex gap-5 border-b border-border">
-                    {tabs.map((item) => <Link key={item.tab} href={item.href} aria-current={item.tab === tab ? "page" : undefined} className={`pb-3 font-mono text-xs uppercase tracking-[0.1em] ${item.tab === tab ? "border-b-2 border-primary text-primary" : "text-muted hover:text-primary"}`}>{item.label}</Link>)}
+                    {tabs.map((item) => <NewsTabLink key={item.tab} href={item.href} current={item.tab === tab}>{item.label}</NewsTabLink>)}
                 </nav>
                 {upcoming.length || past.length ? (
                     <div className="space-y-10">
@@ -88,7 +89,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
             </header>
 
             <nav aria-label="News filters" className="mb-6 flex gap-5 border-b border-border">
-                {tabs.map((item) => <Link key={item.tab} href={item.href} aria-current={item.tab === tab ? "page" : undefined} className={`pb-3 font-mono text-xs uppercase tracking-[0.1em] ${item.tab === tab ? "border-b-2 border-primary text-primary" : "text-muted hover:text-primary"}`}>{item.label}</Link>)}
+                {tabs.map((item) => <NewsTabLink key={item.tab} href={item.href} current={item.tab === tab}>{item.label}</NewsTabLink>)}
             </nav>
             <div className="grid gap-6">
                 {items.length ? items.map((post) => <NewsCard key={post.id} post={post} />) : <p className="text-muted">{tab === "news" ? "No public news yet." : "No public news or upcoming events yet."}</p>}

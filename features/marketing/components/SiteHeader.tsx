@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PendingLink } from "@/features/marketing/components/PendingLink";
 
 const navItems = [
     { href: "/catalog", label: "Catalog" },
@@ -15,9 +15,9 @@ export function SiteHeader() {
 
     return (
         <nav className="flex items-center justify-between gap-4 border-b border-border pb-5">
-            <Link href="/" aria-label="OsciPharm home">
+            <PendingLink href="/" aria-label="OsciPharm home">
                 <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={154} height={62} className="h-14 w-auto object-contain" priority />
-            </Link>
+            </PendingLink>
 
             <div className="flex flex-1 items-center justify-center">
                 <div className="flex items-center gap-5 font-mono text-xs uppercase tracking-[0.12em]">
@@ -29,7 +29,7 @@ export function SiteHeader() {
                                 : pathname === "/membership";
 
                         return (
-                            <Link
+                            <PendingLink
                                 key={item.href}
                                 href={item.href}
                                 className={[
@@ -38,13 +38,13 @@ export function SiteHeader() {
                                 ].join(" ")}
                             >
                                 {item.label}
-                            </Link>
+                            </PendingLink>
                         );
                     })}
                 </div>
             </div>
 
-            <Link href="/login" className="font-mono text-xs uppercase tracking-[0.12em] text-muted transition hover:text-primary">Staff sign in</Link>
+            <PendingLink href="/login" className="font-mono text-xs uppercase tracking-[0.12em] text-muted transition hover:text-primary">Staff sign in</PendingLink>
         </nav>
     );
 }
