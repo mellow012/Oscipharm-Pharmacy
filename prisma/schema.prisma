@@ -117,8 +117,9 @@ enum NewsStatus {
 
 model Branch {
   id        String   @id @default(cuid())
-  name      String   @unique
-  location  String?
+  name      String
+  location  String
+  contactNumber String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -163,7 +164,7 @@ model User {
   isActive Boolean @default(true)
   role      Role
   branchId  String?           // null for Admin (cross-branch); required for Branch Manager/POS
-  branch    Branch?  @relation(fields: [branchId], references: [id])
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
 
   passwordResetTokens PasswordResetToken[]

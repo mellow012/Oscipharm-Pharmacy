@@ -11,7 +11,7 @@ const testDatabaseUrl = requireTestDatabaseUrl();
 const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
 
 async function createBranch(label, isActive = true) {
-  return prisma.branch.create({ data: { name: `Invitation ${label} ${Date.now()} ${Math.random()}`, isActive } });
+  return prisma.branch.create({ data: { name: `Invitation ${label} ${Date.now()} ${Math.random()}`, location: "Test location", isActive } });
 }
 
 async function createUser({ label, role = "ADMIN", branchId = null, isActive = true, email } = {}) {

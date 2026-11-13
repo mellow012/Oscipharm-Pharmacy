@@ -34,7 +34,7 @@ async function createWorkbook(rows) {
 
 async function setup() {
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const branch = await prisma.branch.create({ data: { name: `Import Test ${unique}` } });
+  const branch = await prisma.branch.create({ data: { name: `Import Test ${unique}`, location: "Test location" } });
   const user = await prisma.user.create({
     data: {
       name: `Import Manager ${unique}`,
@@ -147,7 +147,7 @@ test("POS can preview stock import for its own branch", async () => {
 
 test("POS cannot preview stock import for another branch", async () => {
   const context = await setup();
-  const otherBranch = await prisma.branch.create({ data: { name: `Other Import Test ${context.unique}` } });
+  const otherBranch = await prisma.branch.create({ data: { name: `Other Import Test ${context.unique}`, location: "Other test location" } });
   try {
     await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
     const buffer = await createWorkbook([{ code: "pos-other", name: "POS Other Branch", quantity: 1 }]);
@@ -158,12 +158,21 @@ test("POS cannot preview stock import for another branch", async () => {
   }
 });
 
-test("POS without a branch cannot preview stock import", async () => {
+test("database rejects assigning a POS user without a branch during stock import", async () => {
   const context = await setup();
   try {
-    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } });
-    const buffer = await createWorkbook([{ code: "pos-none", name: "POS No Branch", quantity: 1 }]);
-    await assert.rejects(() => preview(context, buffer), /Only an Admin/);
+    await assert.rejects(
+      () => prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } }),
+      (error) => {
+        const message = String(error?.message ?? error);
+        assert.match(
+          message,
+          /(?:23514[\s\S]*User_admin_or_branch_check|User_admin_or_branch_check[\s\S]*23514)/i,
+          `Expected SQLSTATE 23514 and User_admin_or_branch_check. Full error message: ${message}`,
+        );
+        return true;
+      },
+    );
   } finally {
     await cleanup(context);
   }

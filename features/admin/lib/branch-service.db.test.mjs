@@ -9,6 +9,15 @@ import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/bran
 const testDatabaseUrl = requireTestDatabaseUrl();
 const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
 
+async function assertConstraintViolation(operation, sqlState, constraintName) {
+  await assert.rejects(operation, (error) => {
+    const message = String(error?.message ?? error);
+    const expected = new RegExp(`(?:${sqlState}[\\s\\S]*${constraintName}|${constraintName}[\\s\\S]*${sqlState})`, "i");
+    assert.match(message, expected, `Expected SQLSTATE ${sqlState} and ${constraintName}. Full error message: ${message}`);
+    return true;
+  });
+}
+
 async function createAdmin(label) {
   return prisma.user.create({
     data: {
@@ -131,18 +140,70 @@ test("branch names remain reserved while a branch is inactive", async () => {
   }
 });
 
+test("database rejects blank branch locations and case-insensitive duplicate names", async () => {
+  const suffix = `${Date.now()}-${Math.random()}`;
+  const branch = await prisma.branch.create({ data: { name: `Database Constraints ${suffix}`, location: "North" } });
+  try {
+    await assertConstraintViolation(
+      () => prisma.branch.update({ where: { id: branch.id }, data: { location: "   " } }),
+      "23514",
+      "Branch_location_not_blank_check",
+    );
+    await assert.rejects(
+      () => prisma.branch.create({ data: { name: branch.name.toUpperCase(), location: "South" } }),
+      (error) => {
+        const message = String(error?.message ?? error);
+        assert.equal(error?.code, "P2002", `Expected Prisma P2002. Full error message: ${message}`);
+        assert.match(
+          message,
+          /Unique constraint failed on the fields: \(`lower\(name\)`\)/,
+          `Expected functional name-index violation. Full error message: ${message}`,
+        );
+        return true;
+      },
+    );
+  } finally {
+    await prisma.branch.delete({ where: { id: branch.id } });
+  }
+});
+
+test("database rejects deleting a branch assigned to a user", async () => {
+  const suffix = `${Date.now()}-${Math.random()}`;
+  const branch = await prisma.branch.create({ data: { name: `Restricted Branch ${suffix}`, location: "North" } });
+  const user = await prisma.user.create({
+    data: {
+      name: "Assigned User",
+      email: `assigned-user-${suffix}@example.test`,
+      passwordHash: "test-only-hash",
+      role: "BRANCH_MANAGER",
+      branchId: branch.id,
+    },
+  });
+  try {
+    await assertConstraintViolation(
+      () => prisma.branch.delete({ where: { id: branch.id } }),
+      "23001",
+      "User_branchId_fkey",
+    );
+  } finally {
+    await prisma.user.delete({ where: { id: user.id } });
+    await prisma.branch.delete({ where: { id: branch.id } });
+  }
+});
+
 test("all branch lifecycle operations reject non-admin and inactive admin actors", async () => {
   const admin = await createAdmin("actor-denials");
   const inactiveAdmin = await createAdmin("inactive-actor-denials");
+  const branch = await prisma.branch.create({ data: { name: `Actor Denial ${Date.now()}`, location: "North" } });
   const manager = await prisma.user.create({
     data: {
       name: "Branch Manager Actor",
       email: `branch-manager-actor-${Date.now()}-${Math.random()}@example.test`,
       passwordHash: "test-only-hash",
       role: "BRANCH_MANAGER",
+      branchId: branch.id,
     },
   });
-  const branch = await prisma.branch.create({ data: { name: `Actor Denial ${Date.now()}`, location: "North" } });
   try {
     await prisma.user.update({ where: { id: inactiveAdmin.id }, data: { isActive: false } });
     const denied = { ok: false, message: "You are not authorized to manage branches." };
@@ -166,7 +227,7 @@ test("all branch lifecycle operations reject non-admin and inactive admin actors
 });
 
 test("shared active-branch write guard allows active branches and rejects inactive ones", async () => {
-  const branch = await prisma.branch.create({ data: { name: `Guard ${Date.now()}` } });
+  const branch = await prisma.branch.create({ data: { name: `Guard ${Date.now()}`, location: "Test location" } });
   try {
     assert.equal(await prisma.$transaction((tx) => lockActiveBranch(tx, branch.id)), true);
     await prisma.branch.update({ where: { id: branch.id }, data: { isActive: false } });
@@ -179,7 +240,7 @@ test("shared active-branch write guard allows active branches and rejects inacti
 
 test("branch deactivation rejects assigned active staff and the last active branch", async () => {
   const admin = await createAdmin("deactivate-rules");
-  const branch = await prisma.branch.create({ data: { name: `Deactivate ${Date.now()}` } });
+  const branch = await prisma.branch.create({ data: { name: `Deactivate ${Date.now()}`, location: "Test location" } });
   const manager = await prisma.user.create({
     data: {
       name: "Assigned Manager",
@@ -213,8 +274,8 @@ test("branch deactivation rejects assigned active staff and the last active bran
 test("concurrent deactivation leaves at least one active branch and lifecycle changes are audited", async () => {
   const admin = await createAdmin("concurrent-deactivate");
   const branches = await Promise.all([
-    prisma.branch.create({ data: { name: `Concurrent A ${Date.now()}-${Math.random()}` } }),
-    prisma.branch.create({ data: { name: `Concurrent B ${Date.now()}-${Math.random()}` } }),
+    prisma.branch.create({ data: { name: `Concurrent A ${Date.now()}-${Math.random()}`, location: "Test location" } }),
+    prisma.branch.create({ data: { name: `Concurrent B ${Date.now()}-${Math.random()}`, location: "Test location" } }),
   ]);
   const originallyActive = await prisma.branch.findMany({ where: { isActive: true, id: { notIn: branches.map((branch) => branch.id) } }, select: { id: true } });
   try {

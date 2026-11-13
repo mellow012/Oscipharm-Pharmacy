@@ -36,7 +36,7 @@ const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0x00]);
 
 test("image service enforces limits, ownership, cleanup, ordering and audit privacy", async () => {
     const suffix = `${Date.now()}-${Math.random()}`;
-    const branch = await prisma.branch.create({ data: { name: `News image test ${suffix}` } });
+    const branch = await prisma.branch.create({ data: { name: `News image test ${suffix}`, location: "Test location" } });
     const admin = await prisma.user.create({ data: { name: "Image Admin", email: `image-admin-${suffix}@example.test`, passwordHash: "test", role: "ADMIN" } });
     const managerA = await prisma.user.create({ data: { name: "Image Manager A", email: `image-manager-a-${suffix}@example.test`, passwordHash: "test", role: "BRANCH_MANAGER", branchId: branch.id } });
     const managerB = await prisma.user.create({ data: { name: "Image Manager B", email: `image-manager-b-${suffix}@example.test`, passwordHash: "test", role: "BRANCH_MANAGER", branchId: branch.id } });

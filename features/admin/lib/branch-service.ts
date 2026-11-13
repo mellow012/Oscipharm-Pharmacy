@@ -3,7 +3,7 @@ import { prisma } from "../../../lib/prisma.ts";
 import { can } from "../../../lib/permissions.ts";
 
 type BranchDb = PrismaClient | Prisma.TransactionClient;
-type BranchSnapshot = { name: string; location: string | null; isActive: boolean };
+type BranchSnapshot = { name: string; location: string; isActive: boolean };
 type BranchResult<T = null> = { ok: true; message: string; branch?: T } | { ok: false; message: string };
 type BranchInput = { name: unknown; location: unknown };
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
@@ -36,7 +36,7 @@ async function lockBranchManagement(tx: Prisma.TransactionClient) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 2)`;
 }
 
-export async function createBranch(actorId: string, input: BranchInput): Promise<BranchResult<{ id: string; name: string; location: string | null; isActive: boolean }>> {
+export async function createBranch(actorId: string, input: BranchInput): Promise<BranchResult<{ id: string; name: string; location: string; isActive: boolean }>> {
     const valid = normalizeInput(input);
     if (!valid.ok) return valid;
     try {

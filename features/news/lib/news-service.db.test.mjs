@@ -12,7 +12,7 @@ assert.equal(databaseTarget(process.env.DATABASE_URL), databaseTarget(testDataba
 const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
 
 test("news service enforces ownership, lifecycle, audit, and event constraints", async () => {
-    const branch = await prisma.branch.create({ data: { name: `News service test ${Date.now()}` } });
+    const branch = await prisma.branch.create({ data: { name: `News service test ${Date.now()}`, location: "Test location" } });
     const users = await Promise.all([
         prisma.user.create({ data: { name: "News Admin", email: `news-admin-${Date.now()}@example.test`, passwordHash: "test", role: "ADMIN" } }),
         prisma.user.create({ data: { name: "News Manager A", email: `news-manager-a-${Date.now()}@example.test`, passwordHash: "test", role: "BRANCH_MANAGER", branchId: branch.id } }),

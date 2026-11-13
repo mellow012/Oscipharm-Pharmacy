@@ -14,7 +14,7 @@ const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } 
 const secret = "password-reset-db-test-secret";
 
 async function createUser(suffix) {
-  const branch = await prisma.branch.create({ data: { name: `Reset Test ${suffix}` } });
+  const branch = await prisma.branch.create({ data: { name: `Reset Test ${suffix}`, location: "Test location" } });
   const user = await prisma.user.create({
     data: {
       name: "Password Reset Test",

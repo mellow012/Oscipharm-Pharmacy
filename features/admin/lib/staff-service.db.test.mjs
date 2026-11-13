@@ -18,7 +18,7 @@ assert.equal(databaseTarget(process.env.DATABASE_URL), databaseTarget(testDataba
 const prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
 
 async function createBranch(label) {
-  return prisma.branch.create({ data: { name: `Staff lifecycle ${label} ${Date.now()} ${Math.random()}` } });
+  return prisma.branch.create({ data: { name: `Staff lifecycle ${label} ${Date.now()} ${Math.random()}`, location: "Test location" } });
 }
 
 async function createUser({ label, role, branchId = null, isActive = true }) {
@@ -226,15 +226,24 @@ test("manager team list includes only the manager's branch and never an Admin", 
   }
 });
 
-test("manager without branch assignment cannot list a team", async () => {
-  const manager = await createUser({ label: "team-no-branch", role: "BRANCH_MANAGER" });
+test("database rejects removing the branch assignment from a manager", async () => {
+  const branch = await createBranch("team-no-branch-check");
+  const manager = await createUser({ label: "team-no-branch", role: "BRANCH_MANAGER", branchId: branch.id });
   try {
-    assert.deepEqual(await listTeamForManager(manager.id), {
-      ok: false,
-      message: "Your account has no branch assigned. Ask an admin.",
-    });
+    await assert.rejects(
+      () => prisma.user.update({ where: { id: manager.id }, data: { branchId: null } }),
+      (error) => {
+        const message = String(error?.message ?? error);
+        assert.match(
+          message,
+          /(?:23514[\s\S]*User_admin_or_branch_check|User_admin_or_branch_check[\s\S]*23514)/i,
+          `Expected SQLSTATE 23514 and User_admin_or_branch_check. Full error message: ${message}`,
+        );
+        return true;
+      },
+    );
   } finally {
-    await cleanup({ users: [manager] });
+    await cleanup({ users: [manager], branches: [branch] });
   }
 });
 

@@ -27,7 +27,7 @@ function headers() {
 
 async function setup() {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const branch = await prisma.branch.create({ data: { name: `Sales Import ${suffix}` } });
+  const branch = await prisma.branch.create({ data: { name: `Sales Import ${suffix}`, location: "Test location" } });
   const user = await prisma.user.create({ data: { name: "Import Manager", email: `sales-import-${suffix}@test.local`, passwordHash: "test", role: "BRANCH_MANAGER", branchId: branch.id } });
   process.env.TEST_ACTOR_ID = user.id;
   const salesService = createSalesImportService(prisma, async () => user.id);
@@ -148,7 +148,7 @@ test("POS can preview sales import for its own branch", async () => {
 
 test("POS cannot preview sales import for another branch", async () => {
   const context = await setup();
-  const otherBranch = await prisma.branch.create({ data: { name: `Other Sales Import ${context.suffix}` } });
+  const otherBranch = await prisma.branch.create({ data: { name: `Other Sales Import ${context.suffix}`, location: "Other test location" } });
   try {
     await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS" } });
     const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `POS-OTHER-${context.suffix}`, "", `pos-other-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
@@ -159,12 +159,21 @@ test("POS cannot preview sales import for another branch", async () => {
   }
 });
 
-test("POS without a branch cannot preview sales import", async () => {
+test("database rejects assigning a POS user without a branch during sales import", async () => {
   const context = await setup();
   try {
-    await prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } });
-    const buffer = await workbook(headers(), [["Sales", new Date("2026-10-13T00:00:00Z"), "13/10/2026 09:00:00", `POS-NONE-${context.suffix}`, "", `pos-none-${context.suffix}`, "Product", "1", "pack", 100, 100]]);
-    await assert.rejects(() => importSales(context, buffer), /Only an Admin/);
+    await assert.rejects(
+      () => prisma.user.update({ where: { id: context.user.id }, data: { role: "POS", branchId: null } }),
+      (error) => {
+        const message = String(error?.message ?? error);
+        assert.match(
+          message,
+          /(?:23514[\s\S]*User_admin_or_branch_check|User_admin_or_branch_check[\s\S]*23514)/i,
+          `Expected SQLSTATE 23514 and User_admin_or_branch_check. Full error message: ${message}`,
+        );
+        return true;
+      },
+    );
   } finally { await cleanup(context); }
 });
 
