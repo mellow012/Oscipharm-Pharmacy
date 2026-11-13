@@ -26,7 +26,7 @@ const MORE_TILES: HomeTile[] = [
     { label: "Stock import", description: "Preview and import an Aronium Stock workbook", href: "/staff/import", permission: "stock:import", accent: "border-primary" },
     { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage", accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage", accent: "border-warn" },
-    { label: "Administration", description: "Manage users and branches", href: "/admin", permission: "users:manage", accent: "border-primary" },
+    { label: "Administration", description: "Review staff, branch coverage, and pharmacy totals", href: "/admin", permission: "users:manage", accent: "border-primary" },
 ];
 
 export function getHomeTileGroups(role: Role): HomeTileGroup[] {

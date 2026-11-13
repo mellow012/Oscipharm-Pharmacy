@@ -13,14 +13,12 @@ async function requireAdmin(db: BranchDb, actorId: string) {
     return actor?.isActive && actor.role === "ADMIN" && can(actor.role, "branches:manage") ? actor : null;
 }
 
-function normalizeInput(input: BranchInput): { ok: true; name: string; location: string | null } | { ok: false; message: string } {
+function normalizeInput(input: BranchInput): { ok: true; name: string; location: string } | { ok: false; message: string } {
     if (typeof input.name !== "string" || !input.name.trim()) return { ok: false, message: "Branch name is required." };
     if (input.name.trim().length > 120) return { ok: false, message: "Branch name must be 120 characters or fewer." };
-    if (input.location !== null && input.location !== undefined && typeof input.location !== "string") {
-        return { ok: false, message: "Branch location must be text." };
-    }
-    const location = typeof input.location === "string" ? input.location.trim() || null : null;
-    if (location && location.length > 240) return { ok: false, message: "Branch location must be 240 characters or fewer." };
+    if (typeof input.location !== "string" || !input.location.trim()) return { ok: false, message: "Branch location is required." };
+    const location = input.location.trim();
+    if (location.length > 240) return { ok: false, message: "Branch location must be 240 characters or fewer." };
     return { ok: true, name: input.name.trim(), location };
 }
 

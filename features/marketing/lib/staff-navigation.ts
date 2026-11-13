@@ -33,6 +33,7 @@ const POS_ITEMS: StaffNavigationItem[] = [
 const ADMIN_ITEMS: StaffNavigationItem[] = [
     { href: "/admin", label: "Overview", permission: "users:manage" },
     { href: "/admin/staff", label: "Staff", permission: "users:manage" },
+    { href: "/admin/branches", label: "Branches", permission: "branches:manage" },
     { href: "/admin/memberships", label: "Memberships", permission: "membership:manage" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
     { href: "/staff/team", label: "Team", permission: "reports:branch:view" },

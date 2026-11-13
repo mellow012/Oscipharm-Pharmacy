@@ -15,6 +15,8 @@ function destinations(role) {
 }
 
 test("Admin retains the existing Home destinations in the agreed group order", () => {
+  const administration = getHomeTileGroups("ADMIN").flatMap((group) => group.tiles).find((tile) => tile.href === "/admin");
+  assert.equal(administration.description, "Review staff, branch coverage, and pharmacy totals");
   assert.deepEqual(destinations("ADMIN"), [
     "/admin",
     "/admin/memberships",

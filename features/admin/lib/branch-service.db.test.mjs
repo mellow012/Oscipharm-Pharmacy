@@ -48,8 +48,38 @@ test("branch create and update validate names and write before/after audits", as
     assert.deepEqual(audit.details.before, { name: branch.name, location: "North District", isActive: true });
     assert.deepEqual(audit.details.after, { name: `${branch.name} Central`, location: "Central", isActive: true });
 
-    const invalid = await createBranch(admin.id, { name: "  ", location: null });
-    assert.equal(invalid.ok, false);
+    const invalidName = await createBranch(admin.id, { name: "  ", location: "Blantyre" });
+    assert.deepEqual(invalidName, { ok: false, message: "Branch name is required." });
+  } finally {
+    await clean({ admin, branches });
+  }
+});
+
+test("branch create and update require a non-blank location", async () => {
+  const admin = await createAdmin("required-location");
+  const branches = [];
+  try {
+    for (const location of [null, "", "   "]) {
+      assert.deepEqual(await createBranch(admin.id, { name: `Missing location ${Date.now()} ${Math.random()}`, location }), {
+        ok: false,
+        message: "Branch location is required.",
+      });
+    }
+
+    const created = await createBranch(admin.id, { name: `Located ${Date.now()}`, location: "Lunzu" });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+    branches.push(created.branch);
+
+    for (const location of [null, "", "   "]) {
+      assert.deepEqual(await updateBranch(admin.id, created.branch.id, { name: created.branch.name, location }), {
+        ok: false,
+        message: "Branch location is required.",
+      });
+    }
+
+    const unchanged = await prisma.branch.findUniqueOrThrow({ where: { id: created.branch.id } });
+    assert.equal(unchanged.location, "Lunzu");
   } finally {
     await clean({ admin, branches });
   }
@@ -59,11 +89,11 @@ test("branch names are unique without regard to case", async () => {
   const admin = await createAdmin("unique-name");
   const branches = [];
   try {
-    const first = await createBranch(admin.id, { name: `Unique ${Date.now()}`, location: null });
+    const first = await createBranch(admin.id, { name: `Unique ${Date.now()}`, location: "North" });
     assert.equal(first.ok, true);
     if (!first.ok) return;
     branches.push(first.branch);
-    const duplicate = await createBranch(admin.id, { name: first.branch.name.toUpperCase(), location: null });
+    const duplicate = await createBranch(admin.id, { name: first.branch.name.toUpperCase(), location: "South" });
     assert.equal(duplicate.ok, false);
     assert.match(duplicate.message, /already exists/i);
   } finally {
@@ -77,14 +107,61 @@ test("concurrent case-insensitive branch creation permits only one name", async 
   try {
     const name = `Concurrent Name ${Date.now()}`;
     const results = await Promise.all([
-      createBranch(admin.id, { name, location: null }),
-      createBranch(admin.id, { name: name.toUpperCase(), location: null }),
+      createBranch(admin.id, { name, location: "North" }),
+      createBranch(admin.id, { name: name.toUpperCase(), location: "South" }),
     ]);
     assert.equal(results.filter((result) => result.ok).length, 1);
     const winner = results.find((result) => result.ok);
     if (winner?.ok && winner.branch) branches.push(winner.branch);
   } finally {
     await clean({ admin, branches });
+  }
+});
+
+test("branch names remain reserved while a branch is inactive", async () => {
+  const admin = await createAdmin("inactive-duplicate");
+  const branches = [];
+  try {
+    const inactive = await prisma.branch.create({ data: { name: `Inactive Unique ${Date.now()}`, location: "North", isActive: false } });
+    branches.push(inactive);
+    const duplicate = await createBranch(admin.id, { name: inactive.name.toUpperCase(), location: "South" });
+    assert.deepEqual(duplicate, { ok: false, message: "A branch with that name already exists." });
+  } finally {
+    await clean({ admin, branches });
+  }
+});
+
+test("all branch lifecycle operations reject non-admin and inactive admin actors", async () => {
+  const admin = await createAdmin("actor-denials");
+  const inactiveAdmin = await createAdmin("inactive-actor-denials");
+  const manager = await prisma.user.create({
+    data: {
+      name: "Branch Manager Actor",
+      email: `branch-manager-actor-${Date.now()}-${Math.random()}@example.test`,
+      passwordHash: "test-only-hash",
+      role: "BRANCH_MANAGER",
+    },
+  });
+  const branch = await prisma.branch.create({ data: { name: `Actor Denial ${Date.now()}`, location: "North" } });
+  try {
+    await prisma.user.update({ where: { id: inactiveAdmin.id }, data: { isActive: false } });
+    const denied = { ok: false, message: "You are not authorized to manage branches." };
+    const operations = [
+      (actorId) => createBranch(actorId, { name: `Denied ${Date.now()}`, location: "North" }),
+      (actorId) => updateBranch(actorId, branch.id, { name: branch.name, location: "North" }),
+      (actorId) => deactivateBranch(actorId, branch.id),
+      (actorId) => reactivateBranch(actorId, branch.id),
+    ];
+
+    for (const operation of operations) {
+      assert.deepEqual(await operation(manager.id), denied);
+      assert.deepEqual(await operation(inactiveAdmin.id), denied);
+    }
+  } finally {
+    await prisma.auditLog.deleteMany({ where: { branchId: branch.id } });
+    await prisma.user.delete({ where: { id: manager.id } });
+    await prisma.branch.delete({ where: { id: branch.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [admin.id, inactiveAdmin.id] } } });
   }
 });
 

@@ -9,7 +9,7 @@ function labels(items) {
 test("Admin sees permission-filtered staff and Admin navigation", () => {
   const navigation = getStaffNavigation("ADMIN");
   assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Reports", "News and events"]);
-  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff", "Memberships", "News and events"]);
+  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff", "Branches", "Memberships", "News and events"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
@@ -33,6 +33,7 @@ test("Admin route tabs mark only the matching item active", () => {
 
   assert.deepEqual(activeLabels("/admin"), ["Overview"]);
   assert.deepEqual(activeLabels("/admin/staff"), ["Staff"]);
+  assert.deepEqual(activeLabels("/admin/branches"), ["Branches"]);
   assert.deepEqual(activeLabels("/admin/memberships"), ["Memberships"]);
 });
 
