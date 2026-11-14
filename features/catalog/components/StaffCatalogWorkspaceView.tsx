@@ -29,6 +29,8 @@ export function StaffCatalogWorkspaceView({
   onSearchChange,
   notLinkedOnly,
   onNotLinkedToggle,
+  linkedCount,
+  unlinkedCount,
   filteredCount,
   page,
   pageCount,
@@ -57,6 +59,8 @@ export function StaffCatalogWorkspaceView({
   onSearchChange: (value: string) => void;
   notLinkedOnly: boolean;
   onNotLinkedToggle: () => void;
+  linkedCount: number;
+  unlinkedCount: number;
   filteredCount: number;
   page: number;
   pageCount: number;
@@ -136,15 +140,20 @@ export function StaffCatalogWorkspaceView({
                 />
               )}
             </FormField>
-            <button
-              type="button"
-              onClick={onNotLinkedToggle}
-              aria-pressed={notLinkedOnly}
-              className={`inline-flex min-h-11 items-center justify-center gap-space-sm border px-space-md font-label-sm text-label-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${notLinkedOnly ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low"}`}
-            >
-              <Filter aria-hidden="true" size={15} />
-              Not linked to Aronium
-            </button>
+            <div className="flex min-w-0 flex-wrap items-end gap-space-md">
+              <p className="pb-space-sm font-body-sm text-body-sm tabular-nums text-on-surface-variant">
+                Linked: {linkedCount} · Not linked: {unlinkedCount}
+              </p>
+              <button
+                type="button"
+                onClick={onNotLinkedToggle}
+                aria-pressed={notLinkedOnly}
+                className={`inline-flex min-h-11 items-center justify-center gap-space-sm border px-space-md font-label-sm text-label-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${notLinkedOnly ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low"}`}
+              >
+                <Filter aria-hidden="true" size={15} />
+                Not linked to Aronium
+              </button>
+            </div>
           </div>
 
           {filteredCount === 0 ? (

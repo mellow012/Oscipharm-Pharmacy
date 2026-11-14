@@ -113,7 +113,6 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
       });
       if (done) {
         setMessage("Stock import completed.");
-        setPreview(null);
         setActiveRun(null);
         router.refresh();
       }

@@ -1,4 +1,6 @@
 import type { SalesImportPreview as SalesPreview } from "@/features/inventory/lib/sales-import-preview";
+import { ImportIssueTable } from "@/features/inventory/components/ImportIssueTable";
+import { ImportMatchSummary } from "@/features/inventory/components/ImportMatchSummary";
 import { ConfirmDialog } from "@/features/shared/components/ConfirmDialog";
 import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 import { StatCard } from "@/features/shared/components/StatCard";
@@ -15,12 +17,16 @@ import {
 export function SalesImportPreview({
   preview,
   filename,
+  branchId,
   busy,
+  result = false,
   onConfirm,
 }: {
   preview: SalesPreview;
   filename: string;
+  branchId: string;
   busy: boolean;
+  result?: boolean;
   onConfirm: () => void;
 }) {
   return (
@@ -35,21 +41,25 @@ export function SalesImportPreview({
             {filename}
           </h2>
         </div>
-        <ConfirmDialog
-          trigger={
-            <button
-              type="button"
-              disabled={busy || preview.counts.newDocuments === 0}
-              className="min-h-11 shrink-0 bg-primary px-space-md font-label-md text-label-md text-on-primary disabled:opacity-50"
-            >
-              Confirm sales import
-            </button>
-          }
-          title="Confirm sales import?"
-          description={`Import ${preview.counts.newDocuments} new documents from ${filename}. Already-imported documents will be skipped.`}
-          confirmLabel="Confirm sales import"
-          onConfirm={onConfirm}
-        />
+        {result ? (
+          <StatCard label="Result" value="Completed" tone="success" />
+        ) : (
+          <ConfirmDialog
+            trigger={
+              <button
+                type="button"
+                disabled={busy || preview.counts.newDocuments === 0}
+                className="min-h-11 shrink-0 bg-primary px-space-md font-label-md text-label-md text-on-primary disabled:opacity-50"
+              >
+                Confirm sales import
+              </button>
+            }
+            title="Confirm sales import?"
+            description={`Import ${preview.counts.newDocuments} new documents from ${filename}. Already-imported documents will be skipped.`}
+            confirmLabel="Confirm sales import"
+            onConfirm={onConfirm}
+          />
+        )}
       </header>
 
       {preview.warning ? <NoticeBanner tone="warning">{preview.warning}</NoticeBanner> : null}
@@ -75,33 +85,19 @@ export function SalesImportPreview({
       </section>
 
       <div className="grid min-w-0 gap-space-lg lg:grid-cols-2">
-        <TableFrame
-          ariaLabel="Skipped sales import rows"
-          header={<h3 className="font-headline-sm text-headline-sm text-primary">Skipped rows</h3>}
-          tableClassName="min-w-[420px]"
-        >
-          <TableHead>
-            <tr>
-              <TableHeaderCell align="right">Row</TableHeaderCell>
-              <TableHeaderCell>Reason</TableHeaderCell>
-            </tr>
-          </TableHead>
-          <TableBody>
-            {preview.skipped.map((row) => (
-              <TableRow key={`${row.rowNumber}-${row.reason}`}>
-                <TableCell numeric nowrap>
-                  {row.rowNumber}
-                </TableCell>
-                <TableCell>{row.reason}</TableCell>
-              </TableRow>
-            ))}
-            {!preview.skipped.length ? (
-              <TableRow>
-                <TableCell colSpan={2}>No skipped rows.</TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </TableFrame>
+        <div className="min-w-0 space-y-space-md">
+          <ImportMatchSummary count={preview.unmatchedRows.length} branchId={branchId} />
+          <ImportIssueTable
+            ariaLabel="Skipped sales import rows"
+            title="Skipped rows"
+            rows={preview.skipped.map((row) => ({ ...row, code: null }))}
+          />
+          <ImportIssueTable
+            ariaLabel="Unmatched sales import rows"
+            title="Unmatched rows"
+            rows={preview.unmatchedRows}
+          />
+        </div>
         <TableFrame
           ariaLabel="Flagged sales import lines"
           header={<h3 className="font-headline-sm text-headline-sm text-primary">Flagged lines</h3>}
@@ -137,9 +133,7 @@ export function SalesImportPreview({
 
       <TableFrame
         ariaLabel="Products to create from sales import"
-        header={
-          <h3 className="font-headline-sm text-headline-sm text-primary">Products to create</h3>
-        }
+        header={<h3 className="font-headline-sm text-headline-sm text-primary">Products to create</h3>}
         tableClassName="min-w-[520px]"
       >
         <TableHead>

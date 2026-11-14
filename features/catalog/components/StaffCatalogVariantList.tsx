@@ -83,6 +83,19 @@ export function StaffCatalogVariantList({
                       {row.strength}
                     </div>
                   ) : null}
+                  {row.aroniumProductLinks.length ? (
+                    <div className="mt-space-xs flex min-w-0 max-w-full gap-space-sm overflow-x-auto font-table-cell text-table-cell tabular-nums text-on-surface">
+                      {row.aroniumProductLinks.map((link) => (
+                        <span key={link.id} className="shrink-0 whitespace-nowrap">
+                          {link.aroniumCode} · {link.mode}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-space-xs">
+                      <StatusBadge tone="warning">Not linked</StatusBadge>
+                    </div>
+                  )}
                 </div>
                 <div className="font-body-sm text-body-sm text-on-surface-variant">
                   <span className="font-semibold tabular-nums text-on-surface">{row.packSize}</span>{" "}
@@ -115,7 +128,7 @@ export function StaffCatalogVariantList({
                       {pluralizeLabel(row.aroniumProductLinks.length, "code")}
                     </span>
                   ) : (
-                    <span>Not linked</span>
+                    <span>—</span>
                   )}
                 </div>
               </button>

@@ -10,6 +10,7 @@ export type SalesPreviewDocument = SalesDocument & {
 export type SalesImportPreview = {
   documents: SalesPreviewDocument[];
   newProducts: Array<{ code: string; product: string; uom: string }>;
+  unmatchedRows: Array<{ rowNumber: number; documentNumber: string; code: string; reason: string }>;
   skipped: ParseSalesExportResult["skipped"];
   flaggedRows: ParseSalesExportResult["rows"];
   warning: string | null;
@@ -42,6 +43,7 @@ export function buildSalesImportPreview(input: {
   stockAsOf: Date | null;
 }): SalesImportPreview {
   const documentCodes = new Map<string, { code: string; product: string; uom: string }>();
+  const unmatchedRows: SalesImportPreview["unmatchedRows"] = [];
   const lineByKey = new Map(input.parsed.rows.map((row) => [row.lineKey, row]));
   const documents = input.parsed.documents.map((document) => {
     const imported = input.importedDocumentNumbers.has(document.documentNumber);
@@ -53,8 +55,18 @@ export function buildSalesImportPreview(input: {
     if (!imported) {
       for (const key of document.lineKeys) {
         const row = lineByKey.get(key);
-        if (row && !input.catalogCodes.has(row.code) && !documentCodes.has(row.code)) {
-          documentCodes.set(row.code, { code: row.code, product: row.product, uom: row.uom });
+        if (row && !input.catalogCodes.has(row.code)) {
+          unmatchedRows.push({
+            rowNumber: row.rowNumber,
+            documentNumber: row.documentNumber,
+            code: row.code,
+            reason: row.code.trim()
+              ? "Aronium code is not linked to a catalog variant."
+              : "No Aronium product code is present on this row.",
+          });
+          if (!documentCodes.has(row.code)) {
+            documentCodes.set(row.code, { code: row.code, product: row.product, uom: row.uom });
+          }
         }
       }
     }
@@ -78,6 +90,7 @@ export function buildSalesImportPreview(input: {
   return {
     documents,
     newProducts: Array.from(documentCodes.values()),
+    unmatchedRows,
     skipped: input.parsed.skipped,
     flaggedRows,
     warning: input.stockAsOf ? null : "No committed opening stock run exists for this branch. Sales before an opening stock run cannot be classified as history-only.",

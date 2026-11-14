@@ -102,7 +102,6 @@ export function SalesImportPanel({
       if (done) {
         setMessage("Sales import completed.");
         setActiveRun(null);
-        setPreview(null);
         router.refresh();
       }
     }
@@ -223,7 +222,9 @@ export function SalesImportPanel({
         <SalesImportPreview
           preview={preview.preview}
           filename={preview.filename}
+          branchId={branchId}
           busy={busy}
+          result={message.includes("completed")}
           onConfirm={() => void runSlices(preview.runId, file!)}
         />
       ) : null}

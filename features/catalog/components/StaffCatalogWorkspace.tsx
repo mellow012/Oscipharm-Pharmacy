@@ -134,6 +134,9 @@ export function StaffCatalogWorkspace({
     });
   }, [allRows, currentCategory, notLinkedOnly, searchText]);
 
+  const linkedCount = allRows.filter((row) => row.aroniumProductLinks.length > 0).length;
+  const unlinkedCount = allRows.length - linkedCount;
+
   const pageSize = 25;
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const page = Math.min(
@@ -199,6 +202,8 @@ export function StaffCatalogWorkspace({
       onSearchChange={(value) => updateParams({ query: value.trim() || null, page: "1" })}
       notLinkedOnly={notLinkedOnly}
       onNotLinkedToggle={() => updateParams({ notLinked: notLinkedOnly ? null : "1", page: "1" })}
+      linkedCount={linkedCount}
+      unlinkedCount={unlinkedCount}
       filteredCount={filteredRows.length}
       page={page}
       pageCount={pageCount}

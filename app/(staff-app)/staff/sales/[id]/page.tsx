@@ -108,6 +108,7 @@ export default async function StaffSaleDetailPage({ params }: { params: Promise<
         <TableHead>
           <tr>
             <TableHeaderCell>Product</TableHeaderCell>
+            <TableHeaderCell>Aronium code</TableHeaderCell>
             <TableHeaderCell>Qty</TableHeaderCell>
             <TableHeaderCell align="right">Unit price</TableHeaderCell>
             <TableHeaderCell align="right">Line total</TableHeaderCell>
@@ -121,6 +122,17 @@ export default async function StaffSaleDetailPage({ params }: { params: Promise<
               <TableCell className="min-w-52 text-on-surface">
                 {item.variant.ingredient?.name ? `${item.variant.ingredient.name} · ` : ""}
                 {item.variant.brandName} {item.variant.strength ?? ""}
+              </TableCell>
+              <TableCell nowrap className="font-table-cell text-table-cell tabular-nums">
+                {item.variant.aroniumProductLinks.length ? (
+                  item.variant.aroniumProductLinks.map((link) => (
+                    <span key={`${link.aroniumCode}-${link.mode}`} className="block">
+                      {link.aroniumCode}
+                    </span>
+                  ))
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell nowrap>
                 {Math.abs(item.quantityUnits)} {item.variant.unitLabel}
@@ -155,7 +167,7 @@ export default async function StaffSaleDetailPage({ params }: { params: Promise<
           ))}
           {!sale.items.length ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-space-xl text-center">
+              <TableCell colSpan={7} className="py-space-xl text-center">
                 No line items.
               </TableCell>
             </TableRow>

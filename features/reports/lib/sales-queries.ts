@@ -101,7 +101,15 @@ export async function getSaleDetail(access: AccessScope, saleId: string) {
           unallocatedUnits: true,
           unitPriceAtSale: true,
           subtotal: true,
-          variant: { select: { brandName: true, strength: true, unitLabel: true, ingredient: { select: { name: true } } } },
+          variant: {
+            select: {
+              brandName: true,
+              strength: true,
+              unitLabel: true,
+              ingredient: { select: { name: true } },
+              aroniumProductLinks: { select: { aroniumCode: true, mode: true } },
+            },
+          },
           batch: { select: { batchNumber: true, expiryDate: true, expiryDateKnown: true } },
         },
       },

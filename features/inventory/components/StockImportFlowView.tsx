@@ -196,7 +196,9 @@ export function StockImportFlowView({
           preview={preview.preview}
           filename={preview.filename}
           actorRole={data.actorRole}
+          branchId={branchId}
           busy={busy}
+          result={message.includes("completed")}
           onConfirm={onConfirm}
         />
       ) : null}

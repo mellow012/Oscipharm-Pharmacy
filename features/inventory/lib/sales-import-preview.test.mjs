@@ -25,6 +25,9 @@ test("sales preview classifies imported/history documents, refunds, catalog code
     { documentNumber: "26-200-000003", importStatus: "NEW", historyOnly: true, originalFound: null },
   ]);
   assert.deepEqual(preview.newProducts, [{ code: "2", product: "Paracetamol 500mg x10", uom: "strip" }]);
+  assert.deepEqual(preview.unmatchedRows.map(({ documentNumber, code }) => ({ documentNumber, code })), [
+    { documentNumber: "26-200-000003", code: "2" },
+  ]);
   assert.equal(preview.counts.refundsWithOriginal, 1);
   assert.equal(preview.counts.refundsWithoutOriginal, 0);
   assert.deepEqual(preview.totals, { sales: 64680, refunds: -4080, net: 60600 });

@@ -157,6 +157,7 @@ export function StaffCatalogDetailSheet({
                   </button>
                 ) : null}
               </div>
+              <StaffCatalogLinks variant={variant} branchId={branchId} canManage={canManage} />
               <div className="grid min-w-0 grid-cols-1 gap-space-sm sm:grid-cols-2">
                 <StatCard
                   label="Pack size"
@@ -188,7 +189,6 @@ export function StaffCatalogDetailSheet({
                   {variant.stock} units
                 </p>
               </div>
-              <StaffCatalogLinks variant={variant} branchId={branchId} canManage={canManage} />
             </>
           ) : null}
         </div>

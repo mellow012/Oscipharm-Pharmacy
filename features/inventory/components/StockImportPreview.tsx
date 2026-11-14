@@ -1,4 +1,6 @@
 import type { ImportPreview } from "@/features/inventory/lib/stock-import-service";
+import { ImportIssueTable } from "@/features/inventory/components/ImportIssueTable";
+import { ImportMatchSummary } from "@/features/inventory/components/ImportMatchSummary";
 import { ConfirmDialog } from "@/features/shared/components/ConfirmDialog";
 import { StatCard } from "@/features/shared/components/StatCard";
 import { StatusBadge } from "@/features/shared/components/StatusBadge";
@@ -15,15 +17,21 @@ export function StockImportPreview({
   preview,
   filename,
   actorRole,
+  branchId,
   busy,
+  result = false,
   onConfirm,
 }: {
   preview: ImportPreview;
   filename: string;
   actorRole: string;
+  branchId: string;
   busy: boolean;
+  result?: boolean;
   onConfirm: () => void;
 }) {
+  const unmatchedRows = preview.rows.filter((row) => row.productStatus === "NEW");
+
   return (
     <section className="min-w-0 space-y-space-lg">
       <header className="flex min-w-0 flex-col gap-space-md border-b border-outline-variant pb-space-md sm:flex-row sm:items-end sm:justify-between">
@@ -35,21 +43,25 @@ export function StockImportPreview({
             {filename}
           </h2>
         </div>
-        <ConfirmDialog
-          trigger={
-            <button
-              type="button"
-              disabled={busy}
-              className="min-h-11 shrink-0 bg-primary px-space-md font-label-md text-label-md text-on-primary disabled:opacity-50"
-            >
-              Confirm import
-            </button>
-          }
-          title="Confirm stock import?"
-          description={`Commit ${preview.counts.totalRows} accepted rows from ${filename} into this branch.`}
-          confirmLabel="Confirm import"
-          onConfirm={onConfirm}
-        />
+        {result ? (
+          <StatCard label="Result" value="Completed" tone="success" />
+        ) : (
+          <ConfirmDialog
+            trigger={
+              <button
+                type="button"
+                disabled={busy}
+                className="min-h-11 shrink-0 bg-primary px-space-md font-label-md text-label-md text-on-primary disabled:opacity-50"
+              >
+                Confirm import
+              </button>
+            }
+            title="Confirm stock import?"
+            description={`Commit ${preview.counts.totalRows} accepted rows from ${filename} into this branch.`}
+            confirmLabel="Confirm import"
+            onConfirm={onConfirm}
+          />
+        )}
       </header>
 
       <section
@@ -80,35 +92,23 @@ export function StockImportPreview({
       </section>
 
       <div className="grid min-w-0 gap-space-lg lg:grid-cols-2">
-        <TableFrame
-          ariaLabel="Skipped stock rows"
-          header={<h3 className="font-headline-sm text-headline-sm text-primary">Skipped rows</h3>}
-          tableClassName="min-w-[420px]"
-        >
-          <TableHead>
-            <tr>
-              <TableHeaderCell align="right">Row</TableHeaderCell>
-              <TableHeaderCell>Code</TableHeaderCell>
-              <TableHeaderCell>Reason</TableHeaderCell>
-            </tr>
-          </TableHead>
-          <TableBody>
-            {preview.skipped.map((row, index) => (
-              <TableRow key={`${row.rowNumber}-${row.reason}-${index}`}>
-                <TableCell numeric nowrap>
-                  {row.rowNumber}
-                </TableCell>
-                <TableCell nowrap>{row.code || "—"}</TableCell>
-                <TableCell className="min-w-52">{row.reason}</TableCell>
-              </TableRow>
-            ))}
-            {!preview.skipped.length ? (
-              <TableRow>
-                <TableCell colSpan={3}>No skipped rows.</TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </TableFrame>
+        <div className="min-w-0 space-y-space-md">
+          <ImportMatchSummary count={unmatchedRows.length} branchId={branchId} />
+          <ImportIssueTable
+            ariaLabel="Skipped stock rows"
+            title="Skipped rows"
+            rows={preview.skipped}
+          />
+          <ImportIssueTable
+            ariaLabel="Unmatched stock rows"
+            title="Unmatched rows"
+            rows={unmatchedRows.map((row) => ({
+              rowNumber: row.rowNumber,
+              code: row.code,
+              reason: "Aronium code is not linked to a catalog variant.",
+            }))}
+          />
+        </div>
 
         <TableFrame
           ariaLabel="Flagged stock rows"
