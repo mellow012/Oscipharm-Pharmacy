@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { aggregateUnallocatedUnits } from "@/features/inventory/lib/sales-shortfall";
 
 export async function getInventoryBranches() {
     return prisma.branch.findMany({
@@ -7,14 +8,16 @@ export async function getInventoryBranches() {
     });
 }
 
-export async function getInventoryData(branchId: string) {
-    const [branch, batches, variants] = await prisma.$transaction([
+export async function getInventoryData(branchId: string, includeNonPositiveBatches = false) {
+    const [branch, batches, variants, latestSalesImport] = await prisma.$transaction([
         prisma.branch.findUnique({
             where: { id: branchId },
             select: { id: true, name: true, location: true },
         }),
         prisma.batch.findMany({
-            where: { branchId, quantityRemaining: { gt: 0 } },
+            where: includeNonPositiveBatches
+                ? { branchId }
+                : { branchId, quantityRemaining: { gt: 0 } },
             orderBy: { expiryDate: "asc" },
             select: {
                 id: true,
@@ -26,6 +29,7 @@ export async function getInventoryData(branchId: string) {
                     select: {
                         brandName: true,
                         strength: true,
+                        packSize: true,
                         unitLabel: true,
                         ingredient: { select: { name: true } },
                     },
@@ -48,10 +52,43 @@ export async function getInventoryData(branchId: string) {
                 },
             },
         }),
+        prisma.importRun.findFirst({
+            where: { branchId, kind: "SALES", status: "COMMITTED" },
+            orderBy: [{ committedAt: "desc" }, { createdAt: "desc" }],
+            select: { id: true },
+        }),
     ]);
+
+    const unallocatedItems = latestSalesImport
+        ? await prisma.saleItem.findMany({
+            where: {
+                unallocatedUnits: { gt: 0 },
+                sale: { is: { branchId, importRunId: latestSalesImport.id, stockAffected: true } },
+            },
+            select: {
+                variantId: true,
+                unallocatedUnits: true,
+                variant: {
+                    select: {
+                        brandName: true,
+                        strength: true,
+                        ingredient: { select: { name: true } },
+                    },
+                },
+            },
+        })
+        : [];
+    const salesImportShortfalls = aggregateUnallocatedUnits(unallocatedItems.map((item) => ({
+        variantId: item.variantId,
+        productName: [item.variant.ingredient?.name, item.variant.brandName, item.variant.strength]
+            .filter(Boolean)
+            .join(" · "),
+        unallocatedUnits: item.unallocatedUnits,
+    })));
 
     return {
         branch,
+        salesImportShortfalls,
         batches: batches.map((batch) => ({
             ...batch,
             variant: {

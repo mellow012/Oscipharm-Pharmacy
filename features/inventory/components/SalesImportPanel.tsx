@@ -29,11 +29,15 @@ export function SalesImportPanel({
   salesRuns,
   committingRun,
   showOpeningStockInfo,
+  hasOpeningStock,
+  onShowStockImport,
 }: {
   branchId: string;
   salesRuns: ImportHistoryRun[];
   committingRun: ResumeRun;
   showOpeningStockInfo: boolean;
+  hasOpeningStock: boolean;
+  onShowStockImport: () => void;
 }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -124,6 +128,25 @@ export function SalesImportPanel({
 
   return (
     <div className="min-w-0 space-y-space-lg py-space-md">
+      {!hasOpeningStock ? (
+        <NoticeBanner tone="warning" title="Opening stock required">
+          {showOpeningStockInfo ? (
+            <>
+              Import this branch&apos;s opening stock before importing sales. {" "}
+              <button
+                type="button"
+                onClick={onShowStockImport}
+                className="underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Go to stock import
+              </button>
+              .
+            </>
+          ) : (
+            "Ask a branch manager to import opening stock before importing sales."
+          )}
+        </NoticeBanner>
+      ) : null}
       <ImportStepSequence current={currentStep} />
       {committingRun ? (
         <section className="border border-outline-variant bg-surface-container-lowest p-space-md">
@@ -143,6 +166,7 @@ export function SalesImportPanel({
                 <FormInput
                   {...fieldProps}
                   type="file"
+                  disabled={!hasOpeningStock}
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
@@ -154,7 +178,7 @@ export function SalesImportPanel({
               label="Resume sales import"
               title="Resume sales import?"
               description={`Continue the in-progress import for ${committingRun.filename} using the selected workbook.`}
-              disabled={busy || !file}
+              disabled={!hasOpeningStock || busy || !file}
               onConfirm={() => void runSlices(committingRun.id, file!)}
             />
           </div>
@@ -171,6 +195,7 @@ export function SalesImportPanel({
             <FormInput
               {...fieldProps}
               type="file"
+              disabled={!hasOpeningStock}
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);
@@ -182,7 +207,7 @@ export function SalesImportPanel({
         </FormField>
         <button
           type="button"
-          disabled={busy || !file || !branchId}
+          disabled={!hasOpeningStock || busy || !file || !branchId}
           onClick={() => void loadPreview()}
           className="min-h-11 bg-primary px-space-md font-label-md text-label-md text-on-primary disabled:opacity-50"
         >
@@ -227,6 +252,7 @@ export function SalesImportPanel({
           branchId={branchId}
           busy={busy}
           showOpeningStockInfo={showOpeningStockInfo}
+          resultShortfalls={salesRuns.find((run) => run.id === preview.runId)?.shortfalls ?? []}
           result={message.includes("completed")}
           onConfirm={() => void runSlices(preview.runId, file!)}
         />

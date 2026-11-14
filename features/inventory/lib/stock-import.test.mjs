@@ -5,6 +5,11 @@ import {
   normalizeGroupName,
   buildStockImportPreview,
 } from './stock-import.ts';
+import {
+  stockCorrectionDelta,
+  stockQuantityMatches,
+  validateStockCorrectionInput,
+} from './stock-adjustment.ts';
 
 test('normalizeGroupName reduces noisy group text to one canonical key', () => {
   assert.equal(normalizeGroupName('  PANADOL 500mg   '), 'panadol 500mg');
@@ -51,4 +56,22 @@ test('buildStockImportPreview skips blank rows and keeps valid rows in preview',
   assert.equal(preview.validRows[1].expiryDateKnown, false);
   assert.equal(preview.validRows[0].unitPrice.value, 144);
   assert.equal(preview.validRows[0].unitPrice.currency, 'MWK');
+});
+
+test('stock correction validates integer counts and a required reason', () => {
+  assert.deepEqual(validateStockCorrectionInput({ expectedUnits: '12', countedUnits: '0', reason: 'Shelf count' }), {
+    ok: true,
+    value: { expectedUnits: 12, countedUnits: 0, reason: 'Shelf count' },
+  });
+  assert.equal(validateStockCorrectionInput({ expectedUnits: '12', countedUnits: '-1', reason: 'Count' }).ok, false);
+  assert.equal(validateStockCorrectionInput({ expectedUnits: '12', countedUnits: '1.5', reason: 'Count' }).ok, false);
+  assert.equal(validateStockCorrectionInput({ expectedUnits: '12', countedUnits: '1', reason: '  ' }).ok, false);
+  assert.equal(validateStockCorrectionInput({ expectedUnits: '12', countedUnits: '1', reason: 'x'.repeat(201) }).ok, false);
+});
+
+test('stock correction delta is signed and stale quantities fail the optimistic guard', () => {
+  assert.equal(stockCorrectionDelta(12, 8), -4);
+  assert.equal(stockCorrectionDelta(8, 12), 4);
+  assert.equal(stockQuantityMatches(12, 12), true);
+  assert.equal(stockQuantityMatches(13, 12), false);
 });

@@ -140,7 +140,7 @@ export default async function StaffSaleDetailPage({ params }: { params: Promise<
                 {item.unallocatedUnits > 0 ? (
                   <span className="ml-space-sm inline-flex">
                     <StatusBadge tone="warning">
-                      Unallocated: {item.unallocatedUnits} units
+                      Short {item.unallocatedUnits} units
                     </StatusBadge>
                   </span>
                 ) : null}

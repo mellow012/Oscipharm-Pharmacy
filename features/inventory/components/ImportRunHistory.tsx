@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatMwk } from "@/lib/format";
 import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import type { UnallocatedProduct } from "@/features/inventory/lib/sales-shortfall";
 import {
   TableBody,
   TableCell,
@@ -20,6 +21,7 @@ export type ImportHistoryRun = {
   asOf: string | null;
   counts: unknown;
   uploadedBy: string;
+  shortfalls?: UnallocatedProduct[];
 };
 
 function countsOf(value: unknown): Record<string, unknown> {

@@ -4,6 +4,7 @@ import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
 import { assertSalesImportAccess } from "../../../lib/permissions.ts";
+import { requireCommittedOpeningStockRun } from "./opening-stock-guard.ts";
 import { allocateFefoBatches } from "../../pos/lib/checkout-core.ts";
 import { getMalawiDateKey } from "../../../lib/timezone.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
@@ -67,6 +68,15 @@ async function assertActor(db: Db, branchId: string, userId: string) {
   assertSalesImportAccess(user.role);
 }
 
+async function requireOpeningStock(db: Db, branchId: string) {
+  const run = await db.importRun.findFirst({
+    where: { branchId, kind: "STOCK", status: "COMMITTED", asOf: { not: null } },
+    orderBy: { committedAt: "desc" },
+    select: { id: true, asOf: true },
+  });
+  return requireCommittedOpeningStockRun(run);
+}
+
 export function groupLines(documents: SalesDocument[], rows: SalesExportRow[], stockAsOf: Date | null): SalesDocumentWithLines[] {
   const lineMap = new Map<string, SalesExportRow>();
   for (const row of rows) lineMap.set(row.lineKey, row);
@@ -96,6 +106,7 @@ async function previewSalesWith(db: Db, input: SalesPreviewInput, resolveActor: 
   const actorId = await resolveActor();
   if (!actorId || actorId !== input.userId) throw new Error("You must be signed in to preview a sales import.");
   await assertActor(db, input.branchId, actorId);
+  const openingStockRun = await requireOpeningStock(db, input.branchId);
   const fileSha256 = hash(input.buffer);
   let existingRun = await db.importRun.findFirst({ where: { branchId: input.branchId, kind: "SALES", fileSha256 } });
   if (existingRun?.status === "COMMITTED") throw runDuplicate(existingRun, true);
@@ -106,10 +117,9 @@ async function previewSalesWith(db: Db, input: SalesPreviewInput, resolveActor: 
   if (existingRun?.status === "UNDONE") existingRun = null;
 
   const parsed = await parseSalesExport(input.buffer, input.filename);
-  const [imported, links, stockRun] = await Promise.all([
+  const [imported, links] = await Promise.all([
     db.sale.findMany({ where: { branchId: input.branchId, sourceDocumentNumber: { in: parsed.documents.map((document) => document.documentNumber) } }, select: { sourceDocumentNumber: true } }),
     db.aroniumProductLink.findMany({ where: { aroniumCode: { in: parsed.rows.map((row) => row.code) } }, select: { aroniumCode: true } }),
-    db.importRun.findFirst({ where: { branchId: input.branchId, kind: "STOCK", status: "COMMITTED" }, orderBy: { committedAt: "desc" }, select: { asOf: true } }),
   ]);
   const refNumbers = parsed.documents.filter((document) => document.documentType === "Refund" && document.refNumber).map((document) => document.refNumber!);
   const originalSales = refNumbers.length
@@ -120,7 +130,7 @@ async function previewSalesWith(db: Db, input: SalesPreviewInput, resolveActor: 
     importedDocumentNumbers: new Set(imported.map((sale) => sale.sourceDocumentNumber).filter((value): value is string => Boolean(value))),
     catalogCodes: new Set(links.map((link) => link.aroniumCode)),
     originalDocumentNumbers: new Set(originalSales.map((sale) => sale.sourceDocumentNumber).filter((value): value is string => Boolean(value))),
-    stockAsOf: stockRun?.asOf ?? null,
+    stockAsOf: openingStockRun.asOf,
   });
 
   const previewCounts = preview.counts as unknown as Prisma.InputJsonValue;
@@ -371,6 +381,7 @@ export type SalesCommitOptions = {
 async function commitSalesWith(db: Db, runId: string, buffer: FileBuffer, resolveActor: () => Promise<string | null>, options: SalesCommitOptions = {}): Promise<SalesSliceResult> {
   const run = await db.importRun.findUnique({ where: { id: runId } });
   if (!run || run.kind !== "SALES") throw new Error("Sales import run was not found.");
+  const stockRun = await requireOpeningStock(db, run.branchId);
   if (hash(buffer) !== run.fileSha256) throw new Error("The uploaded file does not match this import preview.");
   if (run.status === "COMMITTED") {
     const counts = jsonObject(run.counts);
@@ -389,8 +400,7 @@ async function commitSalesWith(db: Db, runId: string, buffer: FileBuffer, resolv
   }
 
   const parsed = await parseSalesExport(buffer, run.filename);
-  const stockRun = await db.importRun.findFirst({ where: { branchId: run.branchId, kind: "STOCK", status: "COMMITTED" }, orderBy: { committedAt: "desc" }, select: { asOf: true } });
-  const documents = sortDocuments(groupLines(parsed.documents, parsed.rows, stockRun?.asOf ?? null));
+  const documents = sortDocuments(groupLines(parsed.documents, parsed.rows, stockRun.asOf));
   const persisted = jsonObject(run.counts);
   const documentGroups: SalesDocumentWithLines[][] = [];
   for (let start = 0; start < documents.length; start += DOCUMENT_CHUNK_SIZE) documentGroups.push(documents.slice(start, start + DOCUMENT_CHUNK_SIZE));

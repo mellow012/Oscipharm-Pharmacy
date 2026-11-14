@@ -13,6 +13,7 @@ import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 export type StockImportPageData = {
   canImportStock: boolean;
   canImportSales: boolean;
+  hasOpeningStock: boolean;
   branches: { id: string; name: string }[];
   branch: { id: string; name: string } | null;
   runs: ImportHistoryRun[];

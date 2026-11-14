@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ReceiveBatchForm } from "@/features/inventory/components/ReceiveBatchForm";
 import { PricingForm } from "@/features/inventory/components/PricingForm";
 import { BatchExpiryForm } from "@/features/inventory/components/BatchExpiryForm";
+import { BatchQuantityAdjustment } from "@/features/inventory/components/BatchQuantityAdjustment";
+import { SalesImportShortfalls } from "@/features/inventory/components/SalesImportShortfalls";
 import { getExpiryStatus } from "@/features/inventory/utils/expiry";
 import type { InventoryData } from "@/features/inventory/types";
 import { pluralizeLabel } from "@/lib/plural";
@@ -12,6 +14,7 @@ import { FormField, FormSelect } from "@/features/shared/components/FormField";
 import { PageHeader } from "@/features/shared/components/PageHeader";
 import { StatCard } from "@/features/shared/components/StatCard";
 import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 import {
   TableBody,
   TableCell,
@@ -52,6 +55,8 @@ export function InventoryDashboard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const unitsOnHand = data.batches.reduce((sum, batch) => sum + batch.quantityRemaining, 0);
+  const activeBatches = data.batches.filter((batch) => batch.quantityRemaining > 0);
+  const negativeBatches = data.batches.filter((batch) => batch.quantityRemaining < 0);
 
   return (
     <div className="mx-auto min-h-screen w-full min-w-0 max-w-[1440px] space-y-space-lg overflow-x-clip px-gutter-mobile py-space-lg sm:px-6 sm:py-space-xl">
@@ -90,7 +95,7 @@ export function InventoryDashboard({
         aria-label="Stock totals"
         className="grid min-w-0 grid-cols-1 gap-space-sm sm:grid-cols-2"
       >
-        <StatCard label="Batches by expiry" value={data.batches.length} supportingLine="active" />
+        <StatCard label="Batches by expiry" value={activeBatches.length} supportingLine="active" />
         <StatCard
           label="Stock on hand"
           value={unitsOnHand}
@@ -98,12 +103,24 @@ export function InventoryDashboard({
         />
       </section>
 
+      {negativeBatches.length ? (
+        <NoticeBanner tone="danger" title="Negative stock recorded">
+          {negativeBatches.map((batch) => (
+            <p key={batch.id}>
+              {batch.variant.ingredient.name} · {batch.variant.brandName}: {batch.quantityRemaining} units
+            </p>
+          ))}
+        </NoticeBanner>
+      ) : null}
+
+      <SalesImportShortfalls products={data.salesImportShortfalls} />
+
       <section className="grid min-w-0 grid-cols-1 gap-space-lg min-[1200px]:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
         <div className="min-w-0">
           {data.batches.length ? (
             <TableFrame
               ariaLabel="Batches by expiry"
-              tableClassName="min-w-[760px]"
+              tableClassName={canAdjust ? "min-w-[920px]" : "min-w-[760px]"}
               header={
                 <div className="flex flex-wrap items-baseline justify-between gap-space-sm">
                   <div>
@@ -115,7 +132,7 @@ export function InventoryDashboard({
                     </h2>
                   </div>
                   <span className="font-table-header text-table-header tabular-nums text-on-surface-variant">
-                    {data.batches.length} active
+                    {activeBatches.length} active
                   </span>
                 </div>
               }
@@ -127,6 +144,7 @@ export function InventoryDashboard({
                   <TableHeaderCell align="right">Remaining</TableHeaderCell>
                   <TableHeaderCell>Expiry</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
+                  {canAdjust ? <TableHeaderCell>Adjust</TableHeaderCell> : null}
                 </tr>
               </TableHead>
               <TableBody>
@@ -160,6 +178,17 @@ export function InventoryDashboard({
                       <TableCell nowrap>
                         <StatusBadge tone={expiryTone(status.label)}>{status.label}</StatusBadge>
                       </TableCell>
+                      {canAdjust ? (
+                        <TableCell nowrap>
+                          <BatchQuantityAdjustment
+                            batchId={batch.id}
+                            batchNumber={batch.batchNumber}
+                            productName={`${batch.variant.ingredient.name} · ${batch.variant.brandName} ${batch.variant.strength ?? ""}`.trim()}
+                            currentUnits={batch.quantityRemaining}
+                            packSize={batch.variant.packSize}
+                          />
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}

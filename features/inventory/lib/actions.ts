@@ -9,6 +9,11 @@ import { prisma } from "@/lib/prisma";
 import { isExpiredInMalawi } from "@/lib/timezone";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
 import type { ActionState } from "@/features/inventory/types";
+import {
+    stockCorrectionDelta,
+    stockQuantityMatches,
+    validateStockCorrectionInput,
+} from "@/features/inventory/lib/stock-adjustment";
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 function getText(formData: FormData, field: string) {
@@ -163,4 +168,73 @@ export async function updateBatchExpiry(_previousState: ActionState, formData: F
     revalidatePath("/inventory");
     revalidatePath("/reports");
     return { success: "Expiry date updated." };
+}
+
+export async function adjustBatchQuantity(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || !can(session.user.role, "stock:adjust")) {
+        return { error: "You are not allowed to adjust stock quantities." };
+    }
+
+    const parsed = validateStockCorrectionInput({
+        expectedUnits: getText(formData, "expectedUnits"),
+        countedUnits: getText(formData, "countedUnits"),
+        reason: getText(formData, "reason"),
+    });
+    if (!parsed.ok) return { error: parsed.error };
+
+    const batchId = getText(formData, "batchId");
+    const batch = await prisma.batch.findUnique({
+        where: { id: batchId },
+        select: { id: true, branchId: true, variantId: true, quantityRemaining: true },
+    });
+    if (!batch) return { error: "Batch not found." };
+    if (session.user.role !== "ADMIN" && session.user.branchId !== batch.branchId) {
+        return { error: "You are not allowed to adjust this branch's stock." };
+    }
+    if (!stockQuantityMatches(batch.quantityRemaining, parsed.value.expectedUnits)) {
+        return { error: "Stock changed, reload this batch." };
+    }
+
+    const { countedUnits, expectedUnits, reason } = parsed.value;
+    const deltaUnits = stockCorrectionDelta(expectedUnits, countedUnits);
+    const result = await prisma.$transaction(async (tx) => {
+        if (!(await lockActiveBranch(tx, batch.branchId))) return "inactive" as const;
+        const updated = await tx.batch.updateMany({
+            where: {
+                id: batch.id,
+                branchId: batch.branchId,
+                quantityRemaining: expectedUnits,
+            },
+            data: { quantityRemaining: countedUnits },
+        });
+        if (updated.count !== 1) return "stale" as const;
+
+        await tx.auditLog.create({
+            data: {
+                action: "STOCK_ADJUSTED",
+                branchId: batch.branchId,
+                userId: session.user.id,
+                details: {
+                    branchId: batch.branchId,
+                    variantId: batch.variantId,
+                    batchId: batch.id,
+                    oldUnits: expectedUnits,
+                    newUnits: countedUnits,
+                    deltaUnits,
+                    reason,
+                    actorId: session.user.id,
+                    actor: { id: session.user.id },
+                },
+            },
+        });
+        return "updated" as const;
+    }, TRANSACTION_OPTIONS);
+
+    if (result === "inactive") return { error: INACTIVE_BRANCH_WRITE_ERROR };
+    if (result === "stale") return { error: "Stock changed, reload this batch." };
+
+    revalidatePath("/inventory");
+    revalidatePath("/staff/catalog");
+    return { success: "Stock count corrected." };
 }

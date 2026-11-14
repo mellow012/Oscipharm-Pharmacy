@@ -188,7 +188,8 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
         salesRuns={data.canImportSales ? data.salesRuns : []}
       />
       {tab === "STOCK" && data.canImportStock ? (
-        <StockImportFlowView
+        <section id="stock-import-panel">
+          <StockImportFlowView
           data={data}
           branchId={branchId}
           file={file}
@@ -222,13 +223,16 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
             })
           }
           onResume={(runId, selectedFile) => void processSlices(runId, selectedFile)}
-        />
+          />
+        </section>
       ) : (
         <SalesImportPanel
           branchId={branchId}
           salesRuns={data.salesRuns}
           committingRun={data.salesCommittingRun}
           showOpeningStockInfo={data.canImportStock}
+          hasOpeningStock={data.hasOpeningStock}
+          onShowStockImport={() => setTab("STOCK")}
         />
       )}
     </div>

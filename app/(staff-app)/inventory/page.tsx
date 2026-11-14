@@ -17,8 +17,9 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
     const branchId = session.user.role === "ADMIN" ? requestedBranchId && branches.some((branch) => branch.id === requestedBranchId) ? requestedBranchId : branches[0]?.id : session.user.branchId;
     if (!branchId) redirect("/staff?notice=no-branch");
 
-    const data = await getInventoryData(branchId);
+    const canAdjust = can(session.user.role, "stock:adjust");
+    const data = await getInventoryData(branchId, true);
     if (!data.branch) redirect("/staff");
 
-    return <InventoryDashboard name={session.user.name} role={session.user.role as "ADMIN" | "BRANCH_MANAGER" | "POS"} branchId={branchId} branches={branches} data={data} canReceive={can(session.user.role, "stock:receive")} canSetPrice={can(session.user.role, "price:set")} canAdjust={can(session.user.role, "stock:adjust")} />;
+    return <InventoryDashboard name={session.user.name} role={session.user.role as "ADMIN" | "BRANCH_MANAGER" | "POS"} branchId={branchId} branches={branches} data={data} canReceive={can(session.user.role, "stock:receive")} canSetPrice={can(session.user.role, "price:set")} canAdjust={canAdjust} />;
 }

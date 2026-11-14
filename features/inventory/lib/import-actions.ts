@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { stripCostFieldsForRole } from "@/features/inventory/lib/import-preview-access";
 import { createPreview, commitImport } from "@/features/inventory/lib/stock-import-service";
 import { createSalesPreview, commitSalesSlice } from "@/features/inventory/lib/sales-import-service";
+import { requireCommittedOpeningStockRun } from "@/features/inventory/lib/opening-stock-guard";
+import { aggregateUnallocatedUnits } from "@/features/inventory/lib/sales-shortfall";
 
 const IMPORT_XLSX_MESSAGE = "Please export the Stock report with Aronium's Excel button";
 const SALES_XLSX_MESSAGE = "Please export the Sales Item list with Aronium's Excel button.";
@@ -88,25 +90,60 @@ export async function loadImportPageData(requestedBranchId?: string) {
       ? await prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
       : [];
     const branchId = await resolveBranch(actor, requestedBranchId ?? branches[0]?.id);
-    const [branch, runs, salesRuns] = await Promise.all([
+    const [branch, hasOpeningStock, runs, salesRuns, latestCommittedSalesRun] = await Promise.all([
       prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } }),
-      importAccess.stock ? prisma.importRun.findMany({
+      prisma.importRun.findFirst({
+        where: { branchId, kind: "STOCK", status: "COMMITTED", asOf: { not: null } },
+        select: { id: true },
+      }).then(Boolean),
+      importAccess.stock
+        ? prisma.importRun.findMany({
         where: { branchId, kind: "STOCK" },
         orderBy: { createdAt: "desc" },
         take: 30,
         include: { uploadedBy: { select: { name: true } } },
-      }) : Promise.resolve([]),
-      importAccess.sales ? prisma.importRun.findMany({
+      })
+        : Promise.resolve([]),
+      importAccess.sales
+        ? prisma.importRun.findMany({
         where: { branchId, kind: "SALES" },
         orderBy: { createdAt: "desc" },
         take: 30,
         include: { uploadedBy: { select: { name: true } } },
-      }) : Promise.resolve([]),
+      })
+        : Promise.resolve([]),
+      importAccess.sales
+        ? prisma.importRun.findFirst({
+            where: { branchId, kind: "SALES", status: "COMMITTED" },
+            orderBy: { committedAt: "desc" },
+            include: {
+              sales: {
+                where: { stockAffected: true },
+                select: {
+                  items: {
+                    select: {
+                      variantId: true,
+                      unallocatedUnits: true,
+                      variant: {
+                        select: {
+                          brandName: true,
+                          strength: true,
+                          ingredient: { select: { name: true } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          })
+        : Promise.resolve(null),
     ]);
     return {
       error: null,
       canImportStock: importAccess.stock,
       canImportSales: importAccess.sales,
+      hasOpeningStock,
       branches,
       branch,
       runs: runs.map((run) => ({
@@ -135,6 +172,13 @@ export async function loadImportPageData(requestedBranchId?: string) {
         asOf: null,
         counts: stripCostFieldsForRole(actor.role, run.counts),
         uploadedBy: run.uploadedBy.name,
+        shortfalls: run.id === latestCommittedSalesRun?.id
+          ? aggregateUnallocatedUnits(latestCommittedSalesRun.sales.flatMap((sale) => sale.items.map((item) => ({
+              variantId: item.variantId,
+              productName: [item.variant.ingredient?.name, item.variant.brandName, item.variant.strength].filter(Boolean).join(" · "),
+              unallocatedUnits: item.unallocatedUnits,
+            }))))
+          : [],
       })),
       salesCommittingRun: salesRuns.find((run) => run.status === "COMMITTING")
         ? { id: salesRuns.find((run) => run.status === "COMMITTING")!.id, filename: salesRuns.find((run) => run.status === "COMMITTING")!.filename, counts: salesRuns.find((run) => run.status === "COMMITTING")!.counts }
@@ -142,7 +186,7 @@ export async function loadImportPageData(requestedBranchId?: string) {
       actorRole: actor.role,
     };
   } catch (error) {
-    return { error: plainError(error), canImportStock: importAccess.stock, canImportSales: importAccess.sales, branches: [], branch: null, runs: [], salesRuns: [], committingRun: null, salesCommittingRun: null, actorRole: actor.role };
+    return { error: plainError(error), canImportStock: importAccess.stock, canImportSales: importAccess.sales, hasOpeningStock: false, branches: [], branch: null, runs: [], salesRuns: [], committingRun: null, salesCommittingRun: null, actorRole: actor.role };
   }
 }
 
@@ -178,6 +222,7 @@ export async function previewSalesImport(formData: FormData) {
   try {
     const actor = await getImportActor("sales:import");
     const branchId = await resolveBranch(actor, String(formData.get("branchId") ?? ""));
+    await requireSalesOpeningStock(branchId);
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await createSalesPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
     if (result.status === "COMMITTING") return { ok: true as const, status: result.status, runId: result.run.id, filename: result.run.filename, processed: result.resume.processed, total: result.resume.total };
@@ -192,6 +237,9 @@ export async function commitSalesImportSlice(formData: FormData) {
     const actor = await getImportActor("sales:import");
     const runId = String(formData.get("runId") ?? "");
     if (!runId) throw new Error("Sales import run was not found.");
+    const run = await prisma.importRun.findFirst({ where: { id: runId, kind: "SALES" }, select: { branchId: true } });
+    if (!run) throw new Error("Sales import run was not found.");
+    await requireSalesOpeningStock(run.branchId);
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await commitSalesSlice(runId, Buffer.from(await file.arrayBuffer()), 8_000);
     return { ok: true as const, processed: result.processed, total: result.total, done: result.done, counts: result.counts ? stripCostFieldsForRole(actor.role, result.counts) : null };
@@ -200,10 +248,20 @@ export async function commitSalesImportSlice(formData: FormData) {
   }
 }
 
+async function requireSalesOpeningStock(branchId: string) {
+  const run = await prisma.importRun.findFirst({
+    where: { branchId, kind: "STOCK", status: "COMMITTED", asOf: { not: null } },
+    orderBy: { committedAt: "desc" },
+    select: { id: true, asOf: true },
+  });
+  return requireCommittedOpeningStockRun(run);
+}
+
+
 function salesPlainError(error: unknown): string {
   const message = error instanceof Error ? error.message : "The sales import could not be completed.";
   if (/^Sales row \d+ /.test(message)) return message;
-  if (message.startsWith("This file was already imported on ") || message.startsWith("Only an Admin") || message.startsWith("You are not allowed to import sales.") || message.startsWith("Choose a valid branch.") || message.startsWith("You must be signed in") || message.startsWith("Sales import run was not found.") || message.startsWith("This upload does not match")) return message;
+  if (message.startsWith("This file was already imported on ") || message.startsWith("Only an Admin") || message.startsWith("You are not allowed to import sales.") || message.startsWith("Sales import is blocked until") || message.startsWith("Choose a valid branch.") || message.startsWith("You must be signed in") || message.startsWith("Sales import run was not found.") || message.startsWith("This upload does not match")) return message;
   if (message.includes("Stock export") || message.includes("Refunds summary") || message.includes("Excel button") || message.includes("Sales Item list")) return SALES_XLSX_MESSAGE;
   return "The sales import could not be completed. Check the workbook and try again.";
 }

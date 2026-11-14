@@ -1,6 +1,8 @@
 import type { SalesImportPreview as SalesPreview } from "@/features/inventory/lib/sales-import-preview";
 import { ImportIssueTable } from "@/features/inventory/components/ImportIssueTable";
 import { ImportMatchSummary } from "@/features/inventory/components/ImportMatchSummary";
+import { SalesImportShortfalls } from "@/features/inventory/components/SalesImportShortfalls";
+import type { UnallocatedProduct } from "@/features/inventory/lib/sales-shortfall";
 import { ConfirmDialog } from "@/features/shared/components/ConfirmDialog";
 import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 import { StatCard } from "@/features/shared/components/StatCard";
@@ -20,6 +22,7 @@ export function SalesImportPreview({
   branchId,
   busy,
   showOpeningStockInfo = true,
+  resultShortfalls = [],
   result = false,
   onConfirm,
 }: {
@@ -28,6 +31,7 @@ export function SalesImportPreview({
   branchId: string;
   busy: boolean;
   showOpeningStockInfo?: boolean;
+  resultShortfalls?: UnallocatedProduct[];
   result?: boolean;
   onConfirm: () => void;
 }) {
@@ -67,6 +71,7 @@ export function SalesImportPreview({
       {showOpeningStockInfo && preview.warning ? (
         <NoticeBanner tone="warning">{preview.warning}</NoticeBanner>
       ) : null}
+      {result ? <SalesImportShortfalls products={resultShortfalls} /> : null}
       <section
         aria-label="Sales import preview counts"
         className={`grid min-w-0 grid-cols-2 gap-px border border-outline-variant bg-outline-variant ${showOpeningStockInfo ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}

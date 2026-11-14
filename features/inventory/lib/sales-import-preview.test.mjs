@@ -5,6 +5,8 @@ import path from "node:path";
 import ExcelJS from "exceljs";
 import { parseSalesExport } from "./sales-parser.ts";
 import { buildSalesImportPreview, isHistoryOnlySalesDocument } from "./sales-import-preview.ts";
+import { requireCommittedOpeningStockRun } from "./opening-stock-guard.ts";
+import { aggregateUnallocatedUnits } from "./sales-shortfall.ts";
 
 const fixture = path.resolve("features/inventory/lib/__fixtures__/sales-item-list.xlsx");
 
@@ -71,4 +73,22 @@ test("Create instant exactly equal to stock as-of is stock-affecting", async () 
   const parsed = await parseSalesExport(fs.readFileSync(fixture));
   const document = parsed.documents[0];
   assert.equal(isHistoryOnlySalesDocument(document, new Date(document.createdAt)), false);
+});
+
+test("sales import opening-stock guard requires a committed run with an as-of time", () => {
+  assert.throws(() => requireCommittedOpeningStockRun(null), /opening stock import/i);
+  assert.throws(() => requireCommittedOpeningStockRun({ id: "run-1", asOf: null }), /as-of time/i);
+  assert.equal(requireCommittedOpeningStockRun({ id: "run-1", asOf: new Date() }).id, "run-1");
+});
+
+test("unallocated sale units aggregate by variant and omit zero rows", () => {
+  assert.deepEqual(aggregateUnallocatedUnits([
+    { variantId: "v1", productName: "Panadol 500mg", unallocatedUnits: 3 },
+    { variantId: "v1", productName: "Panadol 500mg", unallocatedUnits: 2 },
+    { variantId: "v2", productName: "ORS Sachet", unallocatedUnits: 0 },
+    { variantId: "v2", productName: "ORS Sachet", unallocatedUnits: 4 },
+  ]), [
+    { variantId: "v2", productName: "ORS Sachet", units: 4 },
+    { variantId: "v1", productName: "Panadol 500mg", units: 5 },
+  ]);
 });
