@@ -1,25 +1,152 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg: #f3efe6;
-  --color-surface: #fbf8f1;
-  --color-fg: #1a221c;
-  --color-muted: #5e6b63;
-  --color-primary: #1d6b46;
-  --color-primary-fg: #f7f4ec;
-  --color-border: #ddd6c8;
-  --color-ink: #121814;
-  --color-warn: #8b6508;
-  --color-danger: #8b3a2a;
-  --color-chip: #e7efe8;
-  --color-warn-bg: #f3ead8;
-  --color-danger-bg: #f3e4e0;
-  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
-  --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 28px;
+@theme static {
+  --color-background: #fcf9f4;
+  --color-on-background: #1c1c19;
+  --color-surface: #fcf9f4;
+  --color-surface-dim: #dcdad5;
+  --color-surface-bright: #fcf9f4;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f3ee;
+  --color-surface-container: #f0ede9;
+  --color-surface-container-high: #ebe8e3;
+  --color-surface-container-highest: #e5e2dd;
+  --color-surface-variant: #e5e2dd;
+  --color-on-surface: #1c1c19;
+  --color-on-surface-variant: #414844;
+  --color-inverse-surface: #31302d;
+  --color-inverse-on-surface: #f3f0eb;
+  --color-outline: #717973;
+  --color-outline-variant: #c1c8c2;
+  --color-surface-tint: #3f6653;
+  --color-primary: #012d1d;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1b4332;
+  --color-on-primary-container: #86af99;
+  --color-inverse-primary: #a5d0b9;
+  --color-primary-fixed: #c1ecd4;
+  --color-primary-fixed-dim: #a5d0b9;
+  --color-on-primary-fixed: #002114;
+  --color-on-primary-fixed-variant: #274e3d;
+  --color-secondary: #805600;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fec265;
+  --color-on-secondary-container: #754e00;
+  --color-secondary-fixed: #ffddb0;
+  --color-secondary-fixed-dim: #f7bc60;
+  --color-on-secondary-fixed: #291800;
+  --color-on-secondary-fixed-variant: #614000;
+  --color-tertiary: #550002;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #751812;
+  --color-on-tertiary-container: #ff8172;
+  --color-tertiary-fixed: #ffdad5;
+  --color-tertiary-fixed-dim: #ffb4aa;
+  --color-on-tertiary-fixed: #410001;
+  --color-on-tertiary-fixed-variant: #84241c;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-status-success: #1b4332;
+  --color-status-success-bg: #e7efea;
+  --color-status-warning: #a66b1e;
+  --color-status-warning-bg: #fbf3e6;
+  --color-status-warning-text: #805600;
+  --color-status-danger: #b94a3e;
+  --color-status-danger-bg: #fbece9;
+  --color-status-danger-text: #a33e33;
+  --color-status-neutral: #5e6460;
+  --color-status-neutral-bg: #eceae4;
+
+  --color-bg: var(--color-background);
+  --color-fg: var(--color-on-surface);
+  --color-muted: var(--color-on-surface-variant);
+  --color-primary-fg: var(--color-on-primary);
+  --color-border: var(--color-outline-variant);
+  --color-ink: var(--color-on-surface);
+  --color-warn: var(--color-secondary);
+  --color-danger: var(--color-status-danger-text);
+  --color-chip: var(--color-primary-fixed);
+  --color-warn-bg: var(--color-status-warning-bg);
+  --color-danger-bg: var(--color-status-danger-bg);
+  --color-surface-strong: var(--color-surface-container-high);
+
+  --font-display: var(--font-newsreader), serif;
+  --font-sans: var(--font-plus-jakarta-sans), sans-serif;
+  --font-headline-xl: var(--font-newsreader), serif;
+  --font-headline-lg: var(--font-newsreader), serif;
+  --font-headline-md: var(--font-newsreader), serif;
+  --font-headline-sm: var(--font-newsreader), serif;
+  --font-body-lg: var(--font-plus-jakarta-sans), sans-serif;
+  --font-body-md: var(--font-plus-jakarta-sans), sans-serif;
+  --font-body-sm: var(--font-plus-jakarta-sans), sans-serif;
+  --font-eyebrow: var(--font-plus-jakarta-sans), sans-serif;
+  --font-label-md: var(--font-plus-jakarta-sans), sans-serif;
+  --font-label-sm: var(--font-plus-jakarta-sans), sans-serif;
+  --font-table-header: var(--font-plus-jakarta-sans), sans-serif;
+  --font-table-cell: var(--font-plus-jakarta-sans), sans-serif;
+
+  --text-headline-xl: 2.75rem;
+  --text-headline-xl--line-height: 1.2;
+  --text-headline-xl--letter-spacing: 0em;
+  --text-headline-xl--font-weight: 400;
+  --text-headline-lg: 2rem;
+  --text-headline-lg--line-height: 1.25;
+  --text-headline-lg--letter-spacing: 0em;
+  --text-headline-lg--font-weight: 400;
+  --text-headline-md: 1.5rem;
+  --text-headline-md--line-height: 1.3;
+  --text-headline-md--font-weight: 500;
+  --text-headline-sm: 1.25rem;
+  --text-headline-sm--line-height: 1.35;
+  --text-headline-sm--font-weight: 500;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-body-md: 0.9375rem;
+  --text-body-md--line-height: 1.5;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.45;
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.12em;
+  --text-eyebrow--font-weight: 700;
+  --text-label-md: 0.8125rem;
+  --text-label-md--line-height: 1.25;
+  --text-label-md--font-weight: 600;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 1.2;
+  --text-label-sm--font-weight: 600;
+  --text-table-header: 0.6875rem;
+  --text-table-header--line-height: 1rem;
+  --text-table-header--letter-spacing: 0.08em;
+  --text-table-header--font-weight: 700;
+  --text-table-cell: 0.875rem;
+  --text-table-cell--line-height: 1.35;
+  --text-table-cell--font-weight: 500;
+
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2.5rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-margin: 2.5rem;
+  --spacing-margin-mobile: 1.25rem;
+
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  --shadow-modal: 0 12px 32px -8px rgba(35, 34, 32, 0.08);
+}
+
+@utility tabular-numbers {
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes route-loading-progress {
@@ -54,12 +181,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  :focus-visible {
+    outline: 2px solid var(--color-primary) !important;
+    outline-offset: 2px !important;
+  }
   html,
   body,
   #root {
     min-height: 100%;
-    background: var(--color-bg);
-    color: var(--color-fg);
+    background: var(--color-background);
+    color: var(--color-on-surface);
     font-family: var(--font-sans);
   }
   h1,
