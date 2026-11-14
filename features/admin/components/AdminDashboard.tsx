@@ -1,99 +1,150 @@
 import type { Role } from "@prisma/client";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { PageHeader } from "@/features/shared/components/PageHeader";
+import { StatCard } from "@/features/shared/components/StatCard";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import {
+  TableBody,
+  TableCell,
+  TableFrame,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@/features/shared/components/TableFrame";
 
 type AdminDashboardProps = {
-    name: string;
-    data: Awaited<ReturnType<typeof import("@/features/admin/lib/queries").getAdminDashboardData>>;
+  name: string;
+  data: Awaited<ReturnType<typeof import("@/features/admin/lib/queries").getAdminDashboardData>>;
 };
 
 const roleLabels: Record<Role, string> = {
-    ADMIN: "Admin",
-    BRANCH_MANAGER: "Branch manager",
-    POS: "Sales",
+  ADMIN: "Admin",
+  BRANCH_MANAGER: "Branch manager",
+  POS: "Sales",
 };
 
+const staffActionClass =
+  "inline-flex min-h-11 items-center gap-space-sm border border-primary px-space-md font-label-md text-label-md text-primary transition-colors hover:bg-primary-fixed/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
 export function AdminDashboard({ name, data }: AdminDashboardProps) {
-    const metrics = [
-        { label: "Staff accounts", value: data.stats.userCount },
-        { label: "Branches", value: data.stats.branchCount },
-        { label: "Products", value: data.stats.variantCount },
-        { label: "Stock batches", value: data.stats.batchCount },
-    ];
+  const metrics = [
+    { label: "Staff accounts", value: data.stats.userCount },
+    { label: "Branches", value: data.stats.branchCount },
+    { label: "Products", value: data.stats.variantCount },
+    { label: "Stock batches", value: data.stats.batchCount },
+  ];
 
-    return (
-        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
+  const branchHeader: ReactNode = (
+    <div className="flex flex-wrap items-baseline justify-between gap-space-sm">
+      <h2 className="font-headline-md text-headline-md text-primary">Branch coverage</h2>
+      <span className="font-table-header text-table-header tabular-nums text-on-surface-variant">
+        {data.branches.length.toString().padStart(2, "0")} branches
+      </span>
+    </div>
+  );
 
-            <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
-                <div>
-                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
-                    <h1 className="text-5xl leading-[0.98] text-ink">Good to see you, {name}.</h1>
-                    <p className="mt-3 max-w-xl text-lg text-muted">A clear view of staff, branches, and the current pharmacy operation.</p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                    <Link href="/admin/staff" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
-                        Manage staff <span aria-hidden="true">-&gt;</span>
-                    </Link>
-                    <Link href="/admin/memberships" className="inline-flex w-fit items-center gap-2 border border-primary px-4 py-3 font-semibold text-primary transition hover:bg-chip">
-                        Membership applications <span aria-hidden="true">-&gt;</span>
-                    </Link>
-                </div>
-            </header>
+  const staffHeader: ReactNode = (
+    <div className="flex flex-wrap items-baseline justify-between gap-space-sm">
+      <h2 className="font-headline-md text-headline-md text-primary">Staff directory</h2>
+      <span className="font-table-header text-table-header uppercase text-on-surface-variant">
+        Latest accounts
+      </span>
+    </div>
+  );
 
-            <section aria-label="Pharmacy totals" className="grid border-b border-border sm:grid-cols-2 lg:grid-cols-4">
-                {metrics.map((metric) => (
-                    <div key={metric.label} className="border-b border-border px-5 py-6 sm:border-r lg:border-b-0 last:border-r-0">
-                        <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted">{metric.label}</p>
-                        <p className="mt-2 text-4xl text-ink">{metric.value}</p>
-                    </div>
-                ))}
-            </section>
+  return (
+    <div className="mx-auto min-h-screen w-full min-w-0 max-w-[1440px] space-y-space-lg px-gutter-mobile py-space-lg sm:px-6 sm:py-space-xl">
+      <PageHeader
+        eyebrow="Admin workspace"
+        title={`Good to see you, ${name}.`}
+        description="A clear view of staff, branches, and the current pharmacy operation."
+        actions={
+          <>
+            <Link href="/admin/staff" className={staffActionClass}>
+              Manage staff <span aria-hidden="true">-&gt;</span>
+            </Link>
+            <Link href="/admin/memberships" className={staffActionClass}>
+              Membership applications <span aria-hidden="true">-&gt;</span>
+            </Link>
+          </>
+        }
+      />
 
-            <div className="grid gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr]">
-                <section>
-                    <div className="mb-5 flex items-end justify-between border-b border-border pb-3">
-                        <h2 className="text-2xl text-ink">Branch coverage</h2>
-                        <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">{data.branches.length.toString().padStart(2, "0")} branches</span>
-                    </div>
-                    <div className="divide-y divide-border border-y border-border">
-                        {data.branches.map((branch) => (
-                            <div key={branch.id} className="flex items-center justify-between gap-4 py-5">
-                                <div>
-                                    <h3 className="text-xl text-ink">{branch.name}</h3>
-                                    <p className="mt-1 text-sm text-muted">{branch.location ?? "Location not set"}</p>
-                                </div>
-                                <div className="text-right font-mono text-xs uppercase tracking-[0.1em] text-muted">
-                                    <p>{branch._count.users} staff</p>
-                                    <p className="mt-1">{branch._count.batches} batches</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+      <section
+        aria-label="Pharmacy totals"
+        className="grid min-w-0 grid-cols-1 gap-px border border-outline-variant bg-outline-variant sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {metrics.map((metric) => (
+          <StatCard key={metric.label} label={metric.label} value={metric.value} />
+        ))}
+      </section>
 
-                <section>
-                    <div className="mb-5 flex items-end justify-between border-b border-border pb-3">
-                        <h2 className="text-2xl text-ink">Staff directory</h2>
-                        <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">Latest accounts</span>
-                    </div>
-                    <div className="divide-y divide-border border-y border-border">
-                        {data.users.map((user) => (
-                            <div key={user.id} className={`py-4 ${user.isActive ? "" : "opacity-50"}`}>
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <h3 className="truncate text-lg text-ink">{user.name}</h3>
-                                        <p className="truncate text-sm text-muted">{user.email}</p>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-2">
-                                        {!user.isActive ? <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">Inactive</span> : null}
-                                        <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-primary">{roleLabels[user.role]}</span>
-                                    </div>
-                                </div>
-                                <p className="mt-2 text-xs text-muted">{user.branch?.name ?? "Cross-branch access"}</p>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            </div>
-        </div>
-    );
+      <section className="grid min-w-0 gap-space-lg py-space-md">
+        <TableFrame
+          ariaLabel="Branch coverage"
+          tableClassName="min-w-[560px]"
+          header={branchHeader}
+        >
+          <TableHead>
+            <tr>
+              <TableHeaderCell>Branch</TableHeaderCell>
+              <TableHeaderCell>Location</TableHeaderCell>
+              <TableHeaderCell align="right">Staff</TableHeaderCell>
+              <TableHeaderCell align="right">Batches</TableHeaderCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {data.branches.map((branch) => (
+              <TableRow key={branch.id}>
+                <TableCell className="min-w-40 font-label-md text-label-md text-on-surface">
+                  {branch.name}
+                </TableCell>
+                <TableCell>{branch.location ?? "Location not set"}</TableCell>
+                <TableCell numeric nowrap>
+                  {branch._count.users}
+                </TableCell>
+                <TableCell numeric nowrap>
+                  {branch._count.batches}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableFrame>
+
+        <TableFrame
+          ariaLabel="Staff directory, latest accounts"
+          tableClassName="min-w-[660px]"
+          header={staffHeader}
+        >
+          <TableHead>
+            <tr>
+              <TableHeaderCell>Staff</TableHeaderCell>
+              <TableHeaderCell>Role</TableHeaderCell>
+              <TableHeaderCell>Branch</TableHeaderCell>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {data.users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="min-w-52">
+                  <p className="font-label-md text-label-md text-on-surface">{user.name}</p>
+                  <p className="mt-space-xs break-all text-on-surface-variant">{user.email}</p>
+                </TableCell>
+                <TableCell nowrap>
+                  <div className="flex items-center gap-space-sm">
+                    {!user.isActive ? <StatusBadge tone="neutral">Inactive</StatusBadge> : null}
+                    <span className="font-label-sm text-label-sm text-primary">
+                      {roleLabels[user.role]}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>{user.branch?.name ?? "Cross-branch access"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableFrame>
+      </section>
+    </div>
+  );
 }
