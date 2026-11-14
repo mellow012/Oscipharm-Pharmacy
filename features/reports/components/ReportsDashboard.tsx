@@ -1,255 +1,124 @@
-import Form from "next/form";
 import type { ReportsData } from "@/features/reports/types";
+import { ReportsTables } from "@/features/reports/components/ReportsTables";
 import { SalesFreshnessBanner } from "@/features/reports/components/SalesFreshnessBanner";
 import { SubmitButton } from "@/features/marketing/components/SubmitButton";
+import { FilterToolbar } from "@/features/shared/components/FilterToolbar";
+import { FormField, FormInput, FormSelect } from "@/features/shared/components/FormField";
+import { PageHeader } from "@/features/shared/components/PageHeader";
+import { StatCard } from "@/features/shared/components/StatCard";
 
 function money(value: string | number) {
-    const amount = typeof value === "string" ? Number(value) : value;
-    return new Intl.NumberFormat("en-MW", { style: "currency", currency: "MWK", maximumFractionDigits: 2 }).format(amount);
+  const amount = typeof value === "string" ? Number(value) : value;
+  return new Intl.NumberFormat("en-MW", {
+    style: "currency",
+    currency: "MWK",
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 export function ReportsDashboard({
-    name,
-    role,
-    branchId,
-    branches,
-    data,
+  name,
+  role,
+  branchId,
+  branches,
+  data,
 }: {
-    name: string;
-    role: "ADMIN" | "BRANCH_MANAGER";
-    branchId: string | null;
-    branches: { id: string; name: string; location: string | null }[];
-    data: ReportsData;
+  name: string;
+  role: "ADMIN" | "BRANCH_MANAGER";
+  branchId: string | null;
+  branches: { id: string; name: string; location: string | null }[];
+  data: ReportsData;
 }) {
-    return (
-        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <div className="mt-5"><SalesFreshnessBanner freshness={data.freshness} /></div>
+  return (
+    <div className="w-full min-w-0 space-y-space-lg py-space-lg">
+      <SalesFreshnessBanner freshness={data.freshness} />
+      <PageHeader
+        eyebrow="Reports"
+        title={`Insights for ${name}`}
+        description="Malawi time is used for daily totals and expiry checks."
+      />
 
-            <header className="border-b border-border py-8">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Reports</p>
-                <h1 className="mt-2 text-4xl text-ink">Insights for {name}</h1>
-                <p className="mt-2 text-muted">Malawi time is used for daily totals and expiry checks.</p>
-            </header>
+      <FilterToolbar
+        action="/reports"
+        className="grid grid-cols-1 gap-space-md sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(10rem,1fr)_minmax(10rem,1fr)_auto]"
+      >
+        {role === "ADMIN" ? (
+          <FormField id="reports-branch" label="Branch">
+            {(fieldProps) => (
+              <FormSelect {...fieldProps} name="branchId" defaultValue={branchId ?? "all"}>
+                <option value="all">All branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </FormSelect>
+            )}
+          </FormField>
+        ) : null}
+        <FormField id="reports-from" label="From">
+          {(fieldProps) => (
+            <FormInput {...fieldProps} name="from" type="date" defaultValue={data.range.from} />
+          )}
+        </FormField>
+        <FormField id="reports-to" label="To">
+          {(fieldProps) => (
+            <FormInput {...fieldProps} name="to" type="date" defaultValue={data.range.to} />
+          )}
+        </FormField>
+        <SubmitButton className="min-h-[42px] self-end border border-primary bg-primary px-space-md font-label-md text-label-md text-on-primary hover:bg-primary-container">
+          Apply
+        </SubmitButton>
+      </FilterToolbar>
 
-            <section className="py-6">
-                <Form action="/reports" className="grid gap-4 rounded border border-border bg-surface p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
-                    {role === "ADMIN" ? (
-                        <label className="text-sm text-muted">
-                            Branch
-                            <select name="branchId" defaultValue={branchId ?? "all"} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink">
-                                <option value="all">All branches</option>
-                                {branches.map((branch) => (
-                                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                ))}
-                            </select>
-                        </label>
-                    ) : null}
-                    <label className="text-sm text-muted">
-                        From
-                        <input name="from" type="date" defaultValue={data.range.from} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink" />
-                    </label>
-                    <label className="text-sm text-muted">
-                        To
-                        <input name="to" type="date" defaultValue={data.range.to} className="mt-2 w-full border border-border bg-white px-3 py-2 text-ink" />
-                    </label>
-                    <SubmitButton className="self-end border border-primary bg-primary px-4 py-2 font-medium text-primary-fg">Apply</SubmitButton>
-                </Form>
-            </section>
+      <section
+        aria-label="Sales and membership totals"
+        className="grid min-w-0 grid-cols-1 gap-px border border-outline-variant bg-outline-variant sm:grid-cols-2 lg:grid-cols-5"
+      >
+        <StatCard label="Gross sales" value={money(data.membershipSales.grossAmount)} />
+        <StatCard
+          label="Member discounts"
+          value={`−${money(data.membershipSales.discountAmount)}`}
+          tone="warning"
+        />
+        <StatCard
+          label="Net revenue"
+          value={money(data.membershipSales.combinedNetAmount)}
+          tone="success"
+        />
+        <StatCard label="Refunds" value={money(data.membershipSales.refundAmount)} tone="danger" />
+        <StatCard label="Member sales" value={data.membershipSales.memberSaleCount} />
+      </section>
 
-            <section aria-label="Sales and membership totals" className="mb-8 grid border-y border-border sm:grid-cols-2 lg:grid-cols-5">
-                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
-                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Gross sales</p>
-                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.grossAmount)}</p>
-                </div>
-                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
-                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Member discounts</p>
-                    <p className="mt-2 text-2xl text-primary">−{money(data.membershipSales.discountAmount)}</p>
-                </div>
-                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
-                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Net revenue</p>
-                    <p className="mt-2 text-2xl text-ink">{money(data.membershipSales.combinedNetAmount)}</p>
-                </div>
-                <div className="border-b border-border px-5 py-5 sm:border-r lg:border-b-0">
-                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Refunds</p>
-                    <p className="mt-2 text-2xl text-danger">{money(data.membershipSales.refundAmount)}</p>
-                </div>
-                <div className="px-5 py-5">
-                    <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Member sales</p>
-                    <p className="mt-2 text-2xl text-ink">{data.membershipSales.memberSaleCount}</p>
-                </div>
-            </section>
-
-            <section aria-label="Discount breakdown by membership tier" className="mb-8 grid gap-x-8 border-b border-border sm:grid-cols-2">
-                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
-                    <div>
-                        <h2 className="font-semibold text-ink">Chronic illness · 20%</h2>
-                        <p className="mt-1 text-sm text-muted">{data.membershipSales.chronicSaleCount} member sales</p>
-                    </div>
-                    <p className="font-mono text-sm text-primary">−{money(data.membershipSales.chronicDiscountAmount)}</p>
-                </div>
-                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
-                    <div>
-                        <h2 className="font-semibold text-ink">General sickness · 15%</h2>
-                        <p className="mt-1 text-sm text-muted">{data.membershipSales.generalSaleCount} member sales</p>
-                    </div>
-                    <p className="font-mono text-sm text-primary">−{money(data.membershipSales.generalDiscountAmount)}</p>
-                </div>
-            </section>
-
-            <section className="mb-8 border border-border bg-surface">
-                <div className="border-b border-border px-5 py-4">
-                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Sales report</p>
-                    <h2 className="mt-2 text-2xl text-ink">Daily totals and product mix</h2>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left">
-                        <thead className="border-b border-border bg-surface-strong">
-                            <tr>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Day</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Type</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Payment</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Product</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Gross item value</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Sales</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Lines</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.sales.length ? data.sales.map((row) => (
-                                <tr key={`${row.day}-${row.paymentMethod}-${row.isRefund}-${row.product}`} className="border-b border-border last:border-b-0">
-                                    <td className="px-4 py-3 text-sm text-ink">{row.day}</td>
-                                    <td className="px-4 py-3 text-sm text-ink">{row.isRefund ? "Refund" : "Sale"}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.paymentMethod}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.product}</td>
-                                    <td className="px-4 py-3 font-mono text-sm text-ink">{money(row.revenue)}</td>
-                                    <td className="px-4 py-3 text-sm text-ink">{row.saleCount}</td>
-                                    <td className="px-4 py-3 text-sm text-ink">{row.lineCount}</td>
-                                </tr>
-                            )) : <tr><td colSpan={7} className="px-4 py-6 text-sm text-muted">No sales in this range.</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section className="mb-8 grid gap-8 lg:grid-cols-2">
-                <div className="border border-border bg-surface">
-                    <div className="border-b border-border px-5 py-4">
-                        <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Low stock</p>
-                        <h2 className="mt-2 text-2xl text-ink">Products below reorder point</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="border-b border-border bg-surface-strong">
-                                <tr>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Branch</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Product</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Available</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Threshold</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.lowStock.length ? data.lowStock.map((row) => (
-                                    <tr key={`${row.branchId}-${row.ingredientName}-${row.brandName}`} className="border-b border-border last:border-b-0">
-                                        <td className="px-4 py-3 text-sm text-muted">{row.branchName}</td>
-                                        <td className="px-4 py-3 text-sm text-ink">{row.ingredientName} · {row.brandName}</td>
-                                        <td className="px-4 py-3 font-mono text-sm text-ink">{row.availableUnits}</td>
-                                        <td className="px-4 py-3 font-mono text-sm text-ink">{row.reorderThreshold ?? "—"}</td>
-                                    </tr>
-                                )) : <tr><td colSpan={4} className="px-4 py-6 text-sm text-muted">No low-stock products.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="border border-border bg-surface">
-                    <div className="border-b border-border px-5 py-4">
-                        <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Expiry watch</p>
-                        <h2 className="mt-2 text-2xl text-ink">Expiring and expired stock</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="border-b border-border bg-surface-strong">
-                                <tr>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Branch</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Product</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Batch</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Expiry</th>
-                                    <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.expiry.length ? data.expiry.map((row) => (
-                                    <tr key={`${row.branchName}-${row.batchNumber}-${row.expiryDate}`} className="border-b border-border last:border-b-0">
-                                        <td className="px-4 py-3 text-sm text-muted">{row.branchName}</td>
-                                        <td className="px-4 py-3 text-sm text-ink">{row.ingredientName} · {row.brandName}</td>
-                                        <td className="px-4 py-3 text-sm text-muted">{row.batchNumber ?? "—"}</td>
-                                        <td className="px-4 py-3 text-sm text-muted">{new Date(row.expiryDate).toLocaleDateString("en-MW")}</td>
-                                        <td className="px-4 py-3 text-sm text-ink">{row.status}</td>
-                                    </tr>
-                                )) : <tr><td colSpan={5} className="px-4 py-6 text-sm text-muted">No expiring or expired batches.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section className="mb-8 border border-border bg-surface">
-                <div className="border-b border-border px-5 py-4">
-                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Expiry watch</p>
-                    <h2 className="mt-2 text-2xl text-ink">Expiry not recorded <span className="ml-2 font-mono text-base text-muted">{data.expiryNotRecorded.count}</span></h2>
-                </div>
-                {data.expiryNotRecorded.count ? data.expiryNotRecorded.groups.map((group) => (
-                    <div key={group.branchId} className="border-b border-border last:border-b-0">
-                        <h3 className="px-5 py-3 text-sm font-semibold text-ink">{group.branchName} <span className="ml-1 font-mono text-xs text-muted">{group.batches.length} batches</span></h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[560px] text-left">
-                                <thead className="border-y border-border bg-surface-strong"><tr><th className="px-4 py-2 text-xs uppercase text-muted">Product</th><th className="px-4 py-2 text-xs uppercase text-muted">Batch</th><th className="px-4 py-2 text-xs uppercase text-muted">Remaining</th></tr></thead>
-                                <tbody>{group.batches.map((row) => <tr key={row.batchId} className="border-b border-border last:border-b-0"><td className="px-4 py-3 text-sm text-ink">{row.ingredientName} · {row.brandName}</td><td className="px-4 py-3 text-sm text-muted">{row.batchNumber ?? "—"}</td><td className="px-4 py-3 font-mono text-sm text-ink">{row.remainingUnits}</td></tr>)}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                )) : <p className="px-5 py-6 text-sm text-muted">All active batches have a recorded expiry date.</p>}
-            </section>
-
-            <section className="border border-border bg-surface">
-                <div className="border-b border-border px-5 py-4">
-                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Audit log</p>
-                    <h2 className="mt-2 text-2xl text-ink">Recent actions</h2>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[780px] text-left">
-                        <thead className="border-b border-border bg-surface-strong">
-                            <tr>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">When</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Action</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Branch</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">User</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Sale</th>
-                                <th className="px-4 py-3 text-xs uppercase tracking-[0.12em] text-muted">Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.audit.length ? data.audit.map((row) => (
-                                <tr key={`${row.createdAt}-${row.action}-${row.saleId ?? row.userName}`} className="border-b border-border last:border-b-0 align-top">
-                                    <td className="px-4 py-3 text-sm text-muted">{new Date(row.createdAt).toLocaleString("en-MW")}</td>
-                                    <td className="px-4 py-3 text-sm text-ink">{row.action}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.branchName ?? "Global"}</td>
-                                    <td className="px-4 py-3 text-sm text-muted">{row.userName}</td>
-                                    <td className="px-4 py-3 font-mono text-xs text-ink">{row.saleId ?? "—"}</td>
-                                    <td className="px-4 py-3 text-sm text-muted"><AuditDetails value={row.details} /></td>
-                                </tr>
-                            )) : <tr><td colSpan={6} className="px-4 py-6 text-sm text-muted">No audit events in this range.</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+      <section
+        aria-label="Discount breakdown by membership tier"
+        className="grid min-w-0 gap-x-space-lg border-b border-outline-variant sm:grid-cols-2"
+      >
+        <div className="flex min-w-0 items-center justify-between gap-space-md border-t border-outline-variant py-space-md">
+          <div>
+            <h2 className="font-label-md text-label-md text-on-surface">Chronic illness · 20%</h2>
+            <p className="mt-space-xs font-body-sm text-body-sm text-on-surface-variant">
+              {data.membershipSales.chronicSaleCount} member sales
+            </p>
+          </div>
+          <p className="shrink-0 font-body-sm text-body-sm tabular-nums text-primary">
+            −{money(data.membershipSales.chronicDiscountAmount)}
+          </p>
         </div>
-    );
-}
+        <div className="flex min-w-0 items-center justify-between gap-space-md border-t border-outline-variant py-space-md">
+          <div>
+            <h2 className="font-label-md text-label-md text-on-surface">General sickness · 15%</h2>
+            <p className="mt-space-xs font-body-sm text-body-sm text-on-surface-variant">
+              {data.membershipSales.generalSaleCount} member sales
+            </p>
+          </div>
+          <p className="shrink-0 font-body-sm text-body-sm tabular-nums text-primary">
+            −{money(data.membershipSales.generalDiscountAmount)}
+          </p>
+        </div>
+      </section>
 
-function AuditDetails({ value }: { value: string }) {
-    let parsed: unknown;
-    try { parsed = JSON.parse(value); } catch { parsed = value; }
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return <span>{String(parsed)}</span>;
-    return <dl className="space-y-1">{Object.entries(parsed as Record<string, unknown>).map(([key, detail]) => <div key={key}><dt className="inline font-medium text-ink">{key.replace(/([A-Z])/g, " $1")}: </dt><dd className="inline">{typeof detail === "object" && detail !== null ? JSON.stringify(detail) : String(detail)}</dd></div>)}</dl>;
+      <ReportsTables data={data} />
+    </div>
+  );
 }

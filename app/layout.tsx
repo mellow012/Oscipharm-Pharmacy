@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/features/auth/components/Providers";
+import { AppToaster } from "@/features/shared/components/Toast";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -20,7 +21,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "OsciPharm – pharmacy",
-  description: "Good Health, Good Chemistry. Browse OsciPharm's catalog of medicines, staples, and health products, with product details, availability, and pricing.",
+  description:
+    "Good Health, Good Chemistry. Browse OsciPharm's catalog of medicines, staples, and health products, with product details, availability, and pricing.",
 };
 
 export default function RootLayout({
@@ -31,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${newsreader.variable} ${plusJakartaSans.variable}`}>
       <body className="antialiased bg-bg text-fg">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <AppToaster />
+        </Providers>
       </body>
     </html>
   );
