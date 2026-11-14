@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getStaffNavigation, isNavItemActive, shouldShowAdminNavigation } from "./staff-navigation.ts";
+import { getStaffNavigation, groupStaffNavigation, isNavItemActive, shouldShowAdminNavigation } from "./staff-navigation.ts";
 
 function labels(items) {
   return items.map((item) => item.label);
@@ -89,4 +89,24 @@ test("staff route tabs match nested pages and news stays in staff navigation", (
   assert.deepEqual(activeStaffLabels("/staff/sales/sale-123"), ["Sales"]);
   assert.deepEqual(activeStaffLabels("/staff/import"), []);
   assert.deepEqual(activeStaffLabels("/staffing"), []);
+});
+
+test("grouped navigation preserves only each role's permission-filtered destinations", () => {
+  for (const role of ["ADMIN", "BRANCH_MANAGER", "POS"]) {
+    const navigation = getStaffNavigation(role);
+    for (const items of [navigation.staff, navigation.admin]) {
+      const originalHrefs = items.map((item) => item.href).sort();
+      const groupedHrefs = groupStaffNavigation(items).flatMap((group) => group.items.map((item) => item.href)).sort();
+      assert.deepEqual(groupedHrefs, originalHrefs, role);
+    }
+  }
+
+  const adminHrefs = getStaffNavigation("ADMIN").admin.map((item) => item.href);
+  const managerHrefs = getStaffNavigation("BRANCH_MANAGER").admin.map((item) => item.href);
+  const posHrefs = getStaffNavigation("POS").staff.map((item) => item.href);
+  assert.ok(adminHrefs.includes("/admin/branches"));
+  assert.ok(managerHrefs.includes("/staff/team"));
+  assert.ok(!managerHrefs.includes("/admin/branches"));
+  assert.ok(!posHrefs.includes("/reports"));
+  assert.ok(!posHrefs.includes("/staff/news"));
 });

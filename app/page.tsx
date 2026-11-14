@@ -12,7 +12,7 @@ export default async function HomePage() {
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <SiteHeader />
-            <header className="relative left-1/2 mt-6 w-screen -translate-x-1/2 border-y border-border bg-surface">
+            <header className="mt-6 overflow-hidden border-y border-outline-variant bg-surface">
                 <Image
                     src="/op/hero-image.png"
                     alt="OsciPharm Pharmacy hero artwork showing a pharmacist serving a customer"
@@ -30,40 +30,40 @@ export default async function HomePage() {
                 </Link>
             </div>
             <ProductBrowser categories={categories} products={products} />
-            <footer className="mt-10 border-t border-border pt-10 sm:mt-14 sm:pt-14">
+            <footer className="mt-10 border-t border-outline-variant pt-10 sm:mt-14 sm:pt-14">
                 <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr_0.9fr]">
                     <div>
                         <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={126} height={50} className="h-10 w-auto object-contain object-left" />
-                        <p className="mt-5 max-w-xs text-sm leading-6 text-muted">Good Chemistry. Good Health. Everyday care, thoughtfully stocked.</p>
+                        <p className="mt-5 max-w-xs font-body-sm text-body-sm leading-6 text-on-surface-variant">Good Chemistry. Good Health. Everyday care, thoughtfully stocked.</p>
                     </div>
                     <div>
                         <div className="mb-4 flex items-baseline justify-between gap-4">
-                            <h2 className="text-2xl text-ink">Our branches</h2>
-                            <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">01 location</span>
+                            <h2 className="font-headline-md text-headline-md text-primary">Our branches</h2>
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">01 location</span>
                         </div>
-                        <ul className="border-y border-border">
+                        <ul className="border-y border-outline-variant">
                             <li className="grid grid-cols-[2rem_1fr] gap-3 py-3">
-                                <span className="font-mono text-xs text-warn">01</span>
+                                <span className="font-label-sm text-label-sm text-secondary">01</span>
                                 <div>
-                                    <p className="font-medium text-ink">Blantyre Town Lunzu</p>
-                                    <p className="mt-1 text-sm text-muted">Blantyre, Malawi</p>
+                                    <p className="font-label-md text-label-md text-on-surface">Blantyre Town Lunzu</p>
+                                    <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">Blantyre, Malawi</p>
                                 </div>
                             </li>
                         </ul>
                     </div>
                     <div>
-                        <p className="mb-4 font-mono text-xs uppercase tracking-[0.16em] text-warn">Contact</p>
-                        <div className="space-y-3 text-sm text-muted">
+                        <p className="mb-4 font-eyebrow text-eyebrow uppercase tracking-[0.12em] text-secondary">Contact</p>
+                        <div className="space-y-3 font-body-sm text-body-sm text-on-surface-variant">
                             <a href="tel:+265996621085" className="block hover:text-primary">0996 62 10 85</a>
                             <a href="mailto:oscipharm@gmail.com" className="block hover:text-primary">oscipharm@gmail.com</a>
                             <a href="https://oscipharm.com" className="block hover:text-primary">oscipharm.com</a>
                         </div>
-                        <p className="mt-6 border-l-2 border-warn bg-surface px-4 py-3 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+                        <p className="mt-6 border-l-2 border-secondary bg-surface-container-low px-4 py-3 font-label-sm text-label-sm text-on-surface-variant">
                             Blantyre Town Lunzu
                         </p>
                     </div>
                 </div>
-                <div className="mt-10 border-t border-border py-5 font-mono text-xs uppercase tracking-[0.12em] text-muted">OsciPharm / Good Chemistry. Good Health.</div>
+                <div className="mt-10 border-t border-outline-variant py-5 font-label-sm text-label-sm text-on-surface-variant">OsciPharm / Good Chemistry. Good Health.</div>
             </footer>
         </main>
     );

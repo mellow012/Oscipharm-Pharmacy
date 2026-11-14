@@ -13,6 +13,19 @@ export type StaffNavigation = {
     account: { href: string; label: string }[];
 };
 
+export type StaffNavigationGroup = {
+    label: string;
+    items: StaffNavigationItem[];
+};
+
+const NAVIGATION_GROUPS: Array<{ label: string; hrefs: string[] }> = [
+    { label: "Workspace", hrefs: ["/staff"] },
+    { label: "Operations", hrefs: ["/staff/sales", "/inventory", "/staff/catalog", "/staff/import"] },
+    { label: "Insights", hrefs: ["/reports"] },
+    { label: "Administration", hrefs: ["/admin", "/admin/staff", "/admin/branches", "/admin/memberships", "/staff/team"] },
+    { label: "Communication", hrefs: ["/staff/news"] },
+];
+
 const STAFF_ITEMS: StaffNavigationItem[] = [
     { href: "/staff", label: "Home", permission: "sales:view" },
     { href: "/staff/sales", label: "Sales", permission: "sales:view" },
@@ -72,4 +85,13 @@ function accountItems() {
         { href: "/", label: "Public site" },
         { href: "signout", label: "Sign out" },
     ];
+}
+
+export function groupStaffNavigation(items: StaffNavigationItem[]): StaffNavigationGroup[] {
+    return NAVIGATION_GROUPS
+        .map((group) => ({
+            label: group.label,
+            items: group.hrefs.flatMap((href) => items.filter((item) => item.href === href)),
+        }))
+        .filter((group) => group.items.length > 0);
 }
