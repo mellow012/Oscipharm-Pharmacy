@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getVariants } from "@/features/catalog/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { VariantList } from "@/features/catalog/components/VariantList";
+import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
 export default async function IngredientPage({
   params,
@@ -21,6 +22,7 @@ export default async function IngredientPage({
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8">
+      <SiteHeader />
       <div className="flex items-center gap-2 border-b border-border pb-5 text-sm text-muted">
         <Link href="/catalog" className="hover:text-primary">Catalog</Link>
         <span>/</span>
