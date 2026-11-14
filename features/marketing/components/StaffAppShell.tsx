@@ -44,7 +44,8 @@ const navIcons: Record<string, LucideIcon> = {
     Catalog: BookOpen,
     Reports: ChartColumn,
     "News and events": Newspaper,
-    "Stock import": Upload,
+    Import: Upload,
+    "Import sales": Upload,
     Overview: LayoutDashboard,
     Staff: UsersRound,
     Branches: Building2,
@@ -74,7 +75,7 @@ export function StaffAppShell({ role, name, branchLabel, navigation, children }:
     const currentItem = titleItems
         .filter((item) => isNavItemActive(item.href, pathname))
         .sort((left, right) => right.href.length - left.href.length)[0];
-    const sectionTitle = currentItem?.label ?? (pathname === "/staff/import" ? "Stock import" : "Workspace");
+    const sectionTitle = currentItem?.label ?? (pathname === "/staff/import" ? "Import" : "Workspace");
     const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
     useEffect(() => {

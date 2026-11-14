@@ -19,6 +19,7 @@ export function SalesImportPreview({
   filename,
   branchId,
   busy,
+  showOpeningStockInfo = true,
   result = false,
   onConfirm,
 }: {
@@ -26,6 +27,7 @@ export function SalesImportPreview({
   filename: string;
   branchId: string;
   busy: boolean;
+  showOpeningStockInfo?: boolean;
   result?: boolean;
   onConfirm: () => void;
 }) {
@@ -62,14 +64,18 @@ export function SalesImportPreview({
         )}
       </header>
 
-      {preview.warning ? <NoticeBanner tone="warning">{preview.warning}</NoticeBanner> : null}
+      {showOpeningStockInfo && preview.warning ? (
+        <NoticeBanner tone="warning">{preview.warning}</NoticeBanner>
+      ) : null}
       <section
         aria-label="Sales import preview counts"
-        className="grid min-w-0 grid-cols-2 gap-px border border-outline-variant bg-outline-variant sm:grid-cols-4"
+        className={`grid min-w-0 grid-cols-2 gap-px border border-outline-variant bg-outline-variant ${showOpeningStockInfo ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}
       >
         <StatCard label="New documents" value={preview.counts.newDocuments} />
         <StatCard label="Already imported" value={preview.counts.alreadyImportedDocuments} />
-        <StatCard label="Before stock as-of" value={preview.counts.historyOnlyDocuments} />
+        {showOpeningStockInfo ? (
+          <StatCard label="Before stock as-of" value={preview.counts.historyOnlyDocuments} />
+        ) : null}
         <StatCard
           label="Refund original found / missing"
           value={`${preview.counts.refundsWithOriginal} / ${preview.counts.refundsWithoutOriginal}`}

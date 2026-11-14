@@ -28,10 +28,12 @@ export function SalesImportPanel({
   branchId,
   salesRuns,
   committingRun,
+  showOpeningStockInfo,
 }: {
   branchId: string;
   salesRuns: ImportHistoryRun[];
   committingRun: ResumeRun;
+  showOpeningStockInfo: boolean;
 }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -224,6 +226,7 @@ export function SalesImportPanel({
           filename={preview.filename}
           branchId={branchId}
           busy={busy}
+          showOpeningStockInfo={showOpeningStockInfo}
           result={message.includes("completed")}
           onConfirm={() => void runSlices(preview.runId, file!)}
         />

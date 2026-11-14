@@ -3,7 +3,11 @@
 import { getServerSession } from "next-auth";
 import type { Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import {
+  assertSalesImportAccess,
+  assertStockImportAccess,
+  getImportAccess,
+} from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { stripCostFieldsForRole } from "@/features/inventory/lib/import-preview-access";
 import { createPreview, commitImport } from "@/features/inventory/lib/stock-import-service";
@@ -13,12 +17,14 @@ const IMPORT_XLSX_MESSAGE = "Please export the Stock report with Aronium's Excel
 const SALES_XLSX_MESSAGE = "Please export the Sales Item list with Aronium's Excel button.";
 
 type ImportActor = { id: string; role: Role; branchId: string | null };
+type ImportPermission = "sales:import" | "stock:import";
 
-async function getImportActor(): Promise<ImportActor> {
+async function getImportActor(permission?: ImportPermission): Promise<ImportActor> {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !can(session.user.role, "stock:import")) {
-    throw new Error("You are not allowed to import stock.");
-  }
+  if (!session?.user) throw new Error("You are not allowed to import stock.");
+  if (permission === "stock:import") assertStockImportAccess(session.user.role);
+  else if (permission === "sales:import") assertSalesImportAccess(session.user.role);
+  else if (!getImportAccess(session.user.role).any) throw new Error("You are not allowed to import stock.");
   return { id: session.user.id, role: session.user.role, branchId: session.user.branchId };
 }
 
@@ -76,6 +82,7 @@ function parseStockAsOf(value: FormDataEntryValue | null): Date {
 
 export async function loadImportPageData(requestedBranchId?: string) {
   const actor = await getImportActor();
+  const importAccess = getImportAccess(actor.role);
   try {
     const branches = actor.role === "ADMIN"
       ? await prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
@@ -83,21 +90,23 @@ export async function loadImportPageData(requestedBranchId?: string) {
     const branchId = await resolveBranch(actor, requestedBranchId ?? branches[0]?.id);
     const [branch, runs, salesRuns] = await Promise.all([
       prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } }),
-      prisma.importRun.findMany({
+      importAccess.stock ? prisma.importRun.findMany({
         where: { branchId, kind: "STOCK" },
         orderBy: { createdAt: "desc" },
         take: 30,
         include: { uploadedBy: { select: { name: true } } },
-      }),
-      prisma.importRun.findMany({
+      }) : Promise.resolve([]),
+      importAccess.sales ? prisma.importRun.findMany({
         where: { branchId, kind: "SALES" },
         orderBy: { createdAt: "desc" },
         take: 30,
         include: { uploadedBy: { select: { name: true } } },
-      }),
+      }) : Promise.resolve([]),
     ]);
     return {
       error: null,
+      canImportStock: importAccess.stock,
+      canImportSales: importAccess.sales,
       branches,
       branch,
       runs: runs.map((run) => ({
@@ -133,13 +142,13 @@ export async function loadImportPageData(requestedBranchId?: string) {
       actorRole: actor.role,
     };
   } catch (error) {
-    return { error: plainError(error), branches: [], branch: null, runs: [], salesRuns: [], committingRun: null, salesCommittingRun: null, actorRole: actor.role };
+    return { error: plainError(error), canImportStock: importAccess.stock, canImportSales: importAccess.sales, branches: [], branch: null, runs: [], salesRuns: [], committingRun: null, salesCommittingRun: null, actorRole: actor.role };
   }
 }
 
 export async function previewStockImport(formData: FormData) {
   try {
-    const actor = await getImportActor();
+    const actor = await getImportActor("stock:import");
     const branchId = await resolveBranch(actor, String(formData.get("branchId") ?? ""));
     const file = fileFrom(formData);
     const result = await createPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()), asOf: parseStockAsOf(formData.get("asOf")) });
@@ -167,7 +176,7 @@ export async function previewStockImport(formData: FormData) {
 
 export async function previewSalesImport(formData: FormData) {
   try {
-    const actor = await getImportActor();
+    const actor = await getImportActor("sales:import");
     const branchId = await resolveBranch(actor, String(formData.get("branchId") ?? ""));
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await createSalesPreview({ branchId, userId: actor.id, filename: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
@@ -180,7 +189,7 @@ export async function previewSalesImport(formData: FormData) {
 
 export async function commitSalesImportSlice(formData: FormData) {
   try {
-    const actor = await getImportActor();
+    const actor = await getImportActor("sales:import");
     const runId = String(formData.get("runId") ?? "");
     if (!runId) throw new Error("Sales import run was not found.");
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
@@ -194,14 +203,14 @@ export async function commitSalesImportSlice(formData: FormData) {
 function salesPlainError(error: unknown): string {
   const message = error instanceof Error ? error.message : "The sales import could not be completed.";
   if (/^Sales row \d+ /.test(message)) return message;
-  if (message.startsWith("This file was already imported on ") || message.startsWith("Only an Admin") || message.startsWith("Choose a valid branch.") || message.startsWith("You must be signed in") || message.startsWith("Sales import run was not found.") || message.startsWith("This upload does not match")) return message;
+  if (message.startsWith("This file was already imported on ") || message.startsWith("Only an Admin") || message.startsWith("You are not allowed to import sales.") || message.startsWith("Choose a valid branch.") || message.startsWith("You must be signed in") || message.startsWith("Sales import run was not found.") || message.startsWith("This upload does not match")) return message;
   if (message.includes("Stock export") || message.includes("Refunds summary") || message.includes("Excel button") || message.includes("Sales Item list")) return SALES_XLSX_MESSAGE;
   return "The sales import could not be completed. Check the workbook and try again.";
 }
 
 export async function commitStockImportSlice(formData: FormData) {
   try {
-    await getImportActor();
+    await getImportActor("stock:import");
     const runId = String(formData.get("runId") ?? "");
     if (!runId) throw new Error("Stock import run was not found.");
     const file = fileFrom(formData);

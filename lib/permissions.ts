@@ -6,6 +6,7 @@ export type Permission =
     | "sales:view"
     | "catalog:view"
     | "inventory:view"
+    | "sales:import"
     | "stock:import"
     | "stock:receive"       // record a new batch
     | "stock:adjust"        // manual stock corrections
@@ -26,6 +27,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "sales:view",
         "catalog:view",
         "inventory:view",
+        "sales:import",
         "stock:import",
         "stock:receive",
         "stock:adjust",
@@ -43,6 +45,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "sales:view",
         "catalog:view",
         "inventory:view",
+        "sales:import",
         "stock:import",
         "stock:receive",
         "stock:adjust",
@@ -53,11 +56,37 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "reports:branch:view",
         "membership:manage",
     ],
-    POS: ["sales:view", "catalog:view", "inventory:view", "stock:import", "pos:checkout"],
+    POS: ["sales:view", "catalog:view", "inventory:view", "sales:import", "pos:checkout"],
 };
 
 export function can(role: Role, permission: Permission): boolean {
     return ROLE_PERMISSIONS[role].includes(permission);
+}
+
+export type ImportAccess = {
+    sales: boolean;
+    stock: boolean;
+    any: boolean;
+    label: "Import" | "Import sales" | null;
+};
+
+export function getImportAccess(role: Role): ImportAccess {
+    const sales = can(role, "sales:import");
+    const stock = can(role, "stock:import");
+    return {
+        sales,
+        stock,
+        any: sales || stock,
+        label: stock ? "Import" : sales ? "Import sales" : null,
+    };
+}
+
+export function assertSalesImportAccess(role: Role): void {
+    if (!getImportAccess(role).sales) throw new Error("You are not allowed to import sales.");
+}
+
+export function assertStockImportAccess(role: Role): void {
+    if (!getImportAccess(role).stock) throw new Error("You are not allowed to import stock.");
 }
 
 // Convenience for "this user + this permission + this branch's resource".

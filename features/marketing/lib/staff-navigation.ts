@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { can, type Permission } from "../../../lib/permissions.ts";
+import { can, getImportAccess, type Permission } from "../../../lib/permissions.ts";
 
 export type StaffNavigationItem = {
     href: string;
@@ -40,7 +40,6 @@ const POS_ITEMS: StaffNavigationItem[] = [
     { href: "/staff/sales", label: "Sales", permission: "sales:view" },
     { href: "/inventory", label: "Inventory", permission: "inventory:view" },
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
-    { href: "/staff/import", label: "Stock import", permission: "stock:import" },
 ];
 
 const ADMIN_ITEMS: StaffNavigationItem[] = [
@@ -70,8 +69,19 @@ export function getStaffNavigation(role: Role | null): StaffNavigation {
     if (!role) return { staff: [], admin: [], account: accountItems() };
 
     const allowed = (item: StaffNavigationItem) => can(role, item.permission);
+    const importAccess = getImportAccess(role);
+    const staff = (role === "POS" ? POS_ITEMS : STAFF_ITEMS).filter(allowed);
+    if (importAccess.label) {
+        const catalogIndex = staff.findIndex((item) => item.href === "/staff/catalog");
+        staff.splice(catalogIndex < 0 ? staff.length : catalogIndex + 1, 0, {
+            href: "/staff/import",
+            label: importAccess.label,
+            permission: importAccess.stock ? "stock:import" : "sales:import",
+        });
+    }
+
     return {
-        staff: (role === "POS" ? POS_ITEMS : STAFF_ITEMS).filter(allowed),
+        staff,
         admin: ADMIN_ITEMS.filter((item) => {
             if (item.label === "Team") return role === "BRANCH_MANAGER";
             return allowed(item);

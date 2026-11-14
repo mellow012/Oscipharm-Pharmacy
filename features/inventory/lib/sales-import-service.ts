@@ -3,11 +3,11 @@ import { Prisma } from "@prisma/client";
 import type { ImportRun, PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "../../../lib/branch-write-guard.ts";
-import { can } from "../../../lib/permissions.ts";
+import { assertSalesImportAccess } from "../../../lib/permissions.ts";
 import { allocateFefoBatches } from "../../pos/lib/checkout-core.ts";
 import { getMalawiDateKey } from "../../../lib/timezone.ts";
 import { lockImportBranch, processChunkSlice } from "./stock-import-slices.ts";
-import { buildSalesImportPreview, isHistoryOnlySalesDocument, type SalesImportPreview } from "./sales-import-preview.ts";
+import { buildSalesImportPreview, isHistoryOnlySalesDocument } from "./sales-import-preview.ts";
 import { parseSalesExport, type SalesDocument, type SalesExportRow } from "./sales-parser.ts";
 
 const DOCUMENT_SLICE_MS = 8_000;
@@ -61,9 +61,10 @@ async function assertActor(db: Db, branchId: string, userId: string) {
   ]);
   if (!branch) throw new Error("Choose a valid branch.");
   if (!branch.isActive) throw new Error(INACTIVE_BRANCH_WRITE_ERROR);
-  if (!user || !user.isActive || !can(user.role, "stock:import") || (user.role !== "ADMIN" && user.branchId !== branchId)) {
-    throw new Error("Only an Admin, or an active Branch Manager or POS user assigned to this branch, can import sales.");
+  if (!user || !user.isActive || (user.role !== "ADMIN" && user.branchId !== branchId)) {
+    throw new Error("Only an Admin or active staff member assigned to this branch can import sales.");
   }
+  assertSalesImportAccess(user.role);
 }
 
 export function groupLines(documents: SalesDocument[], rows: SalesExportRow[], stockAsOf: Date | null): SalesDocumentWithLines[] {

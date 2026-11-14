@@ -58,3 +58,10 @@ test("Sales/POS sees its own Home destinations", () => {
     { label: "More", layout: "more", destinations: ["/staff/catalog", "/staff/import"] },
   ]);
 });
+
+test("Import home tile is shared by permission and uses the capability-specific label", () => {
+  for (const [role, label] of [["ADMIN", "Import"], ["BRANCH_MANAGER", "Import"], ["POS", "Import sales"]]) {
+    const tile = getHomeTileGroups(role).flatMap((group) => group.tiles).find((item) => item.href === "/staff/import");
+    assert.equal(tile?.label, label, role);
+  }
+});

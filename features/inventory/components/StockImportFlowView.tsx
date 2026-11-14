@@ -11,6 +11,8 @@ import { FormField, FormInput } from "@/features/shared/components/FormField";
 import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 
 export type StockImportPageData = {
+  canImportStock: boolean;
+  canImportSales: boolean;
   branches: { id: string; name: string }[];
   branch: { id: string; name: string } | null;
   runs: ImportHistoryRun[];

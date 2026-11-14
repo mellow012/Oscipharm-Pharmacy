@@ -41,7 +41,9 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
-  const [tab, setTab] = useState<"STOCK" | "SALES">("STOCK");
+  const [tab, setTab] = useState<"STOCK" | "SALES">(() =>
+    data.canImportStock ? "STOCK" : "SALES",
+  );
   const [asOf, setAsOf] = useState(malawiLocalNowValue);
   const [preview, setPreview] = useState<StockPreviewState | null>(null);
   const [activeRun, setActiveRun] = useState<ActiveStockRun | null>(null);
@@ -133,31 +135,33 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
   return (
     <div className="mx-auto min-h-screen w-full min-w-0 max-w-[1440px] space-y-space-lg px-gutter-mobile py-space-lg sm:px-6 sm:py-space-xl">
       <PageHeader
-        eyebrow="Inventory workspace"
-        title={tab === "STOCK" ? "Stock import" : "Sales import"}
+        eyebrow={data.canImportStock ? "Inventory workspace" : "Sales workspace"}
+        title={tab === "STOCK" && data.canImportStock ? "Stock import" : "Sales import"}
         description={data.branch?.name}
       />
-      <nav
-        aria-label="Import type"
-        className="flex min-w-0 gap-space-xs border-b border-outline-variant"
-      >
-        <button
-          type="button"
-          onClick={() => setTab("STOCK")}
-          aria-pressed={tab === "STOCK"}
-          className={`min-h-11 border-b-2 px-space-md font-label-md text-label-md ${tab === "STOCK" ? "border-primary text-primary" : "border-transparent text-on-surface-variant"}`}
+      {data.canImportStock && data.canImportSales ? (
+        <nav
+          aria-label="Import type"
+          className="flex min-w-0 gap-space-xs border-b border-outline-variant"
         >
-          Stock
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("SALES")}
-          aria-pressed={tab === "SALES"}
-          className={`min-h-11 border-b-2 px-space-md font-label-md text-label-md ${tab === "SALES" ? "border-primary text-primary" : "border-transparent text-on-surface-variant"}`}
-        >
-          Sales
-        </button>
-      </nav>
+          <button
+            type="button"
+            onClick={() => setTab("STOCK")}
+            aria-pressed={tab === "STOCK"}
+            className={`min-h-11 border-b-2 px-space-md font-label-md text-label-md ${tab === "STOCK" ? "border-primary text-primary" : "border-transparent text-on-surface-variant"}`}
+          >
+            Stock
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("SALES")}
+            aria-pressed={tab === "SALES"}
+            className={`min-h-11 border-b-2 px-space-md font-label-md text-label-md ${tab === "SALES" ? "border-primary text-primary" : "border-transparent text-on-surface-variant"}`}
+          >
+            Sales
+          </button>
+        </nav>
+      ) : null}
       {data.actorRole === "ADMIN" ? (
         <FormField id="import-branch" label="Branch">
           {(fieldProps) => (
@@ -179,8 +183,11 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
           )}
         </FormField>
       ) : null}
-      <LastImportNotice stockRuns={data.runs} salesRuns={data.salesRuns} />
-      {tab === "STOCK" ? (
+      <LastImportNotice
+        stockRuns={data.canImportStock ? data.runs : []}
+        salesRuns={data.canImportSales ? data.salesRuns : []}
+      />
+      {tab === "STOCK" && data.canImportStock ? (
         <StockImportFlowView
           data={data}
           branchId={branchId}
@@ -221,6 +228,7 @@ export function StockImportWorkspace({ data }: { data: StockImportPageData }) {
           branchId={branchId}
           salesRuns={data.salesRuns}
           committingRun={data.salesCommittingRun}
+          showOpeningStockInfo={data.canImportStock}
         />
       )}
     </div>
