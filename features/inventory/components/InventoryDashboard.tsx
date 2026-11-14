@@ -8,48 +8,206 @@ import { BatchExpiryForm } from "@/features/inventory/components/BatchExpiryForm
 import { getExpiryStatus } from "@/features/inventory/utils/expiry";
 import type { InventoryData } from "@/features/inventory/types";
 import { pluralizeLabel } from "@/lib/plural";
+import { FormField, FormSelect } from "@/features/shared/components/FormField";
+import { PageHeader } from "@/features/shared/components/PageHeader";
+import { StatCard } from "@/features/shared/components/StatCard";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import {
+  TableBody,
+  TableCell,
+  TableFrame,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@/features/shared/components/TableFrame";
 
-export function InventoryDashboard({ name, role, branchId, branches, data, canReceive, canSetPrice, canAdjust }: { name: string; role: "ADMIN" | "BRANCH_MANAGER" | "POS"; branchId: string; branches: Awaited<ReturnType<typeof import("@/features/inventory/lib/queries").getInventoryBranches>>; data: InventoryData; canReceive: boolean; canSetPrice: boolean; canAdjust: boolean }) {
-    const router = useRouter();
-    const [isPending, startTransition] = useTransition();
+function expiryTone(label: string) {
+  if (label === "Expired") return "danger";
+  if (label === "Expiring soon") return "warning";
+  if (label === "In date") return "success";
+  return "neutral";
+}
 
-    return (
-        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-            <header className="flex flex-col gap-6 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between sm:py-14">
-                <div>
-                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">Inventory workspace</p>
-                    <h1 className="text-5xl leading-[0.98] text-ink">Keep stock moving, {name}.</h1>
-                    <p className="mt-3 max-w-xl text-lg text-muted">Receive batches, watch expiry, and keep each branch price current.</p>
+export function InventoryDashboard({
+  name,
+  role,
+  branchId,
+  branches,
+  data,
+  canReceive,
+  canSetPrice,
+  canAdjust,
+}: {
+  name: string;
+  role: "ADMIN" | "BRANCH_MANAGER" | "POS";
+  branchId: string;
+  branches: Awaited<
+    ReturnType<typeof import("@/features/inventory/lib/queries").getInventoryBranches>
+  >;
+  data: InventoryData;
+  canReceive: boolean;
+  canSetPrice: boolean;
+  canAdjust: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const unitsOnHand = data.batches.reduce((sum, batch) => sum + batch.quantityRemaining, 0);
+
+  return (
+    <div className="mx-auto min-h-screen w-full min-w-0 max-w-[1440px] space-y-space-lg overflow-x-clip px-gutter-mobile py-space-lg sm:px-6 sm:py-space-xl">
+      <PageHeader
+        eyebrow="Inventory workspace"
+        title={`Keep stock moving, ${name}.`}
+        description="Receive batches, watch expiry, and keep each branch price current."
+        actions={
+          role === "ADMIN" ? (
+            <FormField id="inventory-working-branch" label="Working branch">
+              {(fieldProps) => (
+                <FormSelect
+                  {...fieldProps}
+                  value={branchId}
+                  disabled={isPending}
+                  onChange={(event) => {
+                    const nextBranchId = event.target.value;
+                    startTransition(() => router.push(`/inventory?branchId=${nextBranchId}`));
+                  }}
+                >
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </FormSelect>
+              )}
+            </FormField>
+          ) : (
+            <StatusBadge tone="neutral">{data.branch?.name ?? "Your branch"}</StatusBadge>
+          )
+        }
+      />
+
+      <section
+        aria-label="Stock totals"
+        className="grid min-w-0 grid-cols-1 gap-space-sm sm:grid-cols-2"
+      >
+        <StatCard label="Batches by expiry" value={data.batches.length} supportingLine="active" />
+        <StatCard
+          label="Stock on hand"
+          value={unitsOnHand}
+          supportingLine="units, including stock with unrecorded expiry."
+        />
+      </section>
+
+      <section className="grid min-w-0 grid-cols-1 gap-space-lg min-[1200px]:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+        <div className="min-w-0">
+          {data.batches.length ? (
+            <TableFrame
+              ariaLabel="Batches by expiry"
+              tableClassName="min-w-[760px]"
+              header={
+                <div className="flex flex-wrap items-baseline justify-between gap-space-sm">
+                  <div>
+                    <p className="font-eyebrow text-eyebrow uppercase text-secondary">
+                      Stock on hand
+                    </p>
+                    <h2 className="mt-space-xs font-headline-md text-headline-md text-primary">
+                      Batches by expiry
+                    </h2>
+                  </div>
+                  <span className="font-table-header text-table-header tabular-nums text-on-surface-variant">
+                    {data.batches.length} active
+                  </span>
                 </div>
-                {role === "ADMIN" ? (
-                    <label className="block min-w-64 text-sm text-muted">
-                        <span className="flex items-center justify-between">Working branch<span aria-live="polite" className="h-4 w-16 shrink-0 text-right text-xs text-muted">{isPending ? "Loading..." : ""}</span></span>
-                        <select value={branchId} disabled={isPending} onChange={(event) => {
-                            const nextBranchId = event.target.value;
-                            startTransition(() => router.push(`/inventory?branchId=${nextBranchId}`));
-                        }} className={`mt-2 w-full border border-border bg-surface px-3 py-3 text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 ${isPending ? "opacity-60" : ""}`}>
-                            {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
-                        </select>
-                    </label>
-                ) : <span className="border border-primary bg-chip px-3 py-2 font-mono text-xs uppercase tracking-[0.14em] text-primary">{data.branch?.name ?? "Your branch"}</span>}
-            </header>
-
-            <section className="grid gap-8 py-10 lg:grid-cols-[1.35fr_0.65fr]">
-                <div>
-                    <div className="mb-5 flex items-end justify-between border-b border-border pb-3">
-                        <div><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Stock on hand</p><h2 className="mt-2 text-3xl text-ink">Batches by expiry</h2></div>
-                        <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{data.batches.length} active</span>
-                    </div>
-                    <p className="mb-3 font-mono text-xs text-muted">{data.batches.reduce((sum, batch) => sum + batch.quantityRemaining, 0)} units on hand, including stock with unrecorded expiry.</p>
-                    {data.batches.length ? <div className="overflow-x-auto border-y border-border"><table className="w-full min-w-[680px] text-left"><thead className="border-b border-border font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted"><tr><th className="px-4 py-3 font-normal">Product</th><th className="px-4 py-3 font-normal">Batch</th><th className="px-4 py-3 font-normal">Remaining</th><th className="px-4 py-3 font-normal">Expiry</th><th className="px-4 py-3 font-normal">Status</th></tr></thead><tbody className="divide-y divide-border">{data.batches.map((batch) => { const status = getExpiryStatus(new Date(batch.expiryDate), batch.expiryDateKnown); return <tr key={batch.id} className={status.rowClassName}><td className="px-4 py-4"><p className="font-medium text-ink">{batch.variant.ingredient.name} · {batch.variant.brandName}</p><p className="text-sm text-muted">{batch.variant.strength ?? "Standard strength"}</p></td><td className="px-4 py-4 text-sm text-muted">{batch.batchNumber ?? "No number"}</td><td className="px-4 py-4 font-mono text-sm text-ink">{batch.quantityRemaining} {pluralizeLabel(batch.quantityRemaining, batch.variant.unitLabel)}</td><td className="px-4 py-4 text-sm text-muted">{batch.expiryDateKnown ? new Date(batch.expiryDate).toLocaleDateString("en-MW") : "Not recorded"}{canAdjust ? <BatchExpiryForm batchId={batch.id} expiryDate={batch.expiryDate} /> : null}</td><td className={`px-4 py-4 font-mono text-[0.65rem] uppercase tracking-[0.1em] ${status.className}`}>{status.label}</td></tr>; })}</tbody></table></div> : <p className="border border-dashed border-border px-5 py-10 text-muted">No stock remains at this branch.</p>}
-                </div>
-                {canReceive ? <ReceiveBatchForm variants={data.variants} branchId={branchId} includeBranchId={role === "ADMIN"} /> : null}
-            </section>
-
-            <section className="border-t border-border py-10">
-                <div className="mb-5 flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.16em] text-warn">Branch pricing</p><h2 className="mt-2 text-3xl text-ink">Prices and reorder points</h2></div><p className="max-w-sm text-sm text-muted">Unit prices are not applicable when a product is sold by pack only.</p></div>
-                {canSetPrice ? <div className="border-y border-border">{data.variants.map((variant) => <PricingForm key={variant.id} variant={variant} branchId={branchId} includeBranchId={role === "ADMIN"} />)}</div> : null}
-            </section>
+              }
+            >
+              <TableHead>
+                <tr>
+                  <TableHeaderCell>Product</TableHeaderCell>
+                  <TableHeaderCell>Batch</TableHeaderCell>
+                  <TableHeaderCell align="right">Remaining</TableHeaderCell>
+                  <TableHeaderCell>Expiry</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                </tr>
+              </TableHead>
+              <TableBody>
+                {data.batches.map((batch) => {
+                  const status = getExpiryStatus(new Date(batch.expiryDate), batch.expiryDateKnown);
+                  return (
+                    <TableRow key={batch.id} className={status.rowClassName}>
+                      <TableCell className="min-w-48 text-on-surface">
+                        <p className="font-label-md text-label-md text-on-surface">
+                          {batch.variant.ingredient.name} · {batch.variant.brandName}
+                        </p>
+                        <p className="mt-space-xs text-on-surface-variant">
+                          {batch.variant.strength ?? "Standard strength"}
+                        </p>
+                      </TableCell>
+                      <TableCell nowrap>{batch.batchNumber ?? "No number"}</TableCell>
+                      <TableCell numeric nowrap className="text-on-surface">
+                        {batch.quantityRemaining}{" "}
+                        {pluralizeLabel(batch.quantityRemaining, batch.variant.unitLabel)}
+                      </TableCell>
+                      <TableCell nowrap>
+                        <p>
+                          {batch.expiryDateKnown
+                            ? new Date(batch.expiryDate).toLocaleDateString("en-MW")
+                            : "Not recorded"}
+                        </p>
+                        {canAdjust ? (
+                          <BatchExpiryForm batchId={batch.id} expiryDate={batch.expiryDate} />
+                        ) : null}
+                      </TableCell>
+                      <TableCell nowrap>
+                        <StatusBadge tone={expiryTone(status.label)}>{status.label}</StatusBadge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </TableFrame>
+          ) : (
+            <p className="border border-dashed border-outline-variant px-space-lg py-space-xl text-on-surface-variant">
+              No stock remains at this branch.
+            </p>
+          )}
         </div>
-    );
+
+        {canReceive ? (
+          <div className="min-w-0 min-[1200px]:sticky min-[1200px]:top-20 min-[1200px]:self-start">
+            <ReceiveBatchForm
+              variants={data.variants}
+              branchId={branchId}
+              includeBranchId={role === "ADMIN"}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      <section className="min-w-0 border-t border-outline-variant pt-space-lg">
+        <div className="mb-space-md flex min-w-0 flex-col gap-space-sm border-b border-outline-variant pb-space-md sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="font-eyebrow text-eyebrow uppercase text-secondary">Branch pricing</p>
+            <h2 className="mt-space-xs font-headline-md text-headline-md text-primary">
+              Prices and reorder points
+            </h2>
+          </div>
+          <p className="max-w-sm font-body-sm text-body-sm text-on-surface-variant">
+            Unit prices are not applicable when a product is sold by pack only.
+          </p>
+        </div>
+        {canSetPrice ? (
+          <div className="grid min-w-0 gap-space-md md:grid-cols-2 2xl:grid-cols-3">
+            {data.variants.map((variant) => (
+              <PricingForm
+                key={variant.id}
+                variant={variant}
+                branchId={branchId}
+                includeBranchId={role === "ADMIN"}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
 }

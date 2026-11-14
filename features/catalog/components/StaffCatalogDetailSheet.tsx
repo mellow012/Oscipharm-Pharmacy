@@ -2,200 +2,197 @@
 
 import { useEffect, useRef, useState } from "react";
 import { pluralizeLabel } from "@/lib/plural";
-import { useActionState } from "react";
-import { createAroniumProductLink, deleteAroniumProductLink } from "@/features/catalog/lib/aronium-actions";
 import { StaffVariantForm } from "@/features/catalog/components/StaffVariantForm";
+import { StaffCatalogLinks } from "@/features/catalog/components/StaffCatalogLinks";
 import type { StaffCatalogCategory } from "@/features/catalog/types";
-import type { AroniumLinkActionState } from "@/features/catalog/types";
-
-const initialState: AroniumLinkActionState = {};
+import { StatCard } from "@/features/shared/components/StatCard";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
 
 function formatCurrency(value: string | null) {
-    if (!value) return "—";
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? `MK ${numeric.toLocaleString("en-MW")}` : value;
-}
-
-function AroniumForm({ variantId, allowsLooseSale, branchId }: { variantId: string; allowsLooseSale: boolean; branchId: string }) {
-    const [state, formAction, pending] = useActionState(createAroniumProductLink, initialState);
-
-    return (
-        <form action={formAction} className="mt-4 rounded border border-border bg-surface p-3">
-            <input type="hidden" name="variantId" value={variantId} />
-            <input type="hidden" name="branchId" value={branchId} />
-            <div className="grid gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end">
-                <label className="text-xs uppercase tracking-[0.08em] text-muted">
-                    Aronium code
-                    <input name="aroniumCode" required placeholder="e.g. 3" maxLength={100} className="mt-2 w-full border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
-                </label>
-                <label className="text-xs uppercase tracking-[0.08em] text-muted">
-                    Mode
-                    <select name="mode" defaultValue="PACK" className="mt-2 w-full border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15">
-                        <option value="PACK">PACK</option>
-                        {allowsLooseSale ? <option value="UNIT">UNIT</option> : null}
-                    </select>
-                </label>
-                <button type="submit" disabled={pending} className="inline-flex min-h-[42px] items-center justify-center border border-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary transition hover:bg-primary hover:text-primary-fg disabled:cursor-wait disabled:opacity-60">
-                    {pending ? "Saving..." : "Add code"}
-                </button>
-            </div>
-            {state.error ? <p role="alert" className="mt-3 text-sm text-danger">{state.error}</p> : null}
-            {state.success ? <p role="status" className="mt-3 text-sm text-primary">{state.success}</p> : null}
-        </form>
-    );
-}
-
-function DeleteAroniumForm({ linkId, branchId }: { linkId: string; branchId: string }) {
-    const [state, formAction, pending] = useActionState(deleteAroniumProductLink, initialState);
-
-    return (
-        <form action={formAction} className="inline-block">
-            <input type="hidden" name="linkId" value={linkId} />
-            <input type="hidden" name="branchId" value={branchId} />
-            <button type="submit" disabled={pending} className="text-xs font-medium text-danger underline underline-offset-2 transition hover:text-danger/80 disabled:cursor-wait disabled:opacity-60">
-                {pending ? "Removing..." : "Remove"}
-            </button>
-            {state.error ? <div className="mt-2 text-xs text-danger">{state.error}</div> : null}
-            {state.success ? <div className="mt-2 text-xs text-primary">{state.success}</div> : null}
-        </form>
-    );
+  if (!value) return "—";
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `MK ${numeric.toLocaleString("en-MW")}` : value;
 }
 
 export function StaffCatalogDetailSheet({
-    variant,
-    branchId,
-    categories,
-    canManage,
-    onSaved,
-    onClose,
+  variant,
+  branchId,
+  categories,
+  canManage,
+  onSaved,
+  onClose,
 }: {
-    variant: {
-        id: string;
-        categoryId: string | null;
-        ingredientId: string | null;
-        brandName: string;
-        strength: string | null;
-        packSize: number;
-        unitLabel: string;
-        allowsLooseSale: boolean;
-        isActive: boolean;
-        pricePerPack: string | null;
-        pricePerUnit: string | null;
-        stock: number;
-        aroniumProductLinks: Array<{ id: string; aroniumCode: string; mode: "PACK" | "UNIT" }>;
-    } | null;
-    branchId: string;
-    categories: StaffCatalogCategory[];
-    canManage: boolean;
-    onSaved: (variantId: string) => void;
-    onClose: () => void;
+  variant: {
+    id: string;
+    categoryId: string | null;
+    ingredientId: string | null;
+    brandName: string;
+    strength: string | null;
+    packSize: number;
+    unitLabel: string;
+    allowsLooseSale: boolean;
+    isActive: boolean;
+    pricePerPack: string | null;
+    pricePerUnit: string | null;
+    stock: number;
+    aroniumProductLinks: Array<{ id: string; aroniumCode: string; mode: "PACK" | "UNIT" }>;
+  } | null;
+  branchId: string;
+  categories: StaffCatalogCategory[];
+  canManage: boolean;
+  onSaved: (variantId: string) => void;
+  onClose: () => void;
 }) {
-    const [editing, setEditing] = useState(!variant && canManage);
-    const panelRef = useRef<HTMLDivElement | null>(null);
-    const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [editing, setEditing] = useState(!variant && canManage);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-    useEffect(() => {
-        previousFocusRef.current = document.activeElement as HTMLElement | null;
-        panelRef.current?.focus();
-
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") onClose();
-        };
-
-        window.addEventListener("keydown", onKeyDown);
-        return () => {
-            window.removeEventListener("keydown", onKeyDown);
-            previousFocusRef.current?.focus();
-        };
-    }, [onClose]);
-
-    return (
-        <div className="fixed inset-0 z-50 bg-black/40 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="variant-detail-title">
-            <div className="flex h-full items-end justify-end sm:items-center">
-                <div
-                    ref={panelRef}
-                    tabIndex={-1}
-                    className="h-full w-full overflow-y-auto rounded-t-2xl border border-border bg-white p-4 shadow-2xl outline-none sm:h-auto sm:max-h-[90vh] sm:w-[560px] sm:rounded-2xl"
-                >
-                    <div className="mb-4 flex items-start justify-between gap-4 border-b border-border pb-4">
-                        <div>
-                            <p className="text-[0.65rem] font-medium uppercase tracking-[0.12em] text-muted">Staff catalog</p>
-                            <h3 id="variant-detail-title" className="mt-2 text-2xl text-ink">{editing ? variant ? "Edit variant" : "Add variant" : variant?.brandName}</h3>
-                            {!editing && variant ? <p className="mt-1 text-sm text-muted">{variant.strength ?? "Standard strength"}</p> : null}
-                        </div>
-                        <button type="button" onClick={onClose} className="rounded border border-border px-2 py-1 text-sm text-muted hover:text-primary">Close</button>
-                    </div>
-
-                    {editing && canManage ? (
-                        <StaffVariantForm
-                            categories={categories}
-                            branchId={branchId}
-                            variant={variant}
-                            onCancel={() => variant ? setEditing(false) : onClose()}
-                            onSaved={(variantId) => {
-                                setEditing(false);
-                                onSaved(variantId);
-                            }}
-                        />
-                    ) : variant ? <>
-                        <div className="mb-4 flex justify-end">
-                            {canManage ? <button type="button" onClick={() => setEditing(true)} className="border border-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-primary hover:bg-primary hover:text-primary-fg">Edit</button> : null}
-                        </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded border border-border bg-surface p-3">
-                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Pack size</div>
-                            <div className="mt-2 font-medium text-ink">{variant.packSize} {pluralizeLabel(variant.packSize, variant.unitLabel)}</div>
-                        </div>
-                        <div className="rounded border border-border bg-surface p-3">
-                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Status</div>
-                            <div className="mt-2 inline-flex items-center rounded-full border px-2 py-1 text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink">
-                                {variant.isActive ? "Active" : "Inactive"}
-                            </div>
-                        </div>
-                        <div className="rounded border border-border bg-surface p-3">
-                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Pack price</div>
-                            <div className="mt-2 font-medium text-ink">{formatCurrency(variant.pricePerPack)}</div>
-                        </div>
-                        <div className="rounded border border-border bg-surface p-3">
-                            <div className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">Unit price</div>
-                            <div className="mt-2 font-medium text-ink">{variant.allowsLooseSale ? formatCurrency(variant.pricePerUnit) : "Pack only"}</div>
-                        </div>
-                    </div>
-
-                    <div className="mt-5 rounded border border-border bg-surface p-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Total stock</div>
-                            <div className="text-lg font-medium text-ink">{variant.stock} units</div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                            <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Aronium codes</h4>
-                            <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">{variant.aroniumProductLinks.length} {pluralizeLabel(variant.aroniumProductLinks.length, "code")} linked</span>
-                        </div>
-
-                        {variant.aroniumProductLinks.length > 0 ? (
-                            <ul className="space-y-2">
-                                {variant.aroniumProductLinks.map((link) => (
-                                    <li key={link.id} className="flex items-center justify-between gap-3 rounded border border-border bg-white px-3 py-2 text-sm">
-                                        <span>
-                                            <span className="font-medium text-ink">{link.aroniumCode}</span>
-                                            <span className="ml-2 text-muted">({link.mode})</span>
-                                        </span>
-                                        {canManage ? <DeleteAroniumForm linkId={link.id} branchId={branchId} /> : null}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="mb-4 text-sm text-muted">No Aronium codes linked yet.</p>
-                        )}
-
-                        {canManage ? <AroniumForm variantId={variant.id} allowsLooseSale={variant.allowsLooseSale} branchId={branchId} /> : null}
-                    </div>
-                    </> : null}
-                </div>
-            </div>
-        </div>
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    const firstFocusable = panelRef.current?.querySelector<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
+    (firstFocusable ?? panelRef.current)?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  const title = editing
+    ? variant
+      ? "Edit variant"
+      : "Add variant"
+    : (variant?.brandName ?? "Catalog item");
+
+  return (
+    <div className="fixed inset-0 z-50 bg-on-surface/40 p-0 sm:p-space-md" role="presentation">
+      <div className="flex h-full items-end justify-end sm:items-center">
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="variant-detail-title"
+          aria-describedby={variant && !editing ? "variant-detail-description" : undefined}
+          className="flex h-[92vh] w-full flex-col overflow-y-auto border border-outline-variant bg-surface-container-lowest p-space-md shadow-modal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-auto sm:max-h-[90vh] sm:w-[560px] sm:p-space-lg"
+        >
+          <div className="mb-space-md flex items-start justify-between gap-space-md border-b border-outline-variant pb-space-md">
+            <div className="min-w-0">
+              <p className="font-eyebrow text-eyebrow uppercase text-secondary">Staff catalog</p>
+              <h2
+                id="variant-detail-title"
+                className="mt-space-xs break-words font-headline-md text-headline-md text-primary"
+              >
+                {title}
+              </h2>
+              {!editing && variant ? (
+                <p
+                  id="variant-detail-description"
+                  className="mt-space-xs font-body-sm text-body-sm text-on-surface-variant"
+                >
+                  {variant.strength ?? "Standard strength"}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-11 shrink-0 border border-outline-variant px-space-sm font-label-sm text-label-sm text-on-surface-variant hover:bg-surface-container-low focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Close
+            </button>
+          </div>
+
+          {editing && canManage ? (
+            <StaffVariantForm
+              categories={categories}
+              branchId={branchId}
+              variant={variant}
+              onCancel={() => (variant ? setEditing(false) : onClose())}
+              onSaved={(variantId) => {
+                setEditing(false);
+                onSaved(variantId);
+              }}
+            />
+          ) : variant ? (
+            <>
+              <div className="mb-space-md flex justify-end">
+                {canManage ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="min-h-11 border border-primary px-space-md font-label-sm text-label-sm text-primary hover:bg-primary hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    Edit
+                  </button>
+                ) : null}
+              </div>
+              <div className="grid min-w-0 grid-cols-1 gap-space-sm sm:grid-cols-2">
+                <StatCard
+                  label="Pack size"
+                  value={`${variant.packSize} ${pluralizeLabel(variant.packSize, variant.unitLabel)}`}
+                />
+                <div className="border-l-2 border-outline-variant bg-surface-container-lowest px-space-md py-space-md">
+                  <p className="font-table-header text-table-header uppercase text-on-surface-variant">
+                    Status
+                  </p>
+                  <div className="mt-space-md">
+                    <StatusBadge tone={variant.isActive ? "success" : "danger"}>
+                      {variant.isActive ? "Active" : "Inactive"}
+                    </StatusBadge>
+                  </div>
+                </div>
+                <StatCard label="Pack price" value={formatCurrency(variant.pricePerPack)} />
+                <StatCard
+                  label="Unit price"
+                  value={
+                    variant.allowsLooseSale ? formatCurrency(variant.pricePerUnit) : "Pack only"
+                  }
+                />
+              </div>
+              <div className="mt-space-sm border-l-2 border-primary bg-surface-container-low px-space-md py-space-md">
+                <p className="font-table-header text-table-header uppercase text-on-surface-variant">
+                  Total stock
+                </p>
+                <p className="mt-space-xs font-headline-sm text-headline-sm tabular-nums text-primary">
+                  {variant.stock} units
+                </p>
+              </div>
+              <StaffCatalogLinks variant={variant} branchId={branchId} canManage={canManage} />
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }

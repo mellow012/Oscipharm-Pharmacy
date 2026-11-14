@@ -1,92 +1,128 @@
 import { pluralizeLabel } from "@/lib/plural";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
 
 export type StaffCatalogVariantRow = {
-    id: string;
-    categoryId: string | null;
-    categoryName: string | null;
-    ingredientId: string | null;
-    ingredientName: string | null;
-    brandName: string;
-    strength: string | null;
-    packSize: number;
-    unitLabel: string;
-    allowsLooseSale: boolean;
-    isActive: boolean;
-    pricePerPack: string | null;
-    pricePerUnit: string | null;
-    stock: number;
-    aroniumProductLinks: Array<{ id: string; aroniumCode: string; mode: "PACK" | "UNIT" }>;
+  id: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  ingredientId: string | null;
+  ingredientName: string | null;
+  brandName: string;
+  strength: string | null;
+  packSize: number;
+  unitLabel: string;
+  allowsLooseSale: boolean;
+  isActive: boolean;
+  pricePerPack: string | null;
+  pricePerUnit: string | null;
+  stock: number;
+  aroniumProductLinks: Array<{ id: string; aroniumCode: string; mode: "PACK" | "UNIT" }>;
 };
 
 export type StaffCatalogIngredientGroup = {
-    ingredientName: string;
-    categoryName: string;
-    rows: StaffCatalogVariantRow[];
+  ingredientName: string;
+  categoryName: string;
+  rows: StaffCatalogVariantRow[];
 };
 
 function formatCurrency(value: string | null) {
-    if (!value) return "—";
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? `MK ${numeric.toLocaleString("en-MW")}` : value;
+  if (!value) return "—";
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `MK ${numeric.toLocaleString("en-MW")}` : value;
 }
 
 export function StaffCatalogVariantList({
-    groups,
-    searchText,
-    onSelect,
+  groups,
+  searchText,
+  onSelect,
 }: {
-    groups: StaffCatalogIngredientGroup[];
-    searchText: string;
-    onSelect: (variantId: string) => void;
+  groups: StaffCatalogIngredientGroup[];
+  searchText: string;
+  onSelect: (variantId: string) => void;
 }) {
-    return (
-        <div className="space-y-6">
-            {groups.map((group) => (
-                <section key={`${group.categoryName}:${group.ingredientName}`} className="rounded border border-border bg-white p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-3">
-                        <h2 className="text-lg text-ink">{group.ingredientName}</h2>
-                        {searchText ? <span className="text-xs uppercase tracking-[0.08em] text-muted">{group.categoryName}</span> : null}
+  return (
+    <div className="min-w-0 space-y-space-lg">
+      {groups.map((group) => (
+        <section
+          key={`${group.categoryName}:${group.ingredientName}`}
+          className="min-w-0 border border-outline-variant bg-surface-container-lowest p-space-md"
+        >
+          <div className="mb-space-sm flex min-w-0 items-center justify-between gap-space-sm border-b border-outline-variant pb-space-sm">
+            <h2 className="min-w-0 break-words font-headline-sm text-headline-sm text-primary">
+              {group.ingredientName}
+            </h2>
+            {searchText ? (
+              <span className="shrink-0 font-label-sm text-label-sm text-on-surface-variant">
+                {group.categoryName}
+              </span>
+            ) : null}
+          </div>
+          <div className="mb-space-xs hidden grid-cols-[minmax(0,2.3fr)_repeat(4,minmax(70px,1fr))_minmax(70px,1fr)_minmax(90px,1fr)] gap-space-sm px-space-sm font-table-header text-table-header uppercase text-on-surface-variant sm:grid">
+            <span>Brand</span>
+            <span>Pack size</span>
+            <span>Pack price</span>
+            <span>Unit price</span>
+            <span>Stock</span>
+            <span>Status</span>
+            <span>Aronium</span>
+          </div>
+          <div className="min-w-0 space-y-space-xs">
+            {group.rows.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => onSelect(row.id)}
+                className={`grid min-h-11 w-full min-w-0 grid-cols-1 gap-space-sm border px-space-sm py-space-sm text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:grid-cols-[minmax(0,2.3fr)_repeat(4,minmax(70px,1fr))_minmax(70px,1fr)_minmax(90px,1fr)] sm:items-center ${row.isActive ? "border-outline-variant bg-surface-container-lowest hover:bg-surface-container-low" : "border-status-danger/25 bg-status-danger-bg hover:bg-status-danger-bg/70"}`}
+              >
+                <div>
+                  <div className="break-words font-label-md text-label-md text-on-surface">
+                    {row.brandName}
+                  </div>
+                  {row.strength ? (
+                    <div className="mt-space-xs font-body-sm text-body-sm text-on-surface-variant">
+                      {row.strength}
                     </div>
-                    <div className="mb-1 hidden grid-cols-[minmax(0,2.3fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(80px,1fr)_minmax(120px,1fr)] gap-2 px-3 text-[0.62rem] font-medium uppercase tracking-[0.08em] text-muted sm:grid">
-                        <span>Brand</span>
-                        <span>Pack size</span>
-                        <span>Pack price</span>
-                        <span>Unit price</span>
-                        <span>Stock</span>
-                        <span>Status</span>
-                        <span>Aronium</span>
-                    </div>
-                    <div className="space-y-2">
-                        {group.rows.map((row) => (
-                            <button
-                                key={row.id}
-                                type="button"
-                                onClick={() => onSelect(row.id)}
-                                className={`grid w-full grid-cols-1 gap-2 rounded border px-3 py-3 text-left transition sm:grid-cols-[minmax(0,2.3fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(80px,1fr)_minmax(120px,1fr)] sm:items-center ${row.isActive ? "border-border bg-surface hover:border-primary/40 hover:bg-white" : "border-danger/25 bg-danger/5 hover:border-danger/50"}`}
-                            >
-                                <div>
-                                    <div className="font-medium text-ink">{row.brandName}</div>
-                                    {row.strength ? <div className="text-sm text-muted">{row.strength}</div> : null}
-                                </div>
-                                <div className="text-sm text-muted"><span className="font-medium text-ink">{row.packSize}</span> {pluralizeLabel(row.packSize, row.unitLabel)}</div>
-                                <div className="text-sm text-muted"><span className="font-medium text-ink">{formatCurrency(row.pricePerPack)}</span></div>
-                                <div className="text-sm text-muted">
-                                    {row.allowsLooseSale ? <span className="font-medium text-ink">{formatCurrency(row.pricePerUnit)}</span> : <span>Pack only</span>}
-                                </div>
-                                <div className="text-sm text-muted"><span className="font-medium text-ink">{row.stock}</span></div>
-                                <div>
-                                    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[0.62rem] font-medium uppercase tracking-[0.1em] ${row.isActive ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
-                                        {row.isActive ? "Active" : "Inactive"}
-                                    </span>
-                                </div>
-                                <div className="text-sm text-muted">
-                                    {row.aroniumProductLinks.length > 0 ? <span className="font-medium text-ink">{row.aroniumProductLinks.length} {pluralizeLabel(row.aroniumProductLinks.length, "code")}</span> : <span className="text-muted/80">Not linked</span>}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </section>
+                  ) : null}
+                </div>
+                <div className="font-body-sm text-body-sm text-on-surface-variant">
+                  <span className="font-semibold tabular-nums text-on-surface">{row.packSize}</span>{" "}
+                  {pluralizeLabel(row.packSize, row.unitLabel)}
+                </div>
+                <div className="font-body-sm text-body-sm tabular-nums text-on-surface">
+                  {formatCurrency(row.pricePerPack)}
+                </div>
+                <div className="font-body-sm text-body-sm text-on-surface-variant">
+                  {row.allowsLooseSale ? (
+                    <span className="tabular-nums text-on-surface">
+                      {formatCurrency(row.pricePerUnit)}
+                    </span>
+                  ) : (
+                    <span>Pack only</span>
+                  )}
+                </div>
+                <div className="font-body-sm text-body-sm tabular-nums text-on-surface">
+                  {row.stock}
+                </div>
+                <div>
+                  <StatusBadge tone={row.isActive ? "success" : "danger"}>
+                    {row.isActive ? "Active" : "Inactive"}
+                  </StatusBadge>
+                </div>
+                <div className="font-body-sm text-body-sm text-on-surface-variant">
+                  {row.aroniumProductLinks.length > 0 ? (
+                    <span className="tabular-nums text-on-surface">
+                      {row.aroniumProductLinks.length}{" "}
+                      {pluralizeLabel(row.aroniumProductLinks.length, "code")}
+                    </span>
+                  ) : (
+                    <span>Not linked</span>
+                  )}
+                </div>
+              </button>
             ))}
-        </div>
-    );
+          </div>
+        </section>
+      ))}
+    </div>
+  );
 }
