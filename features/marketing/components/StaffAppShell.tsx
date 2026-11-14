@@ -154,8 +154,7 @@ export function StaffAppShell({ role, name, branchLabel, navigation, children }:
                 aria-label="Staff workspace"
                 aria-hidden={!isDesktop && !drawerOpen ? true : undefined}
                 inert={!isDesktop && !drawerOpen}
-                style={{ transform: drawerOpen || isDesktop ? "translateX(0)" : "translateX(-100%)" }}
-                className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col border-r border-outline-variant bg-surface-container-lowest transition-transform duration-200 motion-reduce:transition-none"
+                className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col border-r border-outline-variant bg-surface-container-lowest transition-transform duration-200 motion-reduce:transition-none ${drawerOpen ? "translate-x-0" : "-translate-x-full min-[1200px]:translate-x-0"}`}
             >
                 <div className="flex min-h-24 items-start justify-between border-b border-outline-variant px-5 py-5">
                     <div className="min-w-0">
