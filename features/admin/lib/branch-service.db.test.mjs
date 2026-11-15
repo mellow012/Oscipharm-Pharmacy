@@ -54,8 +54,8 @@ test("branch create and update validate names and write before/after audits", as
       where: { userId: admin.id, action: "BRANCH_UPDATED", branchId: branch.id },
       orderBy: { createdAt: "desc" },
     });
-    assert.deepEqual(audit.details.before, { name: branch.name, location: "North District", isActive: true });
-    assert.deepEqual(audit.details.after, { name: `${branch.name} Central`, location: "Central", isActive: true });
+    assert.deepEqual(audit.details.before, { name: branch.name, location: "North District", contactNumber: null, isActive: true });
+    assert.deepEqual(audit.details.after, { name: `${branch.name} Central`, location: "Central", contactNumber: null, isActive: true });
 
     const invalidName = await createBranch(admin.id, { name: "  ", location: "Blantyre" });
     assert.deepEqual(invalidName, { ok: false, message: "Branch name is required." });

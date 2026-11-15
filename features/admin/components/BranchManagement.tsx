@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { InPlaceFilter } from "@/features/shared/components/InPlaceFilter";
 import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import { FormField, FormInput } from "@/features/shared/components/FormField";
 import { ArchiveControl, BranchDeleteControl } from "@/features/admin/components/ArchiveControls";
 import { SubmitButton } from "@/features/marketing/components/SubmitButton";
 import {
@@ -121,14 +122,15 @@ function CreateBranchForm() {
 
     return (
         <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm text-muted">
-                Branch name
-                <input name="name" type="text" maxLength={120} required className="mt-1 block w-full border border-border bg-white px-3 py-2 text-ink" />
-            </label>
-            <label className="text-sm text-muted">
-                Location
-                <input name="location" type="text" maxLength={240} required className="mt-1 block w-full border border-border bg-white px-3 py-2 text-ink" />
-            </label>
+            <FormField id="create-branch-name" label="Branch name" required>
+                {(fieldProps) => <FormInput {...fieldProps} name="name" type="text" maxLength={120} />}
+            </FormField>
+            <FormField id="create-branch-location" label="Location" required>
+                {(fieldProps) => <FormInput {...fieldProps} name="location" type="text" maxLength={240} />}
+            </FormField>
+            <FormField id="create-branch-contact" label="Contact number" helperText="Optional">
+                {(fieldProps) => <FormInput {...fieldProps} name="contactNumber" type="tel" maxLength={20} autoComplete="tel" />}
+            </FormField>
             <ActionMessage state={state} />
             <div className="sm:col-span-2">
                 <SubmitButton className="border border-primary bg-primary px-4 py-2 font-medium text-primary-fg">Create branch</SubmitButton>
@@ -147,9 +149,13 @@ function BranchListItem({ branch }: { branch: BranchRow }) {
                 </div>
                 <Link href={`/admin/staff?branchId=${encodeURIComponent(branch.id)}`} className="group/link inline-block rounded-sm outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                     <p className="mt-1 break-words text-sm text-muted">{branch.location}</p>
-                    {branch.contactNumber ? <p className="mt-1 text-sm text-primary group-hover/link:underline">{branch.contactNumber}</p> : null}
                     <span className="mt-2 inline-block text-xs text-primary group-hover/link:underline">View assigned staff</span>
                 </Link>
+                {branch.contactNumber ? (
+                    <a href={`tel:${branch.contactNumber.replace(/[^\d+]/g, "")}`} className="mt-1 inline-block rounded-sm text-sm text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                        {branch.contactNumber}
+                    </a>
+                ) : <p className="mt-1 text-sm text-muted">No contact number</p>}
                 <p className="mt-2 font-mono text-xs text-muted">{branch._count.users} staff · {branch._count.batches} batches</p>
             </div>
             <div className="flex flex-wrap gap-3 sm:justify-end">
@@ -170,14 +176,15 @@ function EditBranchForm({ branch }: { branch: BranchRow }) {
             <summary className="min-h-10 cursor-pointer border border-border px-3 py-2 text-center text-sm text-ink hover:bg-chip sm:w-24">Edit</summary>
             <form action={formAction} className="mt-3 grid gap-3 border border-border bg-surface p-4 sm:min-w-80">
                 <input type="hidden" name="branchId" value={branch.id} />
-                <label className="text-sm text-muted">
-                    Branch name
-                    <input name="name" type="text" maxLength={120} required defaultValue={branch.name} className="mt-1 block w-full border border-border bg-white px-3 py-2 text-ink" />
-                </label>
-                <label className="text-sm text-muted">
-                    Location
-                    <input name="location" type="text" maxLength={240} required defaultValue={branch.location ?? ""} className="mt-1 block w-full border border-border bg-white px-3 py-2 text-ink" />
-                </label>
+                <FormField id={`edit-branch-name-${branch.id}`} label="Branch name" required>
+                    {(fieldProps) => <FormInput {...fieldProps} name="name" type="text" maxLength={120} defaultValue={branch.name} />}
+                </FormField>
+                <FormField id={`edit-branch-location-${branch.id}`} label="Location" required>
+                    {(fieldProps) => <FormInput {...fieldProps} name="location" type="text" maxLength={240} defaultValue={branch.location ?? ""} />}
+                </FormField>
+                <FormField id={`edit-branch-contact-${branch.id}`} label="Contact number" helperText="Optional">
+                    {(fieldProps) => <FormInput {...fieldProps} name="contactNumber" type="tel" maxLength={20} autoComplete="tel" defaultValue={branch.contactNumber ?? ""} />}
+                </FormField>
                 <ActionMessage state={state} />
                 <SubmitButton className="w-fit border border-primary px-4 py-2 text-sm font-medium text-primary">Save changes</SubmitButton>
             </form>

@@ -2,25 +2,16 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { can } from "../../../lib/permissions.ts";
 import { BRANCH_LIFECYCLE_AUDIT_ACTIONS, canArchiveBranch, canDeleteBranch, ensureBranchNameInAuditDetails } from "./branch-lifecycle-rules.ts";
+import { validateBranchInput, type BranchInput } from "./branch-input.ts";
 
 type BranchDb = PrismaClient | Prisma.TransactionClient;
-type BranchSnapshot = { name: string; location: string; isActive: boolean };
+type BranchSnapshot = { name: string; location: string; contactNumber: string | null; isActive: boolean };
 type BranchResult<T = null> = { ok: true; message: string; branch?: T } | { ok: false; message: string };
-type BranchInput = { name: unknown; location: unknown };
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 async function requireAdmin(db: BranchDb, actorId: string) {
     const actor = await db.user.findUnique({ where: { id: actorId }, select: { id: true, name: true, role: true, isActive: true } });
     return actor?.isActive && actor.role === "ADMIN" && can(actor.role, "branches:manage") ? actor : null;
-}
-
-function normalizeInput(input: BranchInput): { ok: true; name: string; location: string } | { ok: false; message: string } {
-    if (typeof input.name !== "string" || !input.name.trim()) return { ok: false, message: "Branch name is required." };
-    if (input.name.trim().length > 120) return { ok: false, message: "Branch name must be 120 characters or fewer." };
-    if (typeof input.location !== "string" || !input.location.trim()) return { ok: false, message: "Branch location is required." };
-    const location = input.location.trim();
-    if (location.length > 240) return { ok: false, message: "Branch location must be 240 characters or fewer." };
-    return { ok: true, name: input.name.trim(), location };
 }
 
 async function nameExists(db: BranchDb, name: string, exceptId?: string) {
@@ -37,21 +28,21 @@ async function lockBranchManagement(tx: Prisma.TransactionClient) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 2)`;
 }
 
-export async function createBranch(actorId: string, input: BranchInput): Promise<BranchResult<{ id: string; name: string; location: string; isActive: boolean }>> {
-    const valid = normalizeInput(input);
+export async function createBranch(actorId: string, input: BranchInput): Promise<BranchResult<{ id: string; name: string; location: string; contactNumber: string | null; isActive: boolean }>> {
+    const valid = validateBranchInput(input);
     if (!valid.ok) return valid;
     try {
         return await prisma.$transaction(async (tx) => {
             await lockBranchManagement(tx);
             if (!(await requireAdmin(tx, actorId))) return { ok: false, message: "You are not authorized to manage branches." };
-            if (await nameExists(tx, valid.name)) return { ok: false, message: "A branch with that name already exists." };
-            const branch = await tx.branch.create({ data: { name: valid.name, location: valid.location } });
+            if (await nameExists(tx, valid.value.name)) return { ok: false, message: "A branch with that name already exists." };
+            const branch = await tx.branch.create({ data: valid.value });
             await tx.auditLog.create({
                 data: {
                     action: "BRANCH_CREATED",
                     branchId: branch.id,
                     userId: actorId,
-                    details: { before: null, after: { name: branch.name, location: branch.location, isActive: branch.isActive } },
+                    details: { before: null, after: { name: branch.name, location: branch.location, contactNumber: branch.contactNumber, isActive: branch.isActive } },
                 },
             });
             return { ok: true, message: "Branch created.", branch };
@@ -65,7 +56,7 @@ export async function createBranch(actorId: string, input: BranchInput): Promise
 }
 
 export async function updateBranch(actorId: string, branchId: string, input: BranchInput): Promise<BranchResult> {
-    const valid = normalizeInput(input);
+    const valid = validateBranchInput(input);
     if (!valid.ok) return valid;
     try {
         return await prisma.$transaction(async (tx) => {
@@ -73,10 +64,10 @@ export async function updateBranch(actorId: string, branchId: string, input: Bra
             if (!(await requireAdmin(tx, actorId))) return { ok: false, message: "You are not authorized to manage branches." };
             const current = await tx.branch.findUnique({ where: { id: branchId } });
             if (!current) return { ok: false, message: "Branch not found." };
-            if (await nameExists(tx, valid.name, branchId)) return { ok: false, message: "A branch with that name already exists." };
-            const before: BranchSnapshot = { name: current.name, location: current.location, isActive: current.isActive };
-            const branch = await tx.branch.update({ where: { id: branchId }, data: { name: valid.name, location: valid.location } });
-            const after: BranchSnapshot = { name: branch.name, location: branch.location, isActive: branch.isActive };
+            if (await nameExists(tx, valid.value.name, branchId)) return { ok: false, message: "A branch with that name already exists." };
+            const before: BranchSnapshot = { name: current.name, location: current.location, contactNumber: current.contactNumber, isActive: current.isActive };
+            const branch = await tx.branch.update({ where: { id: branchId }, data: valid.value });
+            const after: BranchSnapshot = { name: branch.name, location: branch.location, contactNumber: branch.contactNumber, isActive: branch.isActive };
             await tx.auditLog.create({
                 data: { action: "BRANCH_UPDATED", branchId, userId: actorId, details: { before, after } },
             });
@@ -120,9 +111,9 @@ export async function deactivateBranch(actorId: string, branchId: string): Promi
         }
         const activeBranchCount = await tx.branch.count({ where: { isActive: true } });
         if (activeBranchCount <= 1) return { ok: false, message: "At least one active branch must remain." };
-        const before: BranchSnapshot = { name: branch.name, location: branch.location, isActive: branch.isActive };
+        const before: BranchSnapshot = { name: branch.name, location: branch.location, contactNumber: branch.contactNumber, isActive: branch.isActive };
         const updated = await tx.branch.update({ where: { id: branchId }, data: { isActive: false } });
-        const after: BranchSnapshot = { name: updated.name, location: updated.location, isActive: updated.isActive };
+        const after: BranchSnapshot = { name: updated.name, location: updated.location, contactNumber: updated.contactNumber, isActive: updated.isActive };
         await tx.auditLog.create({ data: { action: "BRANCH_DEACTIVATED", branchId, userId: actorId, details: { before, after } } });
         return { ok: true, message: "Branch deactivated." };
     }, { timeout: 30_000, maxWait: 10_000 });
@@ -136,9 +127,9 @@ export async function reactivateBranch(actorId: string, branchId: string): Promi
         if (!branch) return { ok: false, message: "Branch not found." };
         if (branch.archivedAt) return { ok: false, message: "Restore this branch before reactivating it." };
         if (branch.isActive) return { ok: true, message: "Branch is already active." };
-        const before: BranchSnapshot = { name: branch.name, location: branch.location, isActive: branch.isActive };
+        const before: BranchSnapshot = { name: branch.name, location: branch.location, contactNumber: branch.contactNumber, isActive: branch.isActive };
         const updated = await tx.branch.update({ where: { id: branchId }, data: { isActive: true } });
-        const after: BranchSnapshot = { name: updated.name, location: updated.location, isActive: updated.isActive };
+        const after: BranchSnapshot = { name: updated.name, location: updated.location, contactNumber: updated.contactNumber, isActive: updated.isActive };
         await tx.auditLog.create({ data: { action: "BRANCH_REACTIVATED", branchId, userId: actorId, details: { before, after } } });
         return { ok: true, message: "Branch reactivated." };
     }, { timeout: 30_000, maxWait: 10_000 });

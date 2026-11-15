@@ -17,6 +17,7 @@ function branchInput(formData: FormData) {
     return {
         name: formData.get("name"),
         location: formData.get("location"),
+        contactNumber: formData.get("contactNumber"),
     };
 }
 
