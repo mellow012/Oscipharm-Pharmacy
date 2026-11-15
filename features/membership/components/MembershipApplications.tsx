@@ -5,24 +5,36 @@ import { membershipTopicLabels, type MembershipTopic } from "@/features/membersh
 
 type Applications = Awaited<ReturnType<typeof import("@/features/membership/lib/queries").getMembershipApplications>>;
 
-export function MembershipApplications({ applications }: { applications: Applications }) {
-    const pendingCount = applications.filter((application) => application.status !== "REJECTED").length;
+export function MembershipApplications({ applications, query = "", totalCount = applications.length }: {
+    applications: Applications;
+    query?: string;
+    totalCount?: number;
+}) {
+    const pendingCount = applications.filter((application) => application.status === MembershipStatus.PENDING).length;
     const activeCount = applications.filter((application) => application.status === "ACTIVE").length;
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Admin workspace</p>
+                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Membership review</p>
                     <h1 className="text-4xl leading-tight text-ink">Membership requests</h1>
                     <p className="mt-2 text-sm text-muted">Approve eligible members and set the discount rate agreed by pharmacy policy.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="border border-border bg-surface px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{applications.length} requests</span>
+                    <span className="border border-border bg-surface px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{query ? `${applications.length} of ${totalCount} requests` : `${totalCount} requests`}</span>
                     <span className="border border-primary bg-primary/5 px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-primary">{pendingCount} pending</span>
                     <span className="border border-border px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{activeCount} active</span>
                 </div>
             </header>
+            <form method="get" action="/admin/memberships" role="search" className="flex flex-wrap items-end gap-3 border-b border-border py-5">
+                <label className="text-sm text-muted">
+                    Search name or phone
+                    <input name="q" type="search" defaultValue={query} className="mt-1 block w-full min-w-64 border border-border bg-surface px-3 py-2 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+                </label>
+                <button type="submit" className="border border-primary px-4 py-2 text-sm text-primary hover:bg-chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Search</button>
+                {query ? <a href="/admin/memberships" className="rounded-sm px-2 py-2 text-sm text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Clear</a> : null}
+            </form>
             {applications.length ? (
                 <ul className="divide-y divide-border border-b border-border">
                     {applications.map((application) => (
@@ -69,7 +81,7 @@ export function MembershipApplications({ applications }: { applications: Applica
                     ))}
                 </ul>
             ) : (
-                <p className="border-b border-border py-10 text-muted">No membership requests yet.</p>
+                <p className="border-b border-border py-10 text-muted">{query ? "No membership requests match that search." : "No membership requests yet."}</p>
             )}
         </div>
     );

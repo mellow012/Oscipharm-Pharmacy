@@ -15,6 +15,7 @@ export async function getBranchesForAdmin() {
             id: true,
             name: true,
             location: true,
+            contactNumber: true,
             isActive: true,
             _count: { select: { users: true, batches: true } },
         },

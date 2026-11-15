@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { StaffManagementTable } from "@/features/admin/components/StaffManagementTable";
 import { listTeamForManager } from "@/features/admin/lib/staff-service";
-import { roleLabel } from "@/features/admin/lib/staff-rules";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -21,21 +21,7 @@ export default async function StaffTeamPage() {
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Staff workspace</p>
                 <h1 className="mt-2 text-3xl text-ink">Team</h1>
             </header>
-            <div className="divide-y divide-border border-y border-border">
-                {result.users.map((user) => (
-                    <div key={user.id} className={`flex flex-wrap items-center justify-between gap-3 py-4 ${user.isActive ? "" : "opacity-50"}`}>
-                        <div className="min-w-0">
-                            <p className="truncate text-base text-ink">{user.name}</p>
-                            <p className="truncate text-sm text-muted">{user.email}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {!user.isActive ? <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">Inactive</span> : null}
-                            <span className="font-mono text-xs uppercase tracking-[0.1em] text-primary">{roleLabel(user.role)}</span>
-                        </div>
-                    </div>
-                ))}
-                {!result.users.length ? <p className="py-8 text-sm text-muted">No staff accounts found.</p> : null}
-            </div>
+            <StaffManagementTable users={result.users} branches={[]} showHeader={false} />
         </div>
     );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { SubmitButton } from "@/features/marketing/components/SubmitButton";
 import {
     createBranchAction,
@@ -13,6 +14,7 @@ type BranchRow = {
     id: string;
     name: string;
     location: string | null;
+    contactNumber: string | null;
     isActive: boolean;
     _count: { users: number; batches: number };
 };
@@ -107,7 +109,11 @@ function BranchListItem({ branch }: { branch: BranchRow }) {
                         {branch.isActive ? "Active" : "Inactive"}
                     </span>
                 </div>
-                <p className="mt-1 break-words text-sm text-muted">{branch.location}</p>
+                <Link href={`/admin/staff?branchId=${encodeURIComponent(branch.id)}`} className="group/link inline-block rounded-sm outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                    <p className="mt-1 break-words text-sm text-muted">{branch.location}</p>
+                    {branch.contactNumber ? <p className="mt-1 text-sm text-primary group-hover/link:underline">{branch.contactNumber}</p> : null}
+                    <span className="mt-2 inline-block text-xs text-primary group-hover/link:underline">View assigned staff</span>
+                </Link>
                 <p className="mt-2 font-mono text-xs text-muted">{branch._count.users} staff · {branch._count.batches} batches</p>
             </div>
             <div className="flex flex-wrap gap-3 sm:justify-end">

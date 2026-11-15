@@ -10,9 +10,10 @@ import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminStaffPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> | { tab?: string } }) {
-    const params = searchParams ? await Promise.resolve(searchParams) : {};
+export default async function AdminStaffPage({ searchParams }: { searchParams: Promise<{ tab?: string | string[]; branchId?: string | string[] }> }) {
+    const params = await searchParams;
     const activeTab = params.tab === "branches" ? "branches" : "staff";
+    const selectedBranchId = typeof params.branchId === "string" ? params.branchId : "";
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) redirect("/login");
@@ -26,6 +27,9 @@ export default async function AdminStaffPage({ searchParams }: { searchParams?: 
     if (!staffResult.ok || !branchResult.ok || !invitationResult.ok) redirect("/unauthorized");
 
     const branches = await getBranchesForAdmin();
+    const staffUsers = selectedBranchId
+        ? staffResult.users.filter((user) => user.branchId === selectedBranchId)
+        : staffResult.users;
 
     const invitations = invitationResult.invitations.map((invitation) => ({
         id: invitation.id,
@@ -51,13 +55,15 @@ export default async function AdminStaffPage({ searchParams }: { searchParams?: 
                     <div className="flex flex-wrap gap-2">
                         <a
                             href="/admin/staff"
-                            className={`border px-3 py-2 text-sm ${activeTab === "staff" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
+                            aria-current={activeTab === "staff" ? "page" : undefined}
+                            className={`rounded-sm border px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTab === "staff" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
                         >
                             Staff directory
                         </a>
                         <a
                             href="/admin/staff?tab=branches"
-                            className={`border px-3 py-2 text-sm ${activeTab === "branches" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
+                            aria-current={activeTab === "branches" ? "page" : undefined}
+                            className={`rounded-sm border px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTab === "branches" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
                         >
                             Branch locations
                         </a>
@@ -70,7 +76,14 @@ export default async function AdminStaffPage({ searchParams }: { searchParams?: 
             ) : (
                 <>
                     <StaffInvitations branches={branchResult.branches} invitations={invitations} />
-                    <StaffManagementTable users={staffResult.users} branches={branchResult.branches} actorId={session.user.id} showHeader={false} />
+                    <StaffManagementTable
+                        users={staffUsers}
+                        branches={branchResult.branches}
+                        actorId={session.user.id}
+                        showHeader={false}
+                        enableBranchFilter
+                        selectedBranchId={selectedBranchId}
+                    />
                 </>
             )}
         </div>

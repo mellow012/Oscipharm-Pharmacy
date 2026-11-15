@@ -25,6 +25,7 @@ function branchIdFrom(formData: FormData) {
 
 async function revalidateBranchPages() {
     revalidatePath("/admin/branches");
+    revalidatePath("/admin/staff");
     revalidatePath("/admin");
 }
 

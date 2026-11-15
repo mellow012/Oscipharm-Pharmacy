@@ -6,21 +6,37 @@ import { deactivateStaffAccount, reactivateStaffAccount, sendStaffPasswordReset,
 import { roleLabel, STAFF_ROLES, type StaffRole } from "@/features/admin/lib/staff-rules";
 import type { StaffBranchOption, StaffSummary } from "@/features/admin/lib/staff-types";
 
-export function StaffManagementTable({ users, branches, actorId, showHeader = true }: {
+export function StaffManagementTable({ users, branches, actorId, showHeader = true, enableBranchFilter = false, selectedBranchId = "" }: {
     users: StaffSummary[];
     branches: StaffBranchOption[];
-    actorId: string;
+    actorId?: string;
     showHeader?: boolean;
+    enableBranchFilter?: boolean;
+    selectedBranchId?: string;
 }) {
     const router = useRouter();
+    const readOnly = !actorId;
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 sm:px-8">
+        <div className={showHeader ? "mx-auto w-full max-w-6xl px-5 py-8 sm:px-8" : "w-full min-w-0"}>
             {showHeader ? (
                 <header className="mb-6 border-b border-border pb-6">
                     <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
                     <h1 className="mt-2 text-3xl text-ink">Staff management</h1>
                 </header>
+            ) : null}
+            {enableBranchFilter ? (
+                <form method="get" action="/admin/staff" className="mb-4 flex flex-wrap items-end gap-3">
+                    <label className="text-sm text-muted">
+                        Filter by branch
+                        <select name="branchId" defaultValue={selectedBranchId} className="mt-1 block min-w-56 border border-border bg-surface px-3 py-2 text-ink">
+                            <option value="">All branches</option>
+                            {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                        </select>
+                    </label>
+                    <button type="submit" className="border border-primary px-4 py-2 text-sm text-primary hover:bg-chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Apply filter</button>
+                    {selectedBranchId ? <a href="/admin/staff" className="rounded-sm px-2 py-2 text-sm text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Clear</a> : null}
+                </form>
             ) : null}
             <div className="overflow-x-auto border-y border-border">
                 <table className="w-full min-w-[760px] text-left">
@@ -31,14 +47,14 @@ export function StaffManagementTable({ users, branches, actorId, showHeader = tr
                             <th className="px-3 py-3 font-normal">Role</th>
                             <th className="px-3 py-3 font-normal">Branch</th>
                             <th className="px-3 py-3 font-normal">Status</th>
-                            <th className="px-3 py-3 font-normal">Actions</th>
+                            {!readOnly ? <th className="px-3 py-3 font-normal">Actions</th> : null}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                         {users.map((user) => (
-                            <StaffManagementRow key={user.id} user={user} branches={branches} isSelf={user.id === actorId} onChanged={() => router.refresh()} />
+                            <StaffManagementRow key={user.id} user={user} branches={branches} isSelf={user.id === actorId} readOnly={readOnly} onChanged={() => router.refresh()} />
                         ))}
-                        {!users.length ? <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted">No staff accounts found.</td></tr> : null}
+                        {!users.length ? <tr><td colSpan={readOnly ? 5 : 6} className="px-3 py-8 text-center text-sm text-muted">No staff accounts found.</td></tr> : null}
                     </tbody>
                 </table>
             </div>
@@ -46,10 +62,11 @@ export function StaffManagementTable({ users, branches, actorId, showHeader = tr
     );
 }
 
-function StaffManagementRow({ user, branches, isSelf, onChanged }: {
+function StaffManagementRow({ user, branches, isSelf, readOnly, onChanged }: {
     user: StaffSummary;
     branches: StaffBranchOption[];
     isSelf: boolean;
+    readOnly: boolean;
     onChanged: () => void;
 }) {
     const [editing, setEditing] = useState(false);
@@ -88,7 +105,7 @@ function StaffManagementRow({ user, branches, isSelf, onChanged }: {
             <td className="px-3 py-3">
                 <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">{user.isActive ? "Active" : "Inactive"}</span>
             </td>
-            <td className="px-3 py-3">
+            {!readOnly ? <td className="px-3 py-3">
                 <div className="flex min-w-52 flex-col items-start gap-2 text-sm">
                     {isSelf ? <p className="text-muted">You can't change your own account.</p> : (
                         <>
@@ -131,7 +148,7 @@ function StaffManagementRow({ user, branches, isSelf, onChanged }: {
                     ) : null}
                     {message ? <p role="status" className="text-xs text-muted">{message}</p> : null}
                 </div>
-            </td>
+            </td> : null}
         </tr>
     );
 }
