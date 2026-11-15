@@ -8,21 +8,21 @@ function labels(items) {
 
 test("Admin sees permission-filtered staff and Admin navigation", () => {
   const navigation = getStaffNavigation("ADMIN");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events"]);
-  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff & Branches", "Memberships", "News and events"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Members"]);
+  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff & Branches", "Memberships", "Members", "News and events"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
 test("Branch Manager sees only their existing staff-area permissions and Team tab", () => {
   const navigation = getStaffNavigation("BRANCH_MANAGER");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events"]);
-  assert.deepEqual(labels(navigation.admin), ["Memberships", "News and events", "Team"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Members"]);
+  assert.deepEqual(labels(navigation.admin), ["Memberships", "Members", "News and events", "Team"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
 test("Sales/POS sees its own staff navigation", () => {
   const navigation = getStaffNavigation("POS");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import sales"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import sales", "Members"]);
   assert.deepEqual(labels(navigation.admin), []);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });

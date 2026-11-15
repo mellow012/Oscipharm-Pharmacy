@@ -50,6 +50,7 @@ const navIcons: Record<string, LucideIcon> = {
     Staff: UsersRound,
     Branches: Building2,
     Memberships: HeartHandshake,
+    Members: UsersRound,
     Team: UsersRound,
 };
 

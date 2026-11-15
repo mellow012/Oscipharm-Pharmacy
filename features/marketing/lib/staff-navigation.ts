@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { can, getImportAccess, type Permission } from "../../../lib/permissions.ts";
+import { can, getImportAccess, getMembersAccess, type Permission } from "../../../lib/permissions.ts";
 
 export type StaffNavigationItem = {
     href: string;
@@ -21,6 +21,7 @@ export type StaffNavigationGroup = {
 const NAVIGATION_GROUPS: Array<{ label: string; hrefs: string[] }> = [
     { label: "Workspace", hrefs: ["/staff"] },
     { label: "Operations", hrefs: ["/staff/sales", "/inventory", "/staff/catalog", "/staff/import"] },
+    { label: "Members", hrefs: ["/staff/members"] },
     { label: "Insights", hrefs: ["/reports"] },
     { label: "Administration", hrefs: ["/admin", "/admin/staff", "/admin/memberships", "/staff/team"] },
     { label: "Communication", hrefs: ["/staff/news"] },
@@ -33,6 +34,7 @@ const STAFF_ITEMS: StaffNavigationItem[] = [
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
     { href: "/reports", label: "Reports", permission: "reports:branch:view" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
+    { href: "/staff/members", label: "Members", permission: "members:view" },
 ];
 
 const POS_ITEMS: StaffNavigationItem[] = [
@@ -40,12 +42,14 @@ const POS_ITEMS: StaffNavigationItem[] = [
     { href: "/staff/sales", label: "Sales", permission: "sales:view" },
     { href: "/inventory", label: "Inventory", permission: "inventory:view" },
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
+    { href: "/staff/members", label: "Members", permission: "members:view" },
 ];
 
 const ADMIN_ITEMS: StaffNavigationItem[] = [
     { href: "/admin", label: "Overview", permission: "users:manage" },
     { href: "/admin/staff", label: "Staff & Branches", permission: "users:manage" },
     { href: "/admin/memberships", label: "Memberships", permission: "membership:manage" },
+    { href: "/staff/members", label: "Members", permission: "members:view" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
     { href: "/staff/team", label: "Team", permission: "reports:branch:view" },
 ];
@@ -71,8 +75,10 @@ export function getStaffNavigation(role: Role | null): StaffNavigation {
     if (!role) return { staff: [], admin: [], account: accountItems() };
 
     const allowed = (item: StaffNavigationItem) => can(role, item.permission);
+    const memberAccess = getMembersAccess(role);
+    const isAllowed = (item: StaffNavigationItem) => item.permission === "members:view" ? memberAccess.view : allowed(item);
     const importAccess = getImportAccess(role);
-    const staff = (role === "POS" ? POS_ITEMS : STAFF_ITEMS).filter(allowed);
+    const staff = (role === "POS" ? POS_ITEMS : STAFF_ITEMS).filter(isAllowed);
     if (importAccess.label) {
         const catalogIndex = staff.findIndex((item) => item.href === "/staff/catalog");
         staff.splice(catalogIndex < 0 ? staff.length : catalogIndex + 1, 0, {
@@ -86,7 +92,8 @@ export function getStaffNavigation(role: Role | null): StaffNavigation {
         staff,
         admin: ADMIN_ITEMS.filter((item) => {
             if (item.label === "Team") return role === "BRANCH_MANAGER";
-            return allowed(item);
+            if (item.href === "/staff/members") return role !== "POS" && memberAccess.view;
+            return isAllowed(item);
         }),
         account: accountItems(),
     };

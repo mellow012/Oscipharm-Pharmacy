@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { can, getImportAccess, type Permission } from "../../../lib/permissions.ts";
+import { can, getImportAccess, getMembersAccess, type Permission } from "../../../lib/permissions.ts";
 
 export type HomeTile = {
     label: string;
@@ -26,12 +26,14 @@ const MORE_TILES: HomeTile[] = [
     { label: "Import", description: "", href: "/staff/import", permission: null, accent: "border-primary" },
     { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage", accent: "border-primary" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage", accent: "border-warn" },
+    { label: "Members", description: "Search member details for dispensing", href: "/staff/members", permission: "members:view", accent: "border-warn" },
     { label: "Administration", description: "Review staff, branch coverage, and pharmacy totals", href: "/admin", permission: "users:manage", accent: "border-primary" },
 ];
 
 export function getHomeTileGroups(role: Role): HomeTileGroup[] {
     const daily = DAILY_TILES.filter((tile) => tile.permission !== null && can(role, tile.permission));
     const importAccess = getImportAccess(role);
+    const membersAccess = getMembersAccess(role);
     const more = MORE_TILES.flatMap((tile) => {
         if (tile.href === "/staff/import") {
             if (!importAccess.label) return [];
@@ -43,6 +45,7 @@ export function getHomeTileGroups(role: Role): HomeTileGroup[] {
                     : "Preview and import an Aronium Sales Item workbook",
             }];
         }
+        if (tile.permission === "members:view") return membersAccess.view ? [tile] : [];
         return tile.permission !== null && can(role, tile.permission) ? [tile] : [];
     });
 
