@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { aggregateUnallocatedUnits } from "@/features/inventory/lib/sales-shortfall";
+import { buildInventoryBatchWhereClause } from "@/features/inventory/lib/inventory-batch-filter";
+export { parseInventoryEmptyToggle } from "@/features/inventory/lib/inventory-batch-filter";
 
 export async function getInventoryBranches() {
     return prisma.branch.findMany({
@@ -8,16 +10,34 @@ export async function getInventoryBranches() {
     });
 }
 
-export async function getInventoryData(branchId: string, includeNonPositiveBatches = false) {
-    const [branch, batches, variants, latestSalesImport] = await prisma.$transaction([
+export async function getInventoryData(branchId: string, includeZeroBatches = false) {
+    const [branch, batches, negativeBatches, variants, latestSalesImport] = await prisma.$transaction([
         prisma.branch.findUnique({
             where: { id: branchId },
             select: { id: true, name: true, location: true },
         }),
         prisma.batch.findMany({
-            where: includeNonPositiveBatches
-                ? { branchId }
-                : { branchId, quantityRemaining: { gt: 0 } },
+            where: buildInventoryBatchWhereClause(branchId, includeZeroBatches),
+            orderBy: { expiryDate: "asc" },
+            select: {
+                id: true,
+                batchNumber: true,
+                quantityRemaining: true,
+                expiryDate: true,
+                expiryDateKnown: true,
+                variant: {
+                    select: {
+                        brandName: true,
+                        strength: true,
+                        packSize: true,
+                        unitLabel: true,
+                        ingredient: { select: { name: true } },
+                    },
+                },
+            },
+        }),
+        prisma.batch.findMany({
+            where: { branchId, quantityRemaining: { lt: 0 } },
             orderBy: { expiryDate: "asc" },
             select: {
                 id: true,
@@ -90,6 +110,13 @@ export async function getInventoryData(branchId: string, includeNonPositiveBatch
         branch,
         salesImportShortfalls,
         batches: batches.map((batch) => ({
+            ...batch,
+            variant: {
+                ...batch.variant,
+                ingredient: batch.variant.ingredient ?? { name: "Uncategorized" },
+            },
+        })),
+        negativeBatches: negativeBatches.map((batch) => ({
             ...batch,
             variant: {
                 ...batch.variant,

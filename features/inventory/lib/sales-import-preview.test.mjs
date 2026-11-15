@@ -7,6 +7,7 @@ import { parseSalesExport } from "./sales-parser.ts";
 import { buildSalesImportPreview, isHistoryOnlySalesDocument } from "./sales-import-preview.ts";
 import { requireCommittedOpeningStockRun } from "./opening-stock-guard.ts";
 import { aggregateUnallocatedUnits } from "./sales-shortfall.ts";
+import { buildInventoryBatchWhereClause, parseInventoryEmptyToggle } from "./inventory-batch-filter.ts";
 
 const fixture = path.resolve("features/inventory/lib/__fixtures__/sales-item-list.xlsx");
 
@@ -91,4 +92,16 @@ test("unallocated sale units aggregate by variant and omit zero rows", () => {
     { variantId: "v2", productName: "ORS Sachet", units: 4 },
     { variantId: "v1", productName: "Panadol 500mg", units: 5 },
   ]);
+});
+
+test("inventory batch filter keeps positive totals by default and includes zero batches when requested", () => {
+  assert.deepEqual(buildInventoryBatchWhereClause("branch-1"), { branchId: "branch-1", quantityRemaining: { gt: 0 } });
+  assert.deepEqual(buildInventoryBatchWhereClause("branch-1", true), { branchId: "branch-1", quantityRemaining: { gte: 0 } });
+});
+
+test("inventory empty toggle parsing accepts the expected URL values", () => {
+  assert.equal(parseInventoryEmptyToggle(undefined), false);
+  assert.equal(parseInventoryEmptyToggle("1"), true);
+  assert.equal(parseInventoryEmptyToggle("0"), false);
+  assert.equal(parseInventoryEmptyToggle(["1", "0"]), true);
 });

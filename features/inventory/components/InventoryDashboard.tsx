@@ -56,7 +56,7 @@ export function InventoryDashboard({
   const [isPending, startTransition] = useTransition();
   const unitsOnHand = data.batches.reduce((sum, batch) => sum + batch.quantityRemaining, 0);
   const activeBatches = data.batches.filter((batch) => batch.quantityRemaining > 0);
-  const negativeBatches = data.batches.filter((batch) => batch.quantityRemaining < 0);
+  const negativeBatches = data.negativeBatches ?? [];
 
   return (
     <div className="mx-auto min-h-screen w-full min-w-0 max-w-[1440px] space-y-space-lg overflow-x-clip px-gutter-mobile py-space-lg sm:px-6 sm:py-space-xl">
