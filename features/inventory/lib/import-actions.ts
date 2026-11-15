@@ -33,7 +33,7 @@ async function getImportActor(permission?: ImportPermission): Promise<ImportActo
 async function resolveBranch(actor: ImportActor, requestedBranchId?: string) {
   const branchId = actor.role === "ADMIN" ? requestedBranchId : actor.branchId;
   if (!branchId) throw new Error("Choose a valid branch.");
-  const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { id: true } });
+  const branch = await prisma.branch.findFirst({ where: { id: branchId, archivedAt: null }, select: { id: true } });
   if (!branch) throw new Error("Choose a valid branch.");
   return branch.id;
 }
@@ -87,7 +87,7 @@ export async function loadImportPageData(requestedBranchId?: string) {
   const importAccess = getImportAccess(actor.role);
   try {
     const branches = actor.role === "ADMIN"
-      ? await prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+      ? await prisma.branch.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } })
       : [];
     const branchId = await resolveBranch(actor, requestedBranchId ?? branches[0]?.id);
     const [branch, hasOpeningStock, runs, salesRuns, latestCommittedSalesRun] = await Promise.all([

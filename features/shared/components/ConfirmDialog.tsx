@@ -12,6 +12,8 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   destructive = false,
+  confirmationText,
+  confirmDisabled = false,
   onConfirm,
 }: {
   trigger?: ReactElement;
@@ -22,8 +24,16 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  confirmationText?: {
+    expected: string;
+    value: string;
+    onChange: (value: string) => void;
+  };
+  confirmDisabled?: boolean;
   onConfirm: () => void;
 }) {
+  const confirmationMismatch = confirmationText && confirmationText.value !== confirmationText.expected;
+
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger ? <AlertDialog.Trigger asChild>{trigger}</AlertDialog.Trigger> : null}
@@ -36,13 +46,27 @@ export function ConfirmDialog({
           <AlertDialog.Description className="mt-space-sm font-body-md text-body-md text-on-surface-variant">
             {description}
           </AlertDialog.Description>
+          {confirmationText ? (
+            <label className="mt-space-md block font-label-md text-label-md text-on-surface">
+              Type <span className="font-semibold">{confirmationText.expected}</span> to confirm
+              <input
+                type="text"
+                value={confirmationText.value}
+                onChange={(event) => confirmationText.onChange(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className="mt-space-xs min-h-11 w-full border border-outline-variant bg-surface-container-lowest px-space-sm text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              />
+            </label>
+          ) : null}
           <div className="mt-space-lg flex flex-wrap justify-end gap-space-sm">
-            <AlertDialog.Cancel className="min-h-11 border border-outline-variant bg-surface-container-lowest px-space-md font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-low">
+            <AlertDialog.Cancel className="min-h-11 border border-outline-variant bg-surface-container-low px-space-md font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-lowest focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               {cancelLabel}
             </AlertDialog.Cancel>
             <AlertDialog.Action
+              disabled={confirmDisabled || Boolean(confirmationMismatch)}
               onClick={onConfirm}
-              className={`min-h-11 px-space-md font-label-md text-label-md ${destructive ? "bg-status-danger text-white hover:bg-status-danger-text" : "bg-primary text-on-primary hover:bg-primary-container"}`}
+              className={`min-h-11 px-space-md font-label-md text-label-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 ${destructive ? "bg-status-danger text-white hover:bg-status-danger-text" : "bg-primary text-on-primary hover:bg-primary-container"}`}
             >
               {confirmLabel}
             </AlertDialog.Action>

@@ -3,7 +3,8 @@
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { authOptions } from "../../../lib/auth";
-import { changeStaffRoleAndBranch, deactivateStaff, listStaffBranchesForAdmin, listStaffForAdmin, listTeamForManager, reactivateStaff, sendStaffResetLink } from "./staff-service";
+import { can } from "../../../lib/permissions";
+import { archiveStaff, changeStaffRoleAndBranch, deactivateStaff, listStaffBranchesForAdmin, listStaffForAdmin, listTeamForManager, reactivateStaff, restoreStaff, sendStaffResetLink } from "./staff-service";
 import type { StaffActionResult, StaffBranchesResult, StaffListResult } from "./staff-types";
 
 const SIGN_IN_REQUIRED = { ok: false, message: "Sign in required." } as const;
@@ -35,6 +36,7 @@ export async function updateStaffRoleAndBranch(input: { userId: string; role: st
     if (result.ok) {
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
+        revalidatePath("/admin");
     }
     return result;
 }
@@ -68,5 +70,34 @@ export async function sendStaffPasswordReset(userId: string): Promise<StaffActio
     if (!actorId) return SIGN_IN_REQUIRED;
     const result = await sendStaffResetLink(actorId, userId);
     if (result.ok) revalidatePath("/admin/staff");
+    return result;
+}
+
+async function currentAdminId() {
+    const session = await getServerSession(authOptions);
+    return session?.user?.role === "ADMIN" && can(session.user.role, "users:manage") ? session.user.id : null;
+}
+
+export async function archiveStaffAccount(userId: string): Promise<StaffActionResult> {
+    const actorId = await currentAdminId();
+    if (!actorId) return { ok: false, message: "You are not authorized to manage staff." };
+    const result = await archiveStaff(actorId, userId);
+    if (result.ok) {
+        revalidatePath("/admin/staff");
+        revalidatePath("/staff/team");
+        revalidatePath("/admin");
+    }
+    return result;
+}
+
+export async function restoreStaffAccount(userId: string): Promise<StaffActionResult> {
+    const actorId = await currentAdminId();
+    if (!actorId) return { ok: false, message: "You are not authorized to manage staff." };
+    const result = await restoreStaff(actorId, userId);
+    if (result.ok) {
+        revalidatePath("/admin/staff");
+        revalidatePath("/staff/team");
+        revalidatePath("/admin");
+    }
     return result;
 }

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { StaffCatalogCategory, StaffCatalogUncategorizedVariant } from "@/features/catalog/types";
 
 export async function getStaffCatalogBranches() {
-    return prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+    return prisma.branch.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } });
 }
 
 export async function getStaffCatalogData(branchId: string): Promise<{ categories: StaffCatalogCategory[]; uncategorizedVariants: StaffCatalogUncategorizedVariant[] }> {

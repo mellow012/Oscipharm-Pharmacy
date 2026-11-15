@@ -14,7 +14,7 @@ export const STAFF_INVITATION_EMAIL_FAILURE = "The invitation was created but th
 type SenderInput = { to: string; token: string; role: Role; branchName: string | null; expiresAt: Date };
 export type InvitationSender = (input: SenderInput) => Promise<MailResult>;
 type Db = PrismaClient | Prisma.TransactionClient;
-type OperationResult<T = undefined> = { ok: true; message: string } & (T extends undefined ? {} : T extends unknown[] ? { invitations: T } : { invitation: T }) | { ok: false; message: string };
+type OperationResult<T = undefined> = { ok: true; message: string } & (T extends undefined ? Record<never, never> : T extends unknown[] ? { invitations: T } : { invitation: T }) | { ok: false; message: string };
 type CreateInvitationInput = { email: unknown; role: unknown; branchId: string | null };
 type PublicAcceptResult = { ok: true; userId: string } | { ok: false; message: string };
 type PublicInvitation = Omit<StaffInvitation, "tokenHash"> & { branch: { name: string } | null };
@@ -43,9 +43,9 @@ async function validateBranch(tx: Prisma.TransactionClient, role: unknown, branc
     const valid = validateRoleBranch({ role, branchId });
     if (!valid.ok) return valid;
     if (branchId) {
-        const branch = await tx.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true, isActive: true } });
+        const branch = await tx.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true, isActive: true, archivedAt: true } });
         if (!branch) return { ok: false as const, message: "The selected branch does not exist." };
-        if (!branch.isActive) return { ok: false as const, message: "Cannot invite staff to an inactive branch." };
+        if (!branch.isActive || branch.archivedAt) return { ok: false as const, message: "Cannot invite staff to an inactive or archived branch." };
     }
     return { ok: true as const };
 }

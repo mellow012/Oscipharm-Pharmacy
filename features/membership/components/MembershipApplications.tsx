@@ -2,13 +2,15 @@ import { MembershipStatus, MembershipTier } from "@prisma/client";
 import { reviewMembershipApplication } from "@/features/membership/lib/actions";
 import { membershipDiscountPercent, membershipTierLabels } from "@/features/membership/lib/policy";
 import { membershipTopicLabels, type MembershipTopic } from "@/features/membership/types";
+import { InPlaceFilter } from "@/features/shared/components/InPlaceFilter";
 
 type Applications = Awaited<ReturnType<typeof import("@/features/membership/lib/queries").getMembershipApplications>>;
 
-export function MembershipApplications({ applications, query = "", totalCount = applications.length }: {
+export function MembershipApplications({ applications, query = "", totalCount = applications.length, preservedParams = {} }: {
     applications: Applications;
     query?: string;
     totalCount?: number;
+    preservedParams?: Record<string, string | string[] | undefined>;
 }) {
     const pendingCount = applications.filter((application) => application.status === MembershipStatus.PENDING).length;
     const activeCount = applications.filter((application) => application.status === "ACTIVE").length;
@@ -27,14 +29,9 @@ export function MembershipApplications({ applications, query = "", totalCount = 
                     <span className="border border-border px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{activeCount} active</span>
                 </div>
             </header>
-            <form method="get" action="/admin/memberships" role="search" className="flex flex-wrap items-end gap-3 border-b border-border py-5">
-                <label className="text-sm text-muted">
-                    Search name or phone
-                    <input name="q" type="search" defaultValue={query} className="mt-1 block w-full min-w-64 border border-border bg-surface px-3 py-2 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
-                </label>
-                <button type="submit" className="border border-primary px-4 py-2 text-sm text-primary hover:bg-chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Search</button>
-                {query ? <a href="/admin/memberships" className="rounded-sm px-2 py-2 text-sm text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Clear</a> : null}
-            </form>
+            <div role="search" className="border-b border-border py-5">
+                <InPlaceFilter name="q" label="Search name or phone" value={query} preservedParams={preservedParams} debounceMs={300} placeholder="Name or phone" />
+            </div>
             {applications.length ? (
                 <ul className="divide-y divide-border border-b border-border">
                     {applications.map((application) => (

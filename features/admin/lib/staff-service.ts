@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient, Role } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.ts";
 import { can } from "../../../lib/permissions.ts";
 import { createPasswordResetTokenForUser, sendPasswordResetEmail } from "../../auth/lib/password-reset.ts";
+import { canArchiveStaff } from "./branch-lifecycle-rules.ts";
 import { decideSelfAction, validateRoleBranch, wouldRemoveLastActiveAdmin } from "./staff-rules.ts";
 import type { StaffActionResult, StaffBranchesResult, StaffListResult, StaffSummary } from "./staff-types.ts";
 
@@ -31,6 +32,7 @@ const STAFF_SELECT = {
     email: true,
     role: true,
     isActive: true,
+    archivedAt: true,
     branchId: true,
     createdAt: true,
     branch: { select: { name: true } },
@@ -49,7 +51,7 @@ export async function listStaffForAdmin(actorId: string): Promise<StaffListResul
 export async function listStaffBranchesForAdmin(actorId: string): Promise<StaffBranchesResult> {
     const actor = await requireAdmin(prisma, actorId);
     if (!actor) return { ok: false, message: "You are not authorized to manage staff." };
-    const branches = await prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+    const branches = await prisma.branch.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } });
     return { ok: true, branches };
 }
 
@@ -180,9 +182,10 @@ export async function reactivateStaff(actorId: string, userId: string): Promise<
         if (!currentActor) return { ok: false, message: "You are not authorized to manage staff." };
         const target = await tx.user.findUnique({
             where: { id: userId },
-            select: { id: true, role: true, branchId: true, isActive: true },
+            select: { id: true, role: true, branchId: true, isActive: true, archivedAt: true },
         });
         if (!target) return { ok: false, message: "Staff account not found." };
+        if (target.archivedAt) return { ok: false, message: "Restore this staff account before reactivating it." };
         const valid = validateRoleBranch({ role: target.role, branchId: target.branchId });
         if (!valid.ok) return valid;
         if (target.isActive) return { ok: true, message: "Staff account is already active." };
@@ -201,6 +204,60 @@ export async function reactivateStaff(actorId: string, userId: string): Promise<
             },
         });
         return { ok: true, message: "Staff account reactivated." };
+    }, TRANSACTION_OPTIONS);
+}
+
+export async function archiveStaff(actorId: string, userId: string): Promise<StaffActionResult> {
+    return prisma.$transaction(async (tx): Promise<StaffActionResult> => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 1)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 2)`;
+        const actor = await requireAdmin(tx, actorId);
+        if (!actor) return { ok: false, message: "You are not authorized to manage staff." };
+        const target = await tx.user.findUnique({
+            where: { id: userId },
+            select: { id: true, name: true, role: true, branchId: true, isActive: true, archivedAt: true },
+        });
+        if (!target) return { ok: false, message: "Staff account not found." };
+        if (target.archivedAt) return { ok: true, message: "Staff account is already archived." };
+        const primaryAdmin = await tx.user.findFirst({
+            where: { role: "ADMIN" },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: { id: true },
+        });
+        const guard = canArchiveStaff({ isActive: target.isActive, isPrimaryAdmin: target.id === primaryAdmin?.id });
+        if (!guard.allowed) return { ok: false, message: guard.reason };
+        const archivedAt = new Date();
+        await tx.user.update({ where: { id: userId }, data: { archivedAt } });
+        await tx.auditLog.create({
+            data: {
+                action: "STAFF_ROLE_CHANGED",
+                branchId: actor.branchId,
+                userId: actor.id,
+                details: { event: "STAFF_ARCHIVED", targetUserId: target.id, targetName: target.name, archivedAt: archivedAt.toISOString() },
+            },
+        });
+        return { ok: true, message: "Staff account archived." };
+    }, TRANSACTION_OPTIONS);
+}
+
+export async function restoreStaff(actorId: string, userId: string): Promise<StaffActionResult> {
+    return prisma.$transaction(async (tx): Promise<StaffActionResult> => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(74102, 1)`;
+        const actor = await requireAdmin(tx, actorId);
+        if (!actor) return { ok: false, message: "You are not authorized to manage staff." };
+        const target = await tx.user.findUnique({ where: { id: userId }, select: { id: true, name: true, branchId: true, archivedAt: true } });
+        if (!target) return { ok: false, message: "Staff account not found." };
+        if (!target.archivedAt) return { ok: true, message: "Staff account is not archived." };
+        await tx.user.update({ where: { id: userId }, data: { archivedAt: null } });
+        await tx.auditLog.create({
+            data: {
+                action: "STAFF_ROLE_CHANGED",
+                branchId: actor.branchId,
+                userId: actor.id,
+                details: { event: "STAFF_RESTORED", targetUserId: target.id, targetName: target.name },
+            },
+        });
+        return { ok: true, message: "Staff account restored. It remains deactivated." };
     }, TRANSACTION_OPTIONS);
 }
 

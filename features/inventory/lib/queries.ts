@@ -5,6 +5,7 @@ export { parseInventoryEmptyToggle } from "@/features/inventory/lib/inventory-ba
 
 export async function getInventoryBranches() {
     return prisma.branch.findMany({
+        where: { archivedAt: null },
         orderBy: { name: "asc" },
         select: { id: true, name: true, location: true },
     });

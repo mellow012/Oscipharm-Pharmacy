@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { InPlaceFilter } from "@/features/shared/components/InPlaceFilter";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import { ArchiveControl, BranchDeleteControl } from "@/features/admin/components/ArchiveControls";
 import { SubmitButton } from "@/features/marketing/components/SubmitButton";
 import {
     createBranchAction,
@@ -16,13 +19,20 @@ type BranchRow = {
     location: string | null;
     contactNumber: string | null;
     isActive: boolean;
+    archivedAt: Date | null;
     _count: { users: number; batches: number };
 };
 
 type ActionState = { ok: boolean; message: string } | null;
 const initialState: ActionState = null;
 
-export function BranchManagement({ branches, showHeader = true }: { branches: BranchRow[]; showHeader?: boolean }) {
+export function BranchManagement({ branches, showHeader = true, status = "active", statusCounts, preservedParams = {} }: {
+    branches: BranchRow[];
+    showHeader?: boolean;
+    status?: "active" | "inactive" | "all" | "archived";
+    statusCounts?: { active: number; inactive: number; all: number; archived: number };
+    preservedParams?: Record<string, string | string[] | undefined>;
+}) {
     if (!showHeader) {
         return (
             <section aria-labelledby="create-branch-heading" className="space-y-6">
@@ -39,6 +49,20 @@ export function BranchManagement({ branches, showHeader = true }: { branches: Br
                         <h2 className="text-xl text-ink sm:text-2xl">Branch locations</h2>
                         <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted">{branches.length} total</span>
                     </div>
+                    {statusCounts ? <div className="mb-4">
+                        <InPlaceFilter
+                            name="status"
+                            label="Status"
+                            value={status}
+                            preservedParams={preservedParams}
+                            options={[
+                                { value: "active", label: `Active ${statusCounts.active}` },
+                                { value: "inactive", label: `Inactive ${statusCounts.inactive}` },
+                                { value: "all", label: `All ${statusCounts.all}` },
+                                { value: "archived", label: `Archived ${statusCounts.archived}` },
+                            ]}
+                        />
+                    </div> : null}
 
                     {branches.length ? (
                         <ul className="divide-y divide-border">
@@ -68,6 +92,20 @@ export function BranchManagement({ branches, showHeader = true }: { branches: Br
                     <h2 id="branch-list-heading" className="text-2xl text-ink">All branches</h2>
                     <span className="font-mono text-xs uppercase tracking-[0.1em] text-muted">{branches.length} total</span>
                 </div>
+                {statusCounts ? <div className="mb-4">
+                    <InPlaceFilter
+                        name="status"
+                        label="Status"
+                        value={status}
+                        preservedParams={preservedParams}
+                        options={[
+                            { value: "active", label: `Active ${statusCounts.active}` },
+                            { value: "inactive", label: `Inactive ${statusCounts.inactive}` },
+                            { value: "all", label: `All ${statusCounts.all}` },
+                            { value: "archived", label: `Archived ${statusCounts.archived}` },
+                        ]}
+                    />
+                </div> : null}
                 {branches.length ? (
                     <ul className="divide-y divide-border">
                         {branches.map((branch) => <BranchListItem key={branch.id} branch={branch} />)}
@@ -105,9 +143,7 @@ function BranchListItem({ branch }: { branch: BranchRow }) {
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
                     <h3 className="break-words text-lg font-semibold text-ink">{branch.name}</h3>
-                    <span className={`border px-2 py-1 font-mono text-[0.65rem] uppercase tracking-[0.1em] ${branch.isActive ? "border-primary text-primary" : "border-border text-muted"}`}>
-                        {branch.isActive ? "Active" : "Inactive"}
-                    </span>
+                    {branch.archivedAt ? <StatusBadge>Archived</StatusBadge> : <StatusBadge tone={branch.isActive ? "success" : "neutral"}>{branch.isActive ? "Active" : "Inactive"}</StatusBadge>}
                 </div>
                 <Link href={`/admin/staff?branchId=${encodeURIComponent(branch.id)}`} className="group/link inline-block rounded-sm outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                     <p className="mt-1 break-words text-sm text-muted">{branch.location}</p>
@@ -118,7 +154,9 @@ function BranchListItem({ branch }: { branch: BranchRow }) {
             </div>
             <div className="flex flex-wrap gap-3 sm:justify-end">
                 <EditBranchForm branch={branch} />
-                <BranchStatusForm branch={branch} />
+                {!branch.archivedAt ? <BranchStatusForm branch={branch} /> : null}
+                <ArchiveControl kind="branch" id={branch.id} name={branch.name} archived={Boolean(branch.archivedAt)} canArchive={!branch.isActive && !branch.archivedAt} />
+                <BranchDeleteControl branchId={branch.id} branchName={branch.name} />
             </div>
         </li>
     );

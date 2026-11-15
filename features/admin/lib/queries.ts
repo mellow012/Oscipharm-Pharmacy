@@ -2,11 +2,12 @@ import { prisma } from "@/lib/prisma";
 
 export async function getAdminDashboardData() {
     const [userCount, branchCount, variantCount, batchCount, branches, users] = await prisma.$transaction([
-        prisma.user.count({ where: { isActive: true } }),
-        prisma.branch.count(),
+        prisma.user.count({ where: { isActive: true, archivedAt: null } }),
+        prisma.branch.count({ where: { archivedAt: null } }),
         prisma.variant.count(),
         prisma.batch.count(),
         prisma.branch.findMany({
+            where: { archivedAt: null },
             orderBy: { name: "asc" },
             include: {
                 _count: {
@@ -15,6 +16,7 @@ export async function getAdminDashboardData() {
             },
         }),
         prisma.user.findMany({
+            where: { archivedAt: null },
             orderBy: { createdAt: "desc" },
             take: 8,
             select: {

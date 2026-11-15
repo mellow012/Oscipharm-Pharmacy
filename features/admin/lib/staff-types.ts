@@ -6,6 +6,7 @@ export type StaffSummary = {
     email: string;
     role: Role;
     isActive: boolean;
+    archivedAt: Date | null;
     branchId: string | null;
     createdAt: Date;
     branch: { name: string } | null;

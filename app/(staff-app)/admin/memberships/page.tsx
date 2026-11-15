@@ -21,5 +21,5 @@ export default async function MembershipsAdminPage({ searchParams }: { searchPar
             || application.phone.toLocaleLowerCase().includes(normalizedQuery))
         : allApplications;
 
-    return <MembershipApplications applications={applications} query={query} totalCount={allApplications.length} />;
+    return <MembershipApplications applications={applications} query={query} totalCount={allApplications.length} preservedParams={{ q: typeof params.q === "string" ? params.q : undefined }} />;
 }

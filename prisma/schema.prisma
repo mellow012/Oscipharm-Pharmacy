@@ -67,6 +67,7 @@ enum AuditAction {
   BRANCH_UPDATED
   BRANCH_DEACTIVATED
   BRANCH_REACTIVATED
+  BRANCH_DELETED
   STAFF_INVITATION_CREATED
   STAFF_INVITATION_RESENT
   STAFF_INVITATION_REVOKED
@@ -122,6 +123,7 @@ model Branch {
   contactNumber String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  archivedAt DateTime? @db.Timestamp(3)
 
   users         User[]
   staffInvitations StaffInvitation[]
@@ -163,6 +165,7 @@ model User {
   passwordChangedAt DateTime?
   isActive Boolean @default(true)
   role      Role
+  archivedAt DateTime? @db.Timestamp(3)
   branchId  String?           // null for Admin (cross-branch); required for Branch Manager/POS
   branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())

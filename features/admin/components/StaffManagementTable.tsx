@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 import { deactivateStaffAccount, reactivateStaffAccount, sendStaffPasswordReset, updateStaffRoleAndBranch } from "@/features/admin/lib/staff-actions";
 import { roleLabel, STAFF_ROLES, type StaffRole } from "@/features/admin/lib/staff-rules";
 import type { StaffBranchOption, StaffSummary } from "@/features/admin/lib/staff-types";
+import { InPlaceFilter } from "@/features/shared/components/InPlaceFilter";
+import { StatusBadge } from "@/features/shared/components/StatusBadge";
+import { ArchiveControl } from "@/features/admin/components/ArchiveControls";
 
-export function StaffManagementTable({ users, branches, actorId, showHeader = true, enableBranchFilter = false, selectedBranchId = "" }: {
+export function StaffManagementTable({ users, branches, actorId, showHeader = true, enableBranchFilter = false, selectedBranchId = "", enableStatusFilter = false, includeArchivedStatus = true, status = "active", statusCounts, preservedParams = {} }: {
     users: StaffSummary[];
     branches: StaffBranchOption[];
     actorId?: string;
     showHeader?: boolean;
     enableBranchFilter?: boolean;
     selectedBranchId?: string;
+    enableStatusFilter?: boolean;
+    includeArchivedStatus?: boolean;
+    status?: "active" | "inactive" | "all" | "archived";
+    statusCounts?: { active: number; inactive: number; all: number; archived: number };
+    preservedParams?: Record<string, string | string[] | undefined>;
 }) {
     const router = useRouter();
     const readOnly = !actorId;
@@ -25,18 +33,28 @@ export function StaffManagementTable({ users, branches, actorId, showHeader = tr
                     <h1 className="mt-2 text-3xl text-ink">Staff management</h1>
                 </header>
             ) : null}
-            {enableBranchFilter ? (
-                <form method="get" action="/admin/staff" className="mb-4 flex flex-wrap items-end gap-3">
-                    <label className="text-sm text-muted">
-                        Filter by branch
-                        <select name="branchId" defaultValue={selectedBranchId} className="mt-1 block min-w-56 border border-border bg-surface px-3 py-2 text-ink">
-                            <option value="">All branches</option>
-                            {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
-                        </select>
-                    </label>
-                    <button type="submit" className="border border-primary px-4 py-2 text-sm text-primary hover:bg-chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Apply filter</button>
-                    {selectedBranchId ? <a href="/admin/staff" className="rounded-sm px-2 py-2 text-sm text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Clear</a> : null}
-                </form>
+            {enableBranchFilter || enableStatusFilter ? (
+                <div className="mb-4 flex min-w-0 flex-wrap items-end gap-space-md">
+                    {enableBranchFilter ? <InPlaceFilter
+                        name="branchId"
+                        label="Filter by branch"
+                        value={selectedBranchId}
+                        preservedParams={preservedParams}
+                        options={[{ value: "", label: "All branches" }, ...branches.map((branch) => ({ value: branch.id, label: branch.name }))]}
+                    /> : null}
+                    {enableStatusFilter && statusCounts ? <InPlaceFilter
+                        name="status"
+                        label="Status"
+                        value={status}
+                        preservedParams={preservedParams}
+                        options={[
+                            { value: "active", label: `Active ${statusCounts.active}` },
+                            { value: "inactive", label: `Inactive ${statusCounts.inactive}` },
+                            { value: "all", label: `All ${statusCounts.all}` },
+                            ...(includeArchivedStatus ? [{ value: "archived", label: `Archived ${statusCounts.archived}` }] : []),
+                        ]}
+                    /> : null}
+                </div>
             ) : null}
             <div className="overflow-x-auto border-y border-border">
                 <table className="w-full min-w-[760px] text-left">
@@ -103,7 +121,7 @@ function StaffManagementRow({ user, branches, isSelf, readOnly, onChanged }: {
             <td className="px-3 py-3 text-sm text-ink">{roleLabel(user.role)}</td>
             <td className="px-3 py-3 text-sm text-muted">{user.branch?.name ?? "All branches"}</td>
             <td className="px-3 py-3">
-                <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">{user.isActive ? "Active" : "Inactive"}</span>
+                {user.archivedAt ? <StatusBadge tone="neutral">Archived</StatusBadge> : <StatusBadge tone={user.isActive ? "success" : "neutral"}>{user.isActive ? "Active" : "Inactive"}</StatusBadge>}
             </td>
             {!readOnly ? <td className="px-3 py-3">
                 <div className="flex min-w-52 flex-col items-start gap-2 text-sm">
@@ -112,15 +130,16 @@ function StaffManagementRow({ user, branches, isSelf, readOnly, onChanged }: {
                             <button type="button" disabled={busy} onClick={() => { setEditing((value) => !value); setMessage(""); }} className="text-primary underline hover:text-ink disabled:opacity-50">
                                 {editing ? "Cancel role/branch edit" : "Edit role/branch"}
                             </button>
-                            {user.isActive ? (
+                            {!user.archivedAt && user.isActive ? (
                                 <button type="button" disabled={busy} onClick={() => {
                                     if (window.confirm(`Deactivate ${user.name}?`)) void runAction(() => deactivateStaffAccount(user.id));
                                 }} className="text-primary underline hover:text-ink disabled:opacity-50">Deactivate</button>
-                            ) : (
+                            ) : !user.archivedAt ? (
                                 <button type="button" disabled={busy} onClick={() => {
                                     if (window.confirm(`Reactivate ${user.name}?`)) void runAction(() => reactivateStaffAccount(user.id));
                                 }} className="text-primary underline hover:text-ink disabled:opacity-50">Reactivate</button>
-                            )}
+                            ) : null}
+                            {!readOnly ? <ArchiveControl kind="staff" id={user.id} name={user.name} archived={Boolean(user.archivedAt)} canArchive={!user.isActive && !user.archivedAt} /> : null}
                         </>
                     )}
                     <button type="button" disabled={busy || !user.isActive} onClick={() => void runAction(() => sendStaffPasswordReset(user.id))} className="text-primary underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-50">
