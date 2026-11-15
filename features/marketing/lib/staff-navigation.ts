@@ -22,7 +22,7 @@ const NAVIGATION_GROUPS: Array<{ label: string; hrefs: string[] }> = [
     { label: "Workspace", hrefs: ["/staff"] },
     { label: "Operations", hrefs: ["/staff/sales", "/inventory", "/staff/catalog", "/staff/import"] },
     { label: "Insights", hrefs: ["/reports"] },
-    { label: "Administration", hrefs: ["/admin", "/admin/staff", "/admin/branches", "/admin/memberships", "/staff/team"] },
+    { label: "Administration", hrefs: ["/admin", "/admin/staff", "/admin/memberships", "/staff/team"] },
     { label: "Communication", hrefs: ["/staff/news"] },
 ];
 
@@ -44,8 +44,7 @@ const POS_ITEMS: StaffNavigationItem[] = [
 
 const ADMIN_ITEMS: StaffNavigationItem[] = [
     { href: "/admin", label: "Overview", permission: "users:manage" },
-    { href: "/admin/staff", label: "Staff", permission: "users:manage" },
-    { href: "/admin/branches", label: "Branches", permission: "branches:manage" },
+    { href: "/admin/staff", label: "Staff & Branches", permission: "users:manage" },
     { href: "/admin/memberships", label: "Memberships", permission: "membership:manage" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
     { href: "/staff/team", label: "Team", permission: "reports:branch:view" },
@@ -62,6 +61,9 @@ export function shouldShowAdminNavigation(pathname: string): boolean {
 
 export function isNavItemActive(href: string, pathname: string): boolean {
     if (NAV_ROOT_HREFS.has(href)) return pathname === href;
+    if (href === "/admin/staff") {
+        return pathname === href || pathname === "/admin/branches" || pathname.startsWith(`${href}/`) || pathname.startsWith("/admin/branches/");
+    }
     return pathname === href || pathname.startsWith(`${href}/`);
 }
 

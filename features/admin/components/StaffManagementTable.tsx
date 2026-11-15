@@ -6,19 +6,22 @@ import { deactivateStaffAccount, reactivateStaffAccount, sendStaffPasswordReset,
 import { roleLabel, STAFF_ROLES, type StaffRole } from "@/features/admin/lib/staff-rules";
 import type { StaffBranchOption, StaffSummary } from "@/features/admin/lib/staff-types";
 
-export function StaffManagementTable({ users, branches, actorId }: {
+export function StaffManagementTable({ users, branches, actorId, showHeader = true }: {
     users: StaffSummary[];
     branches: StaffBranchOption[];
     actorId: string;
+    showHeader?: boolean;
 }) {
     const router = useRouter();
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 sm:px-8">
-            <header className="mb-6 border-b border-border pb-6">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
-                <h1 className="mt-2 text-3xl text-ink">Staff management</h1>
-            </header>
+            {showHeader ? (
+                <header className="mb-6 border-b border-border pb-6">
+                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
+                    <h1 className="mt-2 text-3xl text-ink">Staff management</h1>
+                </header>
+            ) : null}
             <div className="overflow-x-auto border-y border-border">
                 <table className="w-full min-w-[760px] text-left">
                     <thead className="border-b border-border text-xs uppercase tracking-[0.1em] text-muted">

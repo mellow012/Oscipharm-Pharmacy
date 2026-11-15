@@ -6,6 +6,9 @@ import { membershipTopicLabels, type MembershipTopic } from "@/features/membersh
 type Applications = Awaited<ReturnType<typeof import("@/features/membership/lib/queries").getMembershipApplications>>;
 
 export function MembershipApplications({ applications }: { applications: Applications }) {
+    const pendingCount = applications.filter((application) => application.status !== "REJECTED").length;
+    const activeCount = applications.filter((application) => application.status === "ACTIVE").length;
+
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <header className="flex flex-col gap-4 border-b border-border py-10 sm:flex-row sm:items-end sm:justify-between">
@@ -14,14 +17,21 @@ export function MembershipApplications({ applications }: { applications: Applica
                     <h1 className="text-4xl leading-tight text-ink">Membership requests</h1>
                     <p className="mt-2 text-sm text-muted">Approve eligible members and set the discount rate agreed by pharmacy policy.</p>
                 </div>
-                <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{applications.length} requests</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="border border-border bg-surface px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{applications.length} requests</span>
+                    <span className="border border-primary bg-primary/5 px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-primary">{pendingCount} pending</span>
+                    <span className="border border-border px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted">{activeCount} active</span>
+                </div>
             </header>
             {applications.length ? (
                 <ul className="divide-y divide-border border-b border-border">
                     {applications.map((application) => (
-                        <li key={application.id} className="grid gap-5 py-6 md:grid-cols-[1fr_1fr_auto] md:items-center">
+                        <li key={application.id} className="grid gap-5 py-6 md:grid-cols-[1fr_1fr_auto] md:items-start">
                             <div>
-                                <h2 className="text-lg font-semibold text-ink">{application.fullName}</h2>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-lg font-semibold text-ink">{application.fullName}</h2>
+                                    <span className="border border-border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">{application.status.toLowerCase()}</span>
+                                </div>
                                 <a href={`tel:${application.phone}`} className="mt-1 block text-sm text-primary hover:underline">{application.phone}</a>
                                 {application.email ? <a href={`mailto:${application.email}`} className="mt-1 block text-sm text-muted hover:text-primary">{application.email}</a> : null}
                                 <p className="mt-2 font-mono text-xs uppercase tracking-[0.1em] text-muted">Preferred: {application.contactPreference.toLowerCase()}</p>
@@ -40,7 +50,7 @@ export function MembershipApplications({ applications }: { applications: Applica
                                         : application.status.toLowerCase()}
                                 </span>
                                 {application.status !== MembershipStatus.REJECTED ? (
-                                    <form action={reviewMembershipApplication} className="flex flex-wrap items-end gap-2">
+                                    <form action={reviewMembershipApplication} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3">
                                         <input type="hidden" name="id" value={application.id} />
                                         <label className="text-xs text-muted">
                                             Membership tier

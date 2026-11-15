@@ -9,7 +9,7 @@ function labels(items) {
 test("Admin sees permission-filtered staff and Admin navigation", () => {
   const navigation = getStaffNavigation("ADMIN");
   assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events"]);
-  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff", "Branches", "Memberships", "News and events"]);
+  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff & Branches", "Memberships", "News and events"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
@@ -32,8 +32,8 @@ test("Admin route tabs mark only the matching item active", () => {
   const activeLabels = (pathname) => items.filter((item) => isNavItemActive(item.href, pathname)).map((item) => item.label);
 
   assert.deepEqual(activeLabels("/admin"), ["Overview"]);
-  assert.deepEqual(activeLabels("/admin/staff"), ["Staff"]);
-  assert.deepEqual(activeLabels("/admin/branches"), ["Branches"]);
+  assert.deepEqual(activeLabels("/admin/staff"), ["Staff & Branches"]);
+  assert.deepEqual(activeLabels("/admin/branches"), ["Staff & Branches"]);
   assert.deepEqual(activeLabels("/admin/memberships"), ["Memberships"]);
 });
 
@@ -111,9 +111,9 @@ test("grouped navigation preserves only each role's permission-filtered destinat
   const adminHrefs = getStaffNavigation("ADMIN").admin.map((item) => item.href);
   const managerHrefs = getStaffNavigation("BRANCH_MANAGER").admin.map((item) => item.href);
   const posHrefs = getStaffNavigation("POS").staff.map((item) => item.href);
-  assert.ok(adminHrefs.includes("/admin/branches"));
+  assert.ok(adminHrefs.includes("/admin/staff"));
   assert.ok(managerHrefs.includes("/staff/team"));
-  assert.ok(!managerHrefs.includes("/admin/branches"));
+  assert.ok(!managerHrefs.includes("/admin/staff"));
   assert.ok(!posHrefs.includes("/reports"));
   assert.ok(!posHrefs.includes("/staff/news"));
 });

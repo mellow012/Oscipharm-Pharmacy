@@ -1,14 +1,19 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { BranchManagement } from "@/features/admin/components/BranchManagement";
 import { StaffInvitations } from "@/features/admin/components/StaffInvitations";
 import { StaffManagementTable } from "@/features/admin/components/StaffManagementTable";
+import { getBranchesForAdmin } from "@/features/admin/lib/branch-queries";
 import { listPendingInvitations } from "@/features/admin/lib/staff-invitation-service";
 import { listStaffBranchesForAdmin, listStaffForAdmin } from "@/features/admin/lib/staff-service";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminStaffPage() {
+export default async function AdminStaffPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> | { tab?: string } }) {
+    const params = searchParams ? await Promise.resolve(searchParams) : {};
+    const activeTab = params.tab === "branches" ? "branches" : "staff";
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) redirect("/login");
     if (session.user.role !== "ADMIN") redirect("/unauthorized");
@@ -20,6 +25,8 @@ export default async function AdminStaffPage() {
     ]);
     if (!staffResult.ok || !branchResult.ok || !invitationResult.ok) redirect("/unauthorized");
 
+    const branches = await getBranchesForAdmin();
+
     const invitations = invitationResult.invitations.map((invitation) => ({
         id: invitation.id,
         email: invitation.email,
@@ -30,9 +37,42 @@ export default async function AdminStaffPage() {
     }));
 
     return (
-        <>
-            <StaffInvitations branches={branchResult.branches} invitations={invitations} />
-            <StaffManagementTable users={staffResult.users} branches={branchResult.branches} actorId={session.user.id} />
-        </>
+        <div className="mx-auto min-h-screen w-full max-w-7xl px-5 py-8 sm:px-8">
+            <header className="mb-6 border-b border-border pb-6">
+                <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Admin workspace</p>
+                <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                        <h1 className="text-3xl text-ink sm:text-4xl">Staff &amp; Branches</h1>
+                        <p className="mt-2 max-w-2xl text-sm text-muted">
+                            Manage access requests, staff assignments, and branch records from one admin workspace.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        <a
+                            href="/admin/staff"
+                            className={`border px-3 py-2 text-sm ${activeTab === "staff" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
+                        >
+                            Staff directory
+                        </a>
+                        <a
+                            href="/admin/staff?tab=branches"
+                            className={`border px-3 py-2 text-sm ${activeTab === "branches" ? "border-primary bg-primary text-primary-fg" : "border-border text-primary hover:bg-chip"}`}
+                        >
+                            Branch locations
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            {activeTab === "branches" ? (
+                <BranchManagement branches={branches} showHeader={false} />
+            ) : (
+                <>
+                    <StaffInvitations branches={branchResult.branches} invitations={invitations} />
+                    <StaffManagementTable users={staffResult.users} branches={branchResult.branches} actorId={session.user.id} showHeader={false} />
+                </>
+            )}
+        </div>
     );
 }

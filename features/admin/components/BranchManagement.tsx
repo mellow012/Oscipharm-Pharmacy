@@ -20,7 +20,34 @@ type BranchRow = {
 type ActionState = { ok: boolean; message: string } | null;
 const initialState: ActionState = null;
 
-export function BranchManagement({ branches }: { branches: BranchRow[] }) {
+export function BranchManagement({ branches, showHeader = true }: { branches: BranchRow[]; showHeader?: boolean }) {
+    if (!showHeader) {
+        return (
+            <section aria-labelledby="create-branch-heading" className="space-y-6">
+                <div className="border border-border bg-surface p-5 sm:p-6">
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
+                        <h2 id="create-branch-heading" className="text-xl text-ink sm:text-2xl">Create branch</h2>
+                        <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted">{branches.length} total</span>
+                    </div>
+                    <CreateBranchForm />
+                </div>
+
+                <div className="border border-border bg-surface p-5 sm:p-6">
+                    <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
+                        <h2 className="text-xl text-ink sm:text-2xl">Branch locations</h2>
+                        <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-muted">{branches.length} total</span>
+                    </div>
+
+                    {branches.length ? (
+                        <ul className="divide-y divide-border">
+                            {branches.map((branch) => <BranchListItem key={branch.id} branch={branch} />)}
+                        </ul>
+                    ) : <p className="py-8 text-sm text-muted">No branches yet.</p>}
+                </div>
+            </section>
+        );
+    }
+
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
             <header className="border-b border-border py-8">
