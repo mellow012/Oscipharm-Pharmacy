@@ -1,32 +1,31 @@
-import Link from "next/link";
-import Image from "next/image";
-import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
+import { BranchDirectory } from "@/features/catalog/components/BranchDirectory";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
+import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
+import { formatBlantyreDateTime } from "@/lib/timezone";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+
 export default async function CatalogPage() {
-  const { categories, products } = await getCatalogBrowserData();
+    const { categories, products, branches, availabilityUpdatedAt } = await getCatalogBrowserData();
 
-  return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-      <SiteHeader />
-      <header className="grid gap-8 border-b border-border py-12 md:grid-cols-[1fr_0.7fr] md:items-end md:py-16">
-        <div>
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.18em] text-warn">Browse by category</p>
-          <h1 className="max-w-2xl text-5xl leading-[0.98] text-ink sm:text-6xl">Everyday essentials, clearly organized.</h1>
-        </div>
-        <p className="max-w-sm text-lg leading-8 text-muted">
-          Explore our range by category, then narrow in on the ingredient and brand that suits you.
-        </p>
-      </header>
-      <section className="py-10 sm:py-14">
-        <div className="mb-6 flex items-end justify-between border-b border-border pb-4">
-          <h2 className="text-2xl text-ink">Categories</h2>
-          <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted">{categories.length.toString().padStart(2, "0")} available</span>
-        </div>
-        <ProductBrowser categories={categories} products={products} />
-      </section>
-    </main>
-  );
+    return (
+        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
+            <SiteHeader />
+            <header className="grid gap-3 border-b border-outline-variant py-7 sm:py-9 md:grid-cols-[1fr_auto] md:items-end">
+                <div>
+                    <p className="font-eyebrow text-eyebrow uppercase text-secondary">Browse the OsciPharm range</p>
+                    <h1 className="mt-2 max-w-2xl font-display text-headline-xl text-primary">Everyday essentials, clearly organized.</h1>
+                    <p className="mt-3 max-w-2xl text-body-md text-on-surface-variant">Explore our range by category, then narrow in on the ingredient and brand that suits you.</p>
+                </div>
+            </header>
+            {availabilityUpdatedAt ? (
+                <p className="pt-4 font-body-sm text-body-sm text-on-surface-variant">
+                    Availability updated {formatBlantyreDateTime(availabilityUpdatedAt)} CAT
+                </p>
+            ) : null}
+            <ProductBrowser categories={categories} products={products} />
+            <BranchDirectory branches={branches} />
+        </main>
+    );
 }

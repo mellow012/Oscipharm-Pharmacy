@@ -15,6 +15,8 @@ export function InPlaceFilter({
     preservedParams,
     debounceMs = 0,
     placeholder,
+    controlClassName,
+    submitClassName,
 }: {
     name: string;
     label: string;
@@ -23,6 +25,8 @@ export function InPlaceFilter({
     preservedParams: Record<string, string | string[] | undefined>;
     debounceMs?: number;
     placeholder?: string;
+    controlClassName?: string;
+    submitClassName?: string;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -79,6 +83,7 @@ export function InPlaceFilter({
                 ) : (
                     <FormInput
                         {...fieldProps}
+                        className={controlClassName ?? fieldProps.className}
                         type="search"
                         name={name}
                         value={currentValue}
@@ -87,7 +92,7 @@ export function InPlaceFilter({
                     />
                 )}
             </FormField>
-            <button type="submit" className="min-h-[42px] border border-primary px-space-md font-label-sm text-label-sm text-primary hover:bg-primary-fixed/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Apply</button>
+            <button type="submit" className={submitClassName ?? "min-h-[42px] border border-primary px-space-md font-label-sm text-label-sm text-primary hover:bg-primary-fixed/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"}>Apply</button>
             <span aria-live="polite" className="min-h-5 self-center font-body-sm text-body-sm text-on-surface-variant">{isPending ? "Updating…" : ""}</span>
         </form>
     );

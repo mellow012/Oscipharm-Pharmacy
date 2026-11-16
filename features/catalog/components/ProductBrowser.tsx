@@ -1,114 +1,136 @@
 "use client";
 
 import Link from "next/link";
+import { Search } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { InPlaceFilter } from "@/features/shared/components/InPlaceFilter";
+import { buildNextQueryString } from "@/features/shared/lib/query-string";
+import { CatalogProductCard, type CatalogProduct } from "@/features/catalog/components/CatalogProductCard";
 import { pluralizeLabel } from "@/lib/plural";
-import { useMemo, useState } from "react";
 
-type Category = { id: string; name: string };
-type Product = {
-    id: string;
-    brandName: string;
-    strength: string | null;
-    unitLabel: string;
-    ingredientName: string | null;
-    categoryId: string | null;
-    stock: number;
-    pricePerPack: string | null;
-};
+type Category = { name: string };
 
-type ProductBrowserProps = {
-    categories: Category[];
-    products: Product[];
-};
+export function ProductBrowser({ categories, products }: { categories: Category[]; products: CatalogProduct[] }) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const search = searchParams.get("search") ?? "";
+    const activeCategory = searchParams.get("category") ?? "all";
+    const inStockOnly = searchParams.get("stock") === "1";
+    const sort = searchParams.get("sort") === "price" ? "price" : "name";
 
-export function ProductBrowser({ categories, products }: ProductBrowserProps) {
-    const [activeCategory, setActiveCategory] = useState("all");
-    const [search, setSearch] = useState("");
+    useEffect(() => {
+        function focusSearch(event: KeyboardEvent) {
+            const target = event.target;
+            const isEditing = target instanceof HTMLElement
+                && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+            if (event.key === "/" && !isEditing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+                event.preventDefault();
+                document.getElementById("filter-search")?.focus();
+            }
+        }
+
+        document.addEventListener("keydown", focusSearch);
+        return () => document.removeEventListener("keydown", focusSearch);
+    }, []);
+
+    function updateQuery(key: string, value: string) {
+        const query = buildNextQueryString(searchParams.toString(), key, value);
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }
+
     const filteredProducts = useMemo(() => {
         const query = search.trim().toLowerCase();
-        return products.filter((product) => {
-            const matchesCategory = activeCategory === "all"
-                || (activeCategory === "uncategorized" ? product.categoryId === null : product.categoryId === activeCategory);
+        const filtered = products.filter((product) => {
+            const matchesCategory = activeCategory === "all" || product.categoryName === activeCategory;
             const matchesSearch = !query || [product.ingredientName, product.brandName, product.strength]
                 .filter(Boolean)
                 .join(" ")
                 .toLowerCase()
                 .includes(query);
-            return matchesCategory && matchesSearch;
+            return matchesCategory && matchesSearch && (!inStockOnly || product.availability !== "out-of-stock");
         });
-    }, [activeCategory, products, search]);
+
+        return filtered.sort((left, right) => {
+            if (sort === "price") {
+                if (left.pricePerPack === null) return right.pricePerPack === null ? left.brandName.localeCompare(right.brandName) : 1;
+                if (right.pricePerPack === null) return -1;
+                return left.pricePerPack - right.pricePerPack;
+            }
+            return left.brandName.localeCompare(right.brandName);
+        });
+    }, [activeCategory, inStockOnly, products, search, sort]);
 
     return (
-        <section className="border-b border-border py-10 sm:py-14">
-            <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-warn">Browse by need</p>
-                    <h2 className="text-3xl text-ink">Find what you need, quickly.</h2>
-                </div>
-                <label className="relative block w-full sm:max-w-xs">
-                    <span className="sr-only">Search products</span>
-                    <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-sm text-warn">/</span>
-                    <input
-                        type="search"
+        <section aria-labelledby="catalog-products-heading" className="py-7 sm:py-9">
+            <header className="mb-6 border-b border-outline-variant pb-4">
+                <p className="font-eyebrow text-eyebrow uppercase text-secondary">Browse by need</p>
+                <h2 id="catalog-products-heading" className="mt-2 font-display text-headline-md text-primary">Find what you need, quickly.</h2>
+            </header>
+
+            <div className="grid gap-4 border-b border-outline-variant pb-5 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
+                <div className="min-w-0">
+                    <div className="mb-2 flex items-center gap-2 text-on-surface-variant">
+                        <Search aria-hidden="true" size={17} />
+                        <span className="font-label-md text-label-md">Search and filter</span>
+                        <span className="ml-auto font-body-sm text-body-sm">Press / to search</span>
+                    </div>
+                    <InPlaceFilter
+                        name="search"
+                        label="Search products"
                         value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search products"
-                        className="w-full border border-border bg-surface py-3 pl-9 pr-4 text-sm text-ink outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/15"
+                        debounceMs={250}
+                        placeholder="Name, ingredient or strength"
+                        preservedParams={{ category: activeCategory === "all" ? undefined : activeCategory, stock: inStockOnly ? "1" : undefined, sort: sort === "name" ? undefined : sort }}
+                        controlClassName="mt-space-xs min-h-11 w-full rounded border border-outline-variant bg-surface-container-lowest px-space-sm py-space-xs font-body-sm text-body-sm text-on-surface focus:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        submitClassName="mt-space-xs min-h-11 border border-primary px-space-md font-label-sm text-label-sm text-primary hover:bg-primary-fixed/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     />
+                </div>
+                <label className="flex min-h-11 items-center gap-3 border border-outline-variant bg-surface-container-lowest px-3 font-label-md text-label-md text-on-surface">
+                    <input type="checkbox" checked={inStockOnly} onChange={(event) => updateQuery("stock", event.target.checked ? "1" : "")} className="size-4 accent-primary" />
+                    In stock only
+                </label>
+                <label className="flex min-h-11 items-center gap-3 border border-outline-variant bg-surface-container-lowest px-3 font-label-md text-label-md text-on-surface">
+                    <span>Sort</span>
+                    <select value={sort} onChange={(event) => updateQuery("sort", event.target.value === "name" ? "" : event.target.value)} className="min-h-11 min-w-36 bg-transparent pr-2 text-body-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                        <option value="name">Name A–Z</option>
+                        <option value="price">Price: low to high</option>
+                    </select>
                 </label>
             </div>
-            <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
-                <button
-                    type="button"
-                    onClick={() => setActiveCategory("all")}
-                    className={`shrink-0 border px-4 py-2 text-sm transition ${activeCategory === "all" ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-muted hover:border-primary hover:text-primary"}`}
-                >
-                    All products
-                </button>
-                {categories.map((category) => (
-                    <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => setActiveCategory(category.id)}
-                        className={`shrink-0 border px-4 py-2 text-sm transition ${activeCategory === category.id ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-muted hover:border-primary hover:text-primary"}`}
-                    >
-                        {category.name}
+
+            {categories.length ? (
+                <nav aria-label="Filter by category" className="flex flex-wrap gap-2 border-b border-outline-variant py-4">
+                    <button type="button" aria-pressed={activeCategory === "all"} onClick={() => updateQuery("category", "")} className={`min-h-11 border px-4 font-label-md text-label-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeCategory === "all" ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary"}`}>
+                        All products
                     </button>
-                ))}
-                {products.some((product) => product.categoryId === null) ? (
-                    <button
-                        type="button"
-                        onClick={() => setActiveCategory("uncategorized")}
-                        className={`shrink-0 border px-4 py-2 text-sm transition ${activeCategory === "uncategorized" ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-muted hover:border-primary hover:text-primary"}`}
-                    >
-                        Uncategorized
-                    </button>
-                ) : null}
+                    {categories.map((category) => (
+                        <button key={category.name} type="button" aria-pressed={activeCategory === category.name} onClick={() => updateQuery("category", category.name)} className={`min-h-11 border px-4 font-label-md text-label-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeCategory === category.name ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary"}`}>
+                            {category.name}
+                        </button>
+                    ))}
+                </nav>
+            ) : null}
+
+            <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 py-3">
+                <p aria-live="polite" className="font-label-md text-label-md text-on-surface-variant">
+                    {filteredProducts.length} {pluralizeLabel(filteredProducts.length, "product")}
+                </p>
             </div>
-            <p className="mb-4 font-mono text-xs uppercase tracking-[0.14em] text-muted">{filteredProducts.length} products shown</p>
-            {filteredProducts.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredProducts.length ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredProducts.map((product) => (
-                        <Link
-                            key={product.id}
-                            href={product.categoryId ? `/catalog/${product.categoryId}` : "/catalog"}
-                            className="group border border-border bg-surface p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-sm"
-                        >
-                            <div className="mb-8 flex items-start justify-between gap-3">
-                                <span className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-warn">In stock</span>
-                                <span className="font-mono text-xs text-muted">{product.stock} {pluralizeLabel(product.stock, product.unitLabel)}</span>
-                            </div>
-                            <p className="font-mono text-xs uppercase tracking-[0.12em] text-muted">{product.ingredientName ?? "Uncategorized"}</p>
-                            <h3 className="mt-2 text-2xl text-ink group-hover:text-primary">{product.brandName}</h3>
-                            <div className="mt-2 flex items-end justify-between gap-3">
-                                <p className="text-sm text-muted">{product.strength ?? "Standard strength"}</p>
-                                {product.pricePerPack ? <p className="font-mono text-sm text-warn">from {product.pricePerPack}</p> : null}
-                            </div>
-                        </Link>
+                        <CatalogProductCard key={`${product.brandName}-${product.strength ?? ""}-${product.unitLabel}`} product={product} />
                     ))}
                 </div>
             ) : (
-                <p className="border border-dashed border-border px-5 py-8 text-muted">No products match that search.</p>
+                <div className="border border-dashed border-outline-variant bg-surface-container-low px-5 py-7">
+                    <p className="text-body-md text-on-surface-variant">No products match those filters.</p>
+                    <Link href="/catalog#branches" className="mt-3 inline-flex min-h-11 items-center font-label-md text-label-md font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                        Find a branch
+                    </Link>
+                </div>
             )}
         </section>
     );
