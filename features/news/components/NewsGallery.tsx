@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type GalleryImage = {
     id: string;
     url: string;
@@ -10,17 +12,19 @@ export function NewsGallery({ images, title }: { images: GalleryImage[]; title: 
     if (!images.length) return null;
 
     return (
-        <div className="mt-6 grid gap-4">
+        <div className="mx-auto mt-6 grid max-w-4xl gap-5">
             {[...images].sort((left, right) => left.sortOrder - right.sortOrder).map((image) => (
-                <figure key={image.id}>
-                    <img
-                        src={image.url}
-                        alt={image.altText ?? title}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full rounded object-cover"
-                    />
-                    {image.caption ? <figcaption className="mt-2 text-sm text-muted">{image.caption}</figcaption> : null}
+                <figure key={image.id} className="overflow-hidden border border-outline-variant bg-surface-container-low">
+                    <Link href={image.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${image.caption || title} image in a new tab`} className="block p-3 sm:p-5">
+                        <img
+                            src={image.url}
+                            alt={image.altText ?? title}
+                            loading="lazy"
+                            decoding="async"
+                            className="mx-auto block h-auto max-h-[80vh] w-auto max-w-full object-contain"
+                        />
+                    </Link>
+                    {image.caption ? <figcaption className="border-t border-outline-variant px-4 py-3 text-body-sm text-on-surface-variant">{image.caption}</figcaption> : null}
                 </figure>
             ))}
         </div>

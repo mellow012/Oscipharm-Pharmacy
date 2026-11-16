@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { formatNewsDate } from "./news-dates.ts";
 import { eventEffectiveEnd, isUpcomingEvent, normalizeTab, orderAll, orderPastEvents, orderUpcomingEvents } from "./news-feed.ts";
 
 test("normalizeTab accepts only exact single News and Events values", () => {
@@ -40,14 +41,27 @@ test("event and all-feed ordering is correct without mutating input arrays", () 
         { id: "newer", eventStartsAt: new Date("2026-10-22T10:00:00.000Z"), eventEndsAt: null },
     ];
     const all = [
-        { id: "older", publishedAt: new Date("2026-10-20T10:00:00.000Z") },
-        { id: "newer", publishedAt: new Date("2026-10-22T10:00:00.000Z") },
+        { id: "older", type: "NEWS", publishedAt: new Date("2026-10-20T10:00:00.000Z"), eventStartsAt: null, eventEndsAt: null },
+        { id: "newer", type: "NEWS", publishedAt: new Date("2026-10-22T10:00:00.000Z"), eventStartsAt: null, eventEndsAt: null },
+        { id: "upcoming", type: "EVENT", publishedAt: new Date("2026-10-18T10:00:00.000Z"), eventStartsAt: new Date("2026-10-24T10:00:00.000Z"), eventEndsAt: null },
+        { id: "past", type: "EVENT", publishedAt: new Date("2026-10-23T10:00:00.000Z"), eventStartsAt: new Date("2026-10-22T10:00:00.000Z"), eventEndsAt: null },
     ];
+    const now = new Date("2026-10-23T12:00:00.000Z");
 
     assert.deepEqual(orderUpcomingEvents(upcoming).map((event) => event.id), ["sooner", "later"]);
     assert.deepEqual(orderPastEvents(past).map((event) => event.id), ["newer", "older"]);
-    assert.deepEqual(orderAll(all).map((item) => item.id), ["newer", "older"]);
+    assert.deepEqual(orderAll(all, now).map((item) => item.id), ["upcoming", "past", "newer", "older"]);
     assert.deepEqual(upcoming.map((event) => event.id), ["later", "sooner"]);
     assert.deepEqual(past.map((event) => event.id), ["older", "newer"]);
-    assert.deepEqual(all.map((item) => item.id), ["older", "newer"]);
+    assert.deepEqual(all.map((item) => item.id), ["older", "newer", "upcoming", "past"]);
+});
+
+test("news dates use the Malawi calendar day regardless of UTC date", () => {
+    assert.equal(formatNewsDate(new Date("2026-10-24T22:30:00.000Z")), "25 Oct 2026");
+});
+
+test("news date-times format in Malawi time", () => {
+    const formatted = formatNewsDate(new Date("2026-10-25T13:00:00.000Z"), true);
+    assert.match(formatted, /25 Oct 2026/);
+    assert.match(formatted, /3:00 pm/);
 });

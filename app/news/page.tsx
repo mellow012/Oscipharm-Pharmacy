@@ -1,54 +1,45 @@
-import Link from "next/link";
-import { formatBlantyreDateTime } from "@/lib/timezone";
-import { getPublicFeed } from "@/features/news/lib/queries";
+import type { ComponentProps } from "react";
+import { NewsCard } from "@/features/news/components/NewsCard";
+import { PublicNewsLayout } from "@/features/news/components/PublicNewsLayout";
 import { NewsTabLink } from "@/features/news/components/NewsTabLink";
+import { getPublicFeed } from "@/features/news/lib/queries";
 import { normalizeTab, type NewsTab } from "@/features/news/lib/news-feed";
-import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
 export const dynamic = "force-dynamic";
-
-type PublicPost = {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string | null;
-    type: "NEWS" | "EVENT";
-    publishedAt: Date;
-    eventStartsAt: Date | null;
-    createdBy: { name: string };
-    images: Array<{ id: string; url: string; altText: string | null; sortOrder: number }>;
-};
-
-function NewsCard({ post }: { post: PublicPost }) {
-    const isEvent = post.type === "EVENT";
-    return (
-        <article className="rounded border border-border bg-surface p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-                <span>{isEvent && post.eventStartsAt
-                    ? `${formatBlantyreDateTime(post.eventStartsAt)} CAT`
-                    : formatBlantyreDateTime(post.publishedAt)}</span>
-                <div className="flex items-center gap-3">
-                    {isEvent ? <span className="border border-warn px-2 py-1 font-mono text-[0.65rem] uppercase text-warn">Event</span> : null}
-                    <span>By {post.createdBy.name}</span>
-                </div>
-            </div>
-            {post.images[0] ? (
-                <div className="mb-4 aspect-[4/3] overflow-hidden rounded">
-                    <img src={post.images[0].url} alt={post.images[0].altText ?? post.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                </div>
-            ) : null}
-            <h2 className="text-2xl text-ink">{post.title}</h2>
-            {post.excerpt ? <p className="mt-3 text-muted">{post.excerpt}</p> : null}
-            <Link href={`/news/${post.slug}`} className="mt-4 inline-block text-primary hover:underline">{isEvent ? "View event" : "Read article"}</Link>
-        </article>
-    );
-}
 
 const tabs: Array<{ tab: NewsTab; label: string; href: string }> = [
     { tab: "all", label: "All", href: "/news" },
     { tab: "news", label: "News", href: "/news?tab=news" },
     { tab: "events", label: "Events", href: "/news?tab=events" },
 ];
+
+type NewsCardPost = ComponentProps<typeof NewsCard>["post"];
+
+function NewsPageHeading({ tab }: { tab: NewsTab }) {
+    return (
+        <>
+            <header className="border-b border-outline-variant pb-7 pt-8 sm:pb-9 sm:pt-12">
+                <p className="font-eyebrow text-eyebrow uppercase text-secondary">News and events</p>
+                <h1 className="mt-3 font-display text-headline-xl text-primary">Pharmacy updates</h1>
+            </header>
+            <nav aria-label="News filters" className="mb-7 flex gap-2 border-b border-outline-variant">
+                {tabs.map((item) => (
+                    <NewsTabLink key={item.tab} href={item.href} current={item.tab === tab}>
+                        {item.label}
+                    </NewsTabLink>
+                ))}
+            </nav>
+        </>
+    );
+}
+
+function NewsGrid({ posts, now }: { posts: NewsCardPost[]; now: Date }) {
+    return (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {posts.map((post) => <NewsCard key={post.id} post={post} now={now} />)}
+        </div>
+    );
+}
 
 export default async function NewsPage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
     const params = await searchParams;
@@ -58,42 +49,33 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
     if (tab === "events") {
         const { upcoming, past } = await getPublicFeed("events", now);
         return (
-            <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
-                <SiteHeader />
-                <header className="mb-8 border-b border-border pb-6 pt-8">
-                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">News and events</p>
-                    <h1 className="mt-2 text-4xl text-ink">Pharmacy updates</h1>
-                </header>
-                <nav aria-label="News filters" className="mb-6 flex gap-5 border-b border-border">
-                    {tabs.map((item) => <NewsTabLink key={item.tab} href={item.href} current={item.tab === tab}>{item.label}</NewsTabLink>)}
-                </nav>
-                {upcoming.length || past.length ? (
-                    <div className="space-y-10">
-                        {upcoming.length ? <section aria-labelledby="upcoming-events-heading"><h2 id="upcoming-events-heading" className="mb-4 text-2xl text-ink">Upcoming events</h2><div className="grid gap-5">{upcoming.map((post) => <NewsCard key={post.id} post={post} />)}</div></section> : null}
-                        {past.length ? <section aria-labelledby="past-events-heading"><h2 id="past-events-heading" className="mb-4 text-2xl text-ink">Past events</h2><div className="grid gap-5">{past.map((post) => <NewsCard key={post.id} post={post} />)}</div></section> : null}
-                    </div>
-                ) : <p className="text-muted">No public events yet.</p>}
-            </main>
+            <PublicNewsLayout>
+                <NewsPageHeading tab={tab} />
+                <div className="space-y-10">
+                    <section aria-labelledby="upcoming-events-heading">
+                        <h2 id="upcoming-events-heading" className="mb-4 font-display text-headline-md text-ink">Upcoming events</h2>
+                        {upcoming.length ? <NewsGrid posts={upcoming} now={now} /> : <p className="text-body-md text-on-surface-variant">No upcoming events right now</p>}
+                    </section>
+                    <section aria-labelledby="past-events-heading">
+                        <h2 id="past-events-heading" className="mb-4 font-display text-headline-md text-ink">Past events</h2>
+                        {past.length ? <NewsGrid posts={past} now={now} /> : <p className="text-body-md text-on-surface-variant">No past events yet.</p>}
+                    </section>
+                </div>
+            </PublicNewsLayout>
         );
     }
 
     const { items } = await getPublicFeed(tab, now);
-
     return (
-        <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8 sm:px-8">
-            <SiteHeader />
-
-            <header className="mb-8 border-b border-border pb-6 pt-8">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">News and events</p>
-                <h1 className="mt-2 text-4xl text-ink">Pharmacy updates</h1>
-            </header>
-
-            <nav aria-label="News filters" className="mb-6 flex gap-5 border-b border-border">
-                {tabs.map((item) => <NewsTabLink key={item.tab} href={item.href} current={item.tab === tab}>{item.label}</NewsTabLink>)}
-            </nav>
-            <div className="grid gap-6">
-                {items.length ? items.map((post) => <NewsCard key={post.id} post={post} />) : <p className="text-muted">{tab === "news" ? "No public news yet." : "No public news or upcoming events yet."}</p>}
-            </div>
-        </main>
+        <PublicNewsLayout>
+            <NewsPageHeading tab={tab} />
+            {items.length ? (
+                <NewsGrid posts={items} now={now} />
+            ) : (
+                <p className="text-body-md text-on-surface-variant">
+                    {tab === "news" ? "No public news yet." : "No public news or upcoming events yet."}
+                </p>
+            )}
+        </PublicNewsLayout>
     );
 }

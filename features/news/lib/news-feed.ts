@@ -48,6 +48,11 @@ export function orderPastEvents<T extends NewsEvent>(events: readonly T[]): T[] 
     });
 }
 
-export function orderAll<T extends PublishedNewsItem>(items: readonly T[]): T[] {
-    return [...items].sort((left, right) => right.publishedAt.getTime() - left.publishedAt.getTime());
+export function orderAll<T extends PublishedNewsItem & NewsEvent & { type: "NEWS" | "EVENT" }>(items: readonly T[], now: Date): T[] {
+    const upcoming = items.filter((item) => item.type === "EVENT" && isUpcomingEvent(item, now));
+    const remaining = items.filter((item) => item.type !== "EVENT" || !isUpcomingEvent(item, now));
+    return [
+        ...orderUpcomingEvents(upcoming),
+        ...remaining.sort((left, right) => right.publishedAt.getTime() - left.publishedAt.getTime()),
+    ];
 }

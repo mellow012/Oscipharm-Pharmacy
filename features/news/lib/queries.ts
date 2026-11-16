@@ -44,8 +44,8 @@ export async function getPublicFeed(tab: NewsTab, now: Date): Promise<{ items: P
         where: publicAnyNewsWhere(),
         include: publicInclude,
     });
-    const items = posts.filter((post) => post.type === "NEWS" || isUpcomingEvent(post, now));
-    return { items: orderAll(items) };
+    const items = posts.filter((post) => post.type === "NEWS" || post.type === "EVENT");
+    return { items: orderAll(items, now) };
 }
 
 export async function getNewsBySlug(slug: string) {
