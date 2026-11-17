@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
+import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
 export const dynamic = "force-dynamic";
@@ -30,41 +31,7 @@ export default async function HomePage() {
                 </Link>
             </div>
             <ProductBrowser categories={categories} products={products} branches={branches} />
-            <footer className="mt-10 border-t border-outline-variant pt-10 sm:mt-14 sm:pt-14">
-                <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr_0.9fr]">
-                    <div>
-                        <Image src="/op/logo-transparent.png" alt="OsciPharm Pharmacy" width={126} height={50} className="h-10 w-auto object-contain object-left" />
-                        <p className="mt-5 max-w-xs font-body-sm text-body-sm leading-6 text-on-surface-variant">Good Chemistry. Good Health. Everyday care, thoughtfully stocked.</p>
-                    </div>
-                    <div>
-                        <div className="mb-4 flex items-baseline justify-between gap-4">
-                            <h2 className="font-headline-md text-headline-md text-primary">Our branches</h2>
-                            <span className="font-label-sm text-label-sm text-on-surface-variant">01 location</span>
-                        </div>
-                        <ul className="border-y border-outline-variant">
-                            <li className="grid grid-cols-[2rem_1fr] gap-3 py-3">
-                                <span className="font-label-sm text-label-sm text-secondary">01</span>
-                                <div>
-                                    <p className="font-label-md text-label-md text-on-surface">Blantyre Town Lunzu</p>
-                                    <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">Blantyre, Malawi</p>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
-                    <div>
-                        <p className="mb-4 font-eyebrow text-eyebrow uppercase tracking-[0.12em] text-secondary">Contact</p>
-                        <div className="space-y-3 font-body-sm text-body-sm text-on-surface-variant">
-                            <a href="tel:+265996621085" className="block hover:text-primary">0996 62 10 85</a>
-                            <a href="mailto:oscipharm@gmail.com" className="block hover:text-primary">oscipharm@gmail.com</a>
-                            <a href="https://oscipharm.com" className="block hover:text-primary">oscipharm.com</a>
-                        </div>
-                        <p className="mt-6 border-l-2 border-secondary bg-surface-container-low px-4 py-3 font-label-sm text-label-sm text-on-surface-variant">
-                            Blantyre Town Lunzu
-                        </p>
-                    </div>
-                </div>
-                <div className="mt-10 border-t border-outline-variant py-5 font-label-sm text-label-sm text-on-surface-variant">OsciPharm / Good Chemistry. Good Health.</div>
-            </footer>
+            <PublicFooter branches={branches} />
         </main>
     );
 }

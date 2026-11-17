@@ -26,6 +26,13 @@ function branchIdFrom(formData: FormData) {
 }
 
 async function revalidateBranchPages() {
+    revalidatePath("/", "page");
+    revalidatePath("/catalog", "page");
+    revalidatePath("/catalog/[categoryId]", "page");
+    revalidatePath("/catalog/[categoryId]/[ingredientId]", "page");
+    revalidatePath("/catalog/product/[variantId]", "page");
+    revalidatePath("/news", "page");
+    revalidatePath("/news/[slug]", "page");
     revalidatePath("/admin/branches");
     revalidatePath("/admin/staff");
     revalidatePath("/admin");

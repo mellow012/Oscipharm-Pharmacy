@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, MapPin, Package, Pill, Phone } from "lucide-react";
 import { StatusBadge } from "@/features/shared/components/StatusBadge";
-import { getPublicProduct } from "@/features/catalog/lib/queries";
+import { getPublicBranches, getPublicProduct } from "@/features/catalog/lib/queries";
+import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { formatMwk } from "@/features/catalog/utils/formatPrice";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 
@@ -19,9 +20,10 @@ function formIcon(unitLabel: string) {
 
 export default async function CatalogProductPage({ params }: { params: Promise<{ variantId: string }> }) {
     const { variantId } = await params;
-    const product = await getPublicProduct(variantId);
+    const branches = await getPublicBranches();
+    const product = await getPublicProduct(variantId, branches);
     if (!product) {
-        return <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-6 sm:px-8 sm:py-8"><SiteHeader /><h1 className="mt-8 font-display text-headline-lg text-primary">Product not found</h1></main>;
+        return <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-6 sm:px-8 sm:py-8"><SiteHeader /><h1 className="mt-8 font-display text-headline-lg text-primary">Product not found</h1><PublicFooter branches={branches} /></main>;
     }
 
     const Icon = formIcon(product.unitLabel);
@@ -73,7 +75,7 @@ export default async function CatalogProductPage({ params }: { params: Promise<{
                                     <p className="mt-1 flex items-start gap-2 text-body-sm text-on-surface-variant"><MapPin aria-hidden="true" size={15} className="mt-0.5 shrink-0" />{branch.location}</p>
                                     {branch.contactNumber ? (
                                         <a href={`tel:${branch.contactNumber}`} className="mt-2 inline-flex min-h-11 items-center gap-2 font-label-md text-label-md font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><Phone aria-hidden="true" size={15} />{branch.contactNumber}</a>
-                                    ) : <p className="mt-2 min-h-11 content-center text-body-sm text-on-surface-variant">Call branch to confirm</p>}
+                                    ) : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
@@ -84,6 +86,7 @@ export default async function CatalogProductPage({ params }: { params: Promise<{
                     })}
                 </ul>
             </section>
+            <PublicFooter branches={branches} />
         </main>
     );
 }

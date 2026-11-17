@@ -1,6 +1,7 @@
 import { BranchDirectory } from "@/features/catalog/components/BranchDirectory";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
+import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 import { formatBlantyreDateTime } from "@/lib/timezone";
 
@@ -26,6 +27,7 @@ export default async function CatalogPage() {
             ) : null}
             <ProductBrowser categories={categories} products={products} branches={branches} />
             <BranchDirectory branches={branches} />
+            <PublicFooter branches={branches} />
         </main>
     );
 }

@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { VariantList } from "@/features/catalog/components/VariantList";
-import { getPublicVariants } from "@/features/catalog/lib/queries";
+import { getPublicBranches, getPublicVariants } from "@/features/catalog/lib/queries";
+import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 import { prisma } from "@/lib/prisma";
 
 export default async function IngredientPage({ params }: { params: Promise<{ categoryId: string; ingredientId: string }> }) {
     const { categoryId, ingredientId } = await params;
-    const [variants, ingredient] = await Promise.all([
+    const [variants, ingredient, branches] = await Promise.all([
         getPublicVariants(ingredientId),
         prisma.ingredient.findUnique({
             where: { id: ingredientId },
             select: { id: true, name: true, categoryId: true, category: { select: { id: true, name: true } } },
         }),
+        getPublicBranches(),
     ]);
 
     if (!ingredient || !ingredient.category || ingredient.categoryId !== categoryId) {
@@ -41,6 +43,7 @@ export default async function IngredientPage({ params }: { params: Promise<{ cat
                 <h2 id="variants-heading" className="mb-4 font-display text-headline-md text-ink">Pack sizes and prices</h2>
                 <VariantList variants={variants} />
             </section>
+            <PublicFooter branches={branches} />
         </main>
     );
 }

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { getIngredients } from "@/features/catalog/lib/queries";
+import { getIngredients, getPublicBranches } from "@/features/catalog/lib/queries";
+import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 import { prisma } from "@/lib/prisma";
 
 export default async function CategoryPage({ params }: { params: Promise<{ categoryId: string }> }) {
     const { categoryId } = await params;
-    const [ingredients, category] = await Promise.all([
+    const [ingredients, category, branches] = await Promise.all([
         getIngredients(categoryId),
         prisma.category.findUnique({ where: { id: categoryId }, select: { id: true, name: true } }),
+        getPublicBranches(),
     ]);
 
     if (!category) return <div>Category not found</div>;
@@ -41,6 +43,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
                     </ul>
                 ) : <p className="border border-dashed border-outline-variant px-5 py-6 text-body-md text-on-surface-variant">No ingredients found.</p>}
             </section>
+            <PublicFooter branches={branches} />
         </main>
     );
 }

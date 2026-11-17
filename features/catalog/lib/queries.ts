@@ -1,15 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getPublicAvailability, type AvailabilityBranchInput } from "@/features/catalog/lib/public-availability";
+import { filterPublicBranches } from "@/features/catalog/lib/public-branch-rules";
 
 const activeBranchWhere = { isActive: true, archivedAt: null } as const;
-const publicContactFallback = "+265996621085";
 
-export type PublicBranch = {
-  id: string;
-  name: string;
-  location: string;
-  contactNumber: string | null;
-};
+export type { PublicBranch } from "@/features/catalog/lib/public-branch-rules";
+import type { PublicBranch } from "@/features/catalog/lib/public-branch-rules";
 
 export type PublicCatalogVariant = {
   id: string;
@@ -25,12 +21,14 @@ export type PublicCatalogVariant = {
 };
 
 function availabilityInput(
-  branches: Array<{ id: string; isActive: boolean; archivedAt: Date | null }>,
+  branches: Array<Pick<PublicBranch, "id">>,
   batches: Array<{ branchId: string; quantityRemaining: number; expiryDate: Date; expiryDateKnown: boolean }>,
   prices: Array<{ branchId: string; reorderThreshold: number | null }>,
 ): AvailabilityBranchInput[] {
   return branches.map((branch) => ({
     ...branch,
+    isActive: true,
+    archivedAt: null,
     reorderThreshold: prices.find((price) => price.branchId === branch.id)?.reorderThreshold ?? null,
     batches: batches.filter((batch) => batch.branchId === branch.id),
   }));
@@ -42,23 +40,22 @@ function lowestPackPrice(prices: Array<{ pricePerPack: { toString(): string } }>
 }
 
 export async function getPublicBranches(): Promise<PublicBranch[]> {
-  return prisma.branch.findMany({
-    where: activeBranchWhere,
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, location: true, contactNumber: true },
-  });
-}
-
-export async function getCatalogBrowserData() {
-  const categories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
-    select: { name: true },
-  });
   const branches = await prisma.branch.findMany({
     where: activeBranchWhere,
     orderBy: { name: "asc" },
     select: { id: true, name: true, location: true, contactNumber: true, isActive: true, archivedAt: true },
   });
+  return filterPublicBranches(branches);
+}
+
+export async function getCatalogBrowserData() {
+  const [categories, branches] = await Promise.all([
+    prisma.category.findMany({
+      orderBy: { name: "asc" },
+      select: { name: true },
+    }),
+    getPublicBranches(),
+  ]);
   const variants = await prisma.variant.findMany({
     where: { isActive: true },
     orderBy: [{ ingredient: { name: "asc" } }, { brandName: "asc" }],
@@ -111,7 +108,7 @@ export async function getCatalogBrowserData() {
           id: branch.id,
           name: branch.name,
           location: branch.location,
-          contactNumber: branch.contactNumber ?? publicContactFallback,
+          contactNumber: branch.contactNumber,
           status: availability.branches.find((item) => item.branchId === branch.id)?.status ?? "out-of-stock",
           pricePerPack: variant.branchPrices.find((price) => price.branchId === branch.id)?.pricePerPack.toNumber() ?? null,
         })),
@@ -121,7 +118,7 @@ export async function getCatalogBrowserData() {
   return {
     categories: categories.filter((category) => products.some((product) => product.categoryName === category.name && product.availability !== "out-of-stock")),
     products,
-    branches: branches.map(({ id, name, location, contactNumber }) => ({ id, name, location, contactNumber: contactNumber ?? publicContactFallback })),
+    branches,
     availabilityUpdatedAt: latestImport?.committedAt ?? null,
   };
 }
@@ -135,11 +132,7 @@ export async function getIngredients(categoryId: string) {
 }
 
 export async function getPublicVariants(ingredientId: string): Promise<PublicCatalogVariant[]> {
-  const branches = await prisma.branch.findMany({
-    where: activeBranchWhere,
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, location: true, contactNumber: true, isActive: true, archivedAt: true },
-  });
+  const branches = await getPublicBranches();
   const variants = await prisma.variant.findMany({
     where: { ingredientId, isActive: true },
     orderBy: [{ brandName: "asc" }, { strength: "asc" }],
@@ -173,7 +166,7 @@ export async function getPublicVariants(ingredientId: string): Promise<PublicCat
         id: branch.id,
         name: branch.name,
         location: branch.location,
-        contactNumber: branch.contactNumber ?? publicContactFallback,
+        contactNumber: branch.contactNumber,
         status: availability.branches.find((item) => item.branchId === branch.id)?.status ?? "out-of-stock",
         pricePerPack: variant.branchPrices.find((price) => price.branchId === branch.id)?.pricePerPack.toNumber() ?? null,
       })),
@@ -181,12 +174,8 @@ export async function getPublicVariants(ingredientId: string): Promise<PublicCat
   }).filter((variant) => variant.branches.some((branch) => branch.status !== "out-of-stock"));
 }
 
-export async function getPublicProduct(variantId: string): Promise<PublicCatalogVariant | null> {
-  const branches = await prisma.branch.findMany({
-    where: activeBranchWhere,
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, location: true, contactNumber: true, isActive: true, archivedAt: true },
-  });
+export async function getPublicProduct(variantId: string, publicBranches?: PublicBranch[]): Promise<PublicCatalogVariant | null> {
+  const branches = publicBranches ?? await getPublicBranches();
   const variant = await prisma.variant.findFirst({
     where: { id: variantId, isActive: true },
     select: {
@@ -218,7 +207,7 @@ export async function getPublicProduct(variantId: string): Promise<PublicCatalog
       id: branch.id,
       name: branch.name,
       location: branch.location,
-      contactNumber: branch.contactNumber ?? publicContactFallback,
+      contactNumber: branch.contactNumber,
       status: availability.branches.find((item) => item.branchId === branch.id)?.status ?? "out-of-stock",
       pricePerPack: variant.branchPrices.find((price) => price.branchId === branch.id)?.pricePerPack.toNumber() ?? null,
     })),
