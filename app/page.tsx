@@ -5,8 +5,6 @@ import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
 import { PublicFooter } from "@/features/marketing/components/PublicFooter";
 import { SiteHeader } from "@/features/marketing/components/SiteHeader";
-import { NewsCard } from "@/features/news/components/NewsCard";
-import { getPublicFeed } from "@/features/news/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +16,6 @@ const quickActions = [
 
 export default async function HomePage() {
     const { categories, products, branches } = await getCatalogBrowserData();
-    const now = new Date();
-    const { items: latestUpdates } = await getPublicFeed("all", now);
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
@@ -69,23 +65,6 @@ export default async function HomePage() {
             </section>
 
             <ProductBrowser categories={categories} products={products} branches={branches} />
-
-            {latestUpdates.length ? (
-                <section aria-labelledby="latest-updates-heading" className="border-t border-outline-variant py-8 sm:py-10">
-                    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p className="font-eyebrow text-eyebrow uppercase text-secondary">Latest updates</p>
-                            <h2 id="latest-updates-heading" className="mt-2 font-display text-headline-md text-primary">News and events</h2>
-                        </div>
-                        <Link href="/news" className="inline-flex min-h-11 items-center font-label-md text-label-md font-semibold text-primary underline-offset-4 hover:underline">
-                            View all updates
-                        </Link>
-                    </div>
-                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                        {latestUpdates.slice(0, 3).map((post) => <NewsCard key={post.id} post={post} now={now} />)}
-                    </div>
-                </section>
-            ) : null}
 
             <PublicFooter branches={branches} />
         </main>
