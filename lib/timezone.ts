@@ -94,3 +94,13 @@ export function formatBlantyreDateTime(date: Date) {
         timeStyle: "short",
     }).format(date);
 }
+
+export function formatBlantyreDay(date: Date) {
+    return new Intl.DateTimeFormat("en-MW", {
+        timeZone: MALAWI_TIMEZONE,
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    }).format(date);
+}

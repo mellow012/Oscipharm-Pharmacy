@@ -7,6 +7,7 @@ import { createStorage } from "../../../lib/supabase-storage.ts";
 import { createNewsPost, deleteNewsPost, getNewsPostForActor, publishNewsPost, unpublishNewsPost, updateNewsPost } from "./news-service.ts";
 import type { NewsActionResult, NewsInputPayload } from "../types.ts";
 import { NEWS_CACHE_TAG } from "./news-cache.ts";
+import { updateStaffNotificationsTag } from "@/features/notifications/lib/notification-cache";
 
 async function getActorId(): Promise<string | NewsActionResult> {
     const session = await getServerSession(authOptions);
@@ -29,6 +30,7 @@ export async function createNewsPostAction(input: NewsInputPayload): Promise<New
     const result = toActionResult(await createNewsPost(actorId, input));
     if (result.ok) {
         updateTag(NEWS_CACHE_TAG);
+        updateStaffNotificationsTag();
         revalidatePath("/staff/news");
         revalidatePath("/news");
         revalidatePath(`/news/${result.slug}`);
@@ -77,6 +79,7 @@ export async function publishNewsPostAction(postId: string): Promise<NewsActionR
     const result = toActionResult(await publishNewsPost(actorId, postId));
     if (result.ok) {
         updateTag(NEWS_CACHE_TAG);
+        updateStaffNotificationsTag();
         revalidatePath("/staff/news");
         revalidatePath(`/staff/news/${postId}/preview`);
         revalidatePath("/news");
@@ -91,6 +94,7 @@ export async function unpublishNewsPostAction(postId: string): Promise<NewsActio
     const result = toActionResult(await unpublishNewsPost(actorId, postId));
     if (result.ok) {
         updateTag(NEWS_CACHE_TAG);
+        updateStaffNotificationsTag();
         revalidatePath("/staff/news");
         revalidatePath(`/staff/news/${postId}/preview`);
         revalidatePath("/news");

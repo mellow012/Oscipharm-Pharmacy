@@ -25,6 +25,7 @@ const MORE_TILES: HomeTile[] = [
     { label: "Reports", description: "Review branch sales and audit history", href: "/reports", permission: "reports:branch:view", accent: "border-warn" },
     { label: "Import", description: "", href: "/staff/import", permission: null, accent: "border-primary" },
     { label: "News and events", description: "Create and manage public updates", href: "/staff/news", permission: "news:manage", accent: "border-primary" },
+    { label: "Notifications", description: "Review recent activity and items needing attention", href: "/staff/notifications", permission: "notifications:view", accent: "border-warn" },
     { label: "Memberships", description: "Review membership requests and set discounts", href: "/admin/memberships", permission: "membership:manage", accent: "border-warn" },
     { label: "Members", description: "Search member details for dispensing", href: "/staff/members", permission: "members:view", accent: "border-warn" },
     { label: "Administration", description: "Review staff, branch coverage, and pharmacy totals", href: "/admin", permission: "users:manage", accent: "border-primary" },

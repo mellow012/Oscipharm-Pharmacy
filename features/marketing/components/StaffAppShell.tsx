@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import type { Role } from "@prisma/client";
 import {
     BookOpen,
+    Bell,
     Building2,
     Boxes,
     ChartColumn,
@@ -44,6 +45,7 @@ const navIcons: Record<string, LucideIcon> = {
     Catalog: BookOpen,
     Reports: ChartColumn,
     "News and events": Newspaper,
+    Notifications: Bell,
     Import: Upload,
     "Import sales": Upload,
     Overview: LayoutDashboard,
@@ -59,10 +61,11 @@ type StaffAppShellProps = {
     name: string;
     branchLabel: string;
     navigation: StaffNavigation;
+    hasNewNotifications: boolean;
     children: React.ReactNode;
 };
 
-export function StaffAppShell({ role, name, branchLabel, navigation, children }: StaffAppShellProps) {
+export function StaffAppShell({ role, name, branchLabel, navigation, hasNewNotifications, children }: StaffAppShellProps) {
     const pathname = usePathname();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [isDesktop, setIsDesktop] = useState(false);
@@ -170,7 +173,7 @@ export function StaffAppShell({ role, name, branchLabel, navigation, children }:
                         type="button"
                         aria-label="Close navigation"
                         onClick={closeDrawer}
-                        className="flex size-11 shrink-0 items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container min-[1200px]:hidden"
+                        className="flex size-11 shrink-0 items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary min-[1200px]:hidden"
                     >
                         <X aria-hidden="true" size={19} />
                     </button>
@@ -251,7 +254,7 @@ export function StaffAppShell({ role, name, branchLabel, navigation, children }:
                         aria-controls="staff-sidebar"
                         aria-expanded={drawerOpen}
                         onClick={() => setDrawerOpen(true)}
-                        className="flex size-11 shrink-0 items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container min-[1200px]:hidden"
+                        className="flex size-11 shrink-0 items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary min-[1200px]:hidden"
                     >
                         <Menu aria-hidden="true" size={19} />
                     </button>
@@ -259,8 +262,20 @@ export function StaffAppShell({ role, name, branchLabel, navigation, children }:
                         <p className="font-eyebrow text-eyebrow uppercase tracking-[0.12em] text-outline">OsciPharm workspace</p>
                         <p className="truncate font-headline-sm text-headline-sm text-primary">{sectionTitle}</p>
                     </div>
+                    {role ? (
+                        <PendingLink
+                            href="/staff/notifications"
+                            aria-label="Notifications"
+                            aria-describedby={hasNewNotifications ? "staff-notification-new-activity" : undefined}
+                            className="relative ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        >
+                            <Bell aria-hidden="true" size={19} />
+                            <span aria-hidden="true" className={`absolute right-2 top-2 size-2 rounded-full bg-status-success ${hasNewNotifications ? "visible" : "invisible"}`} />
+                            {hasNewNotifications ? <span id="staff-notification-new-activity" className="sr-only">new activity</span> : null}
+                        </PendingLink>
+                    ) : null}
                 </header>
-                <main id="main-content" tabIndex={-1} className="min-h-[calc(100vh-4rem)] bg-surface focus:outline-none">
+                <main id="main-content" tabIndex={-1} className="min-h-[calc(100vh-4rem)] bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary">
                     <div className="mx-auto w-full max-w-[1440px] px-gutter-mobile min-[768px]:px-6 min-[1200px]:px-gutter">{children}</div>
                 </main>
             </div>

@@ -179,6 +179,13 @@ model User {
   aroniumProductLinks AroniumProductLink[]
   newsCreated News[] @relation("NewsCreatedBy")
   newsUpdated News[] @relation("NewsUpdatedBy")
+  notificationState StaffNotificationState?
+}
+
+model StaffNotificationState {
+  userId String   @id
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seenAt DateTime @default(now()) @db.Timestamp(3)
 }
 
 model PasswordResetToken {

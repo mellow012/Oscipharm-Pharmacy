@@ -1,4 +1,5 @@
 import { acceptInvitation, INVALID_STAFF_INVITATION_MESSAGE } from "@/features/admin/lib/staff-invitation-service";
+import { revalidateStaffNotificationsTag } from "@/features/notifications/lib/notification-cache";
 
 function response(body: Record<string, unknown>, status: number) {
     return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     try {
         const result = await acceptInvitation(token, { name, password });
         if (!result.ok) return response({ message: INVALID_STAFF_INVITATION_MESSAGE }, 400);
+        revalidateStaffNotificationsTag();
         return response({ ok: true }, 200);
     } catch {
         return response({ message: "Something went wrong. Try again." }, 500);

@@ -24,7 +24,7 @@ const NAVIGATION_GROUPS: Array<{ label: string; hrefs: string[] }> = [
     { label: "Members", hrefs: ["/staff/members"] },
     { label: "Insights", hrefs: ["/reports"] },
     { label: "Administration", hrefs: ["/admin", "/admin/staff", "/admin/memberships", "/staff/team"] },
-    { label: "Communication", hrefs: ["/staff/news"] },
+    { label: "Communication", hrefs: ["/staff/news", "/staff/notifications"] },
 ];
 
 const STAFF_ITEMS: StaffNavigationItem[] = [
@@ -34,6 +34,7 @@ const STAFF_ITEMS: StaffNavigationItem[] = [
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
     { href: "/reports", label: "Reports", permission: "reports:branch:view" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
+    { href: "/staff/notifications", label: "Notifications", permission: "notifications:view" },
     { href: "/staff/members", label: "Members", permission: "members:view" },
 ];
 
@@ -43,6 +44,7 @@ const POS_ITEMS: StaffNavigationItem[] = [
     { href: "/inventory", label: "Inventory", permission: "inventory:view" },
     { href: "/staff/catalog", label: "Catalog", permission: "catalog:view" },
     { href: "/staff/members", label: "Members", permission: "members:view" },
+    { href: "/staff/notifications", label: "Notifications", permission: "notifications:view" },
 ];
 
 const ADMIN_ITEMS: StaffNavigationItem[] = [
@@ -51,6 +53,7 @@ const ADMIN_ITEMS: StaffNavigationItem[] = [
     { href: "/admin/memberships", label: "Memberships", permission: "membership:manage" },
     { href: "/staff/members", label: "Members", permission: "members:view" },
     { href: "/staff/news", label: "News and events", permission: "news:manage" },
+    { href: "/staff/notifications", label: "Notifications", permission: "notifications:view" },
     { href: "/staff/team", label: "Team", permission: "reports:branch:view" },
 ];
 

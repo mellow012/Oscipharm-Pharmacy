@@ -6,6 +6,7 @@ import { authOptions } from "../../../lib/auth";
 import { can } from "../../../lib/permissions";
 import { archiveStaff, changeStaffRoleAndBranch, deactivateStaff, listStaffBranchesForAdmin, listStaffForAdmin, listTeamForManager, reactivateStaff, restoreStaff, sendStaffResetLink } from "./staff-service";
 import type { StaffActionResult, StaffBranchesResult, StaffListResult } from "./staff-types";
+import { updateStaffNotificationsTag } from "@/features/notifications/lib/notification-cache";
 
 const SIGN_IN_REQUIRED = { ok: false, message: "Sign in required." } as const;
 
@@ -34,6 +35,7 @@ export async function updateStaffRoleAndBranch(input: { userId: string; role: st
     if (!actorId) return SIGN_IN_REQUIRED;
     const result = await changeStaffRoleAndBranch(actorId, input);
     if (result.ok) {
+        updateStaffNotificationsTag();
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
         revalidatePath("/admin");
@@ -46,6 +48,7 @@ export async function deactivateStaffAccount(userId: string): Promise<StaffActio
     if (!actorId) return SIGN_IN_REQUIRED;
     const result = await deactivateStaff(actorId, userId);
     if (result.ok) {
+        updateStaffNotificationsTag();
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
         revalidatePath("/admin");
@@ -58,6 +61,7 @@ export async function reactivateStaffAccount(userId: string): Promise<StaffActio
     if (!actorId) return SIGN_IN_REQUIRED;
     const result = await reactivateStaff(actorId, userId);
     if (result.ok) {
+        updateStaffNotificationsTag();
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
         revalidatePath("/admin");
@@ -83,6 +87,7 @@ export async function archiveStaffAccount(userId: string): Promise<StaffActionRe
     if (!actorId) return { ok: false, message: "You are not authorized to manage staff." };
     const result = await archiveStaff(actorId, userId);
     if (result.ok) {
+        updateStaffNotificationsTag();
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
         revalidatePath("/admin");
@@ -95,6 +100,7 @@ export async function restoreStaffAccount(userId: string): Promise<StaffActionRe
     if (!actorId) return { ok: false, message: "You are not authorized to manage staff." };
     const result = await restoreStaff(actorId, userId);
     if (result.ok) {
+        updateStaffNotificationsTag();
         revalidatePath("/admin/staff");
         revalidatePath("/staff/team");
         revalidatePath("/admin");

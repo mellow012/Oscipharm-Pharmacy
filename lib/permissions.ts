@@ -19,7 +19,8 @@ export type Permission =
     | "users:manage"        // create/edit/deactivate users
     | "branches:manage"     // create/edit branches
     | "membership:manage"  // review and approve membership applications
-    | "members:view";       // search member details for dispensing
+    | "members:view"       // search member details for dispensing
+    | "notifications:view";
 
 // If the client ever wants role permissions to be configurable, this map is
 // the thing to move into the DB for a v2 — for now it's intentionally static.
@@ -42,6 +43,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "branches:manage",
         "membership:manage",
         "members:view",
+        "notifications:view",
     ],
     BRANCH_MANAGER: [
         "sales:view",
@@ -58,8 +60,9 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         "reports:branch:view",
         "membership:manage",
         "members:view",
+        "notifications:view",
     ],
-    POS: ["sales:view", "catalog:view", "inventory:view", "sales:import", "pos:checkout", "members:view"],
+    POS: ["sales:view", "catalog:view", "inventory:view", "sales:import", "pos:checkout", "members:view", "notifications:view"],
 };
 
 export function can(role: Role, permission: Permission): boolean {

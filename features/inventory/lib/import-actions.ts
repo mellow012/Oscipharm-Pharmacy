@@ -15,6 +15,7 @@ import { createSalesPreview, commitSalesSlice } from "@/features/inventory/lib/s
 import { requireCommittedOpeningStockRun } from "@/features/inventory/lib/opening-stock-guard";
 import { aggregateUnallocatedUnits } from "@/features/inventory/lib/sales-shortfall";
 import { revalidatePublicCatalog } from "@/features/catalog/lib/public-catalog-cache";
+import { updateStaffNotificationsTag } from "@/features/notifications/lib/notification-cache";
 
 const IMPORT_XLSX_MESSAGE = "Please export the Stock report with Aronium's Excel button";
 const SALES_XLSX_MESSAGE = "Please export the Sales Item list with Aronium's Excel button.";
@@ -243,7 +244,10 @@ export async function commitSalesImportSlice(formData: FormData) {
     await requireSalesOpeningStock(run.branchId);
     const file = fileFrom(formData, SALES_XLSX_MESSAGE);
     const result = await commitSalesSlice(runId, Buffer.from(await file.arrayBuffer()), 8_000);
-    if (result.done) revalidatePublicCatalog();
+    if (result.done) {
+      revalidatePublicCatalog();
+      updateStaffNotificationsTag();
+    }
     return { ok: true as const, processed: result.processed, total: result.total, done: result.done, counts: result.counts ? stripCostFieldsForRole(actor.role, result.counts) : null };
   } catch (error) {
     return { ok: false as const, error: salesPlainError(error) };
@@ -275,7 +279,10 @@ export async function commitStockImportSlice(formData: FormData) {
     if (!runId) throw new Error("Stock import run was not found.");
     const file = fileFrom(formData);
     const result = await commitImport(runId, Buffer.from(await file.arrayBuffer()), { timeLimitMs: 8_000 });
-    if (result.done) revalidatePublicCatalog();
+    if (result.done) {
+      revalidatePublicCatalog();
+      updateStaffNotificationsTag();
+    }
     if (!result.done) {
       return { ok: true as const, processed: result.processed, total: result.total, done: false };
     }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getStaffNavigation, groupStaffNavigation, isNavItemActive, shouldShowAdminNavigation } from "./staff-navigation.ts";
+import { can } from "../../../lib/permissions.ts";
 
 function labels(items) {
   return items.map((item) => item.label);
@@ -8,22 +9,22 @@ function labels(items) {
 
 test("Admin sees permission-filtered staff and Admin navigation", () => {
   const navigation = getStaffNavigation("ADMIN");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Members"]);
-  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff & Branches", "Memberships", "Members", "News and events"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Notifications", "Members"]);
+  assert.deepEqual(labels(navigation.admin), ["Overview", "Staff & Branches", "Memberships", "Members", "News and events", "Notifications"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
 test("Branch Manager sees only their existing staff-area permissions and Team tab", () => {
   const navigation = getStaffNavigation("BRANCH_MANAGER");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Members"]);
-  assert.deepEqual(labels(navigation.admin), ["Memberships", "Members", "News and events", "Team"]);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import", "Reports", "News and events", "Notifications", "Members"]);
+  assert.deepEqual(labels(navigation.admin), ["Memberships", "Members", "News and events", "Notifications", "Team"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
 test("Sales/POS sees its own staff navigation", () => {
   const navigation = getStaffNavigation("POS");
-  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import sales", "Members"]);
-  assert.deepEqual(labels(navigation.admin), []);
+  assert.deepEqual(labels(navigation.staff), ["Home", "Sales", "Inventory", "Catalog", "Import sales", "Members", "Notifications"]);
+  assert.deepEqual(labels(navigation.admin), ["Notifications"]);
   assert.deepEqual(labels(navigation.account), ["Public site", "Sign out"]);
 });
 
@@ -116,4 +117,9 @@ test("grouped navigation preserves only each role's permission-filtered destinat
   assert.ok(!managerHrefs.includes("/admin/staff"));
   assert.ok(!posHrefs.includes("/reports"));
   assert.ok(!posHrefs.includes("/staff/news"));
+  for (const role of ["ADMIN", "BRANCH_MANAGER", "POS"]) {
+    const navigation = getStaffNavigation(role);
+    assert.equal(can(role, "notifications:view"), true, role);
+    assert.ok([...navigation.staff, ...navigation.admin].some((item) => item.href === "/staff/notifications"), role);
+  }
 });

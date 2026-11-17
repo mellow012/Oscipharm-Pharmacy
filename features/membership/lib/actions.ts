@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { membershipDiscountPercent } from "@/features/membership/lib/policy";
 import { isMembershipHoneypotFilled, validateMembershipApplication, type MembershipApplicationErrors, type MembershipApplicationValues } from "@/features/membership/lib/application-validation";
+import { updateStaffNotificationsTag } from "@/features/notifications/lib/notification-cache";
 
 const MEMBERSHIP_SUCCESS_MESSAGE = "Thank you, we have received your request. Our team will contact you.";
 
@@ -72,6 +73,7 @@ export async function applyForMembership(
     }
 
     revalidatePath("/admin/memberships");
+    updateStaffNotificationsTag();
     return { success: MEMBERSHIP_SUCCESS_MESSAGE };
 }
 
@@ -97,6 +99,7 @@ export async function reviewMembershipApplication(formData: FormData) {
         },
     });
     revalidatePath("/admin/memberships");
+    updateStaffNotificationsTag();
 }
 
 export async function lookupActiveMembership(phone: string): Promise<{ member?: MembershipLookup; error?: string }> {
