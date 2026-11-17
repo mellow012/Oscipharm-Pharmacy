@@ -24,7 +24,7 @@ export default async function CatalogPage() {
                     Availability updated {formatBlantyreDateTime(availabilityUpdatedAt)} CAT
                 </p>
             ) : null}
-            <ProductBrowser categories={categories} products={products} />
+            <ProductBrowser categories={categories} products={products} branches={branches} />
             <BranchDirectory branches={branches} />
         </main>
     );

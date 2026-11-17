@@ -7,7 +7,7 @@ import { SiteHeader } from "@/features/marketing/components/SiteHeader";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-    const { categories, products } = await getCatalogBrowserData();
+    const { categories, products, branches } = await getCatalogBrowserData();
 
     return (
         <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
@@ -29,7 +29,7 @@ export default async function HomePage() {
                     Browse the catalog <span aria-hidden="true">-&gt;</span>
                 </Link>
             </div>
-            <ProductBrowser categories={categories} products={products} />
+            <ProductBrowser categories={categories} products={products} branches={branches} />
             <footer className="mt-10 border-t border-outline-variant pt-10 sm:mt-14 sm:pt-14">
                 <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr_0.9fr]">
                     <div>
