@@ -1,3 +1,5 @@
+import { isValidPhoneNumber } from "../../../lib/phone.ts";
+
 export type BranchInput = {
     name: unknown;
     location: unknown;
@@ -24,7 +26,7 @@ export function validateBranchInput(input: BranchInput):
         if (typeof input.contactNumber !== "string") return { ok: false, message: "Enter a valid phone number, or leave it blank." };
         const candidate = input.contactNumber.trim();
         if (candidate) {
-            if (candidate.length < 7 || candidate.length > 20 || !/^(?=.*\d)[0-9+() -]+$/.test(candidate)) {
+            if (!isValidPhoneNumber(candidate)) {
                 return { ok: false, message: "Enter a valid phone number, or leave it blank." };
             }
             contactNumber = candidate;

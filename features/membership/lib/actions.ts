@@ -1,17 +1,20 @@
 "use server";
 
 import { MembershipContactPreference, MembershipStatus, MembershipTier, Prisma } from "@prisma/client";
-import { z } from "zod";
-import { membershipTopicValues } from "@/features/membership/types";
 import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { membershipDiscountPercent } from "@/features/membership/lib/policy";
+import { isMembershipHoneypotFilled, validateMembershipApplication, type MembershipApplicationErrors, type MembershipApplicationValues } from "@/features/membership/lib/application-validation";
+
+const MEMBERSHIP_SUCCESS_MESSAGE = "Thank you, we have received your request. Our team will contact you.";
 
 export type MembershipActionState = {
-    error?: string;
+    fieldErrors?: MembershipApplicationErrors;
+    formError?: string;
+    values?: MembershipApplicationValues;
     success?: string;
 };
 
@@ -23,75 +26,53 @@ export type MembershipLookup = {
 
 const membershipTiers = [MembershipTier.CHRONIC_ILLNESS, MembershipTier.GENERAL_SICKNESS];
 
-const applicationSchema = z.object({
-    fullName: z.string().trim().min(2).max(100),
-    phone: z.string().trim().min(7).max(30),
-    email: z.union([z.literal(""), z.string().trim().email().max(254)]),
-    workPlace: z.string().trim().min(2).max(120),
-    currentAddress: z.string().trim().min(3).max(200),
-    village: z.string().trim().min(2).max(120),
-    healthConditions: z.array(z.enum(membershipTopicValues)).max(membershipTopicValues.length),
-    otherHealthCondition: z.string().trim().max(120),
-    contactPreference: z.nativeEnum(MembershipContactPreference),
-    consent: z.literal("on"),
-}).refine((application) => application.healthConditions.length > 0 || application.otherHealthCondition.length > 0, {
-    message: "Select a listed condition or enter another illness.",
-    path: ["healthConditions"],
-});
-
 export async function applyForMembership(
     _previousState: MembershipActionState,
     formData: FormData
 ): Promise<MembershipActionState> {
-    if (String(formData.get("website") ?? "").trim()) {
-        return { success: "Your request has been received." };
+    if (isMembershipHoneypotFilled(formData.get("website"))) {
+        return { success: MEMBERSHIP_SUCCESS_MESSAGE };
     }
 
-    const parsed = applicationSchema.safeParse({
+    const validation = validateMembershipApplication({
         fullName: formData.get("fullName"),
         phone: formData.get("phone"),
-        email: String(formData.get("email") ?? "").trim(),
+        email: formData.get("email"),
         workPlace: formData.get("workPlace"),
         currentAddress: formData.get("currentAddress"),
         village: formData.get("village"),
         healthConditions: formData.getAll("healthConditions"),
-        otherHealthCondition: String(formData.get("otherHealthCondition") ?? "").trim(),
+        otherHealthCondition: formData.get("otherHealthCondition"),
         contactPreference: formData.get("contactPreference"),
-        consent: formData.get("consent"),
+        consent: formData.get("consent") === "on",
     });
 
-    if (!parsed.success) {
-        return { error: "Complete the required details, provide a health condition, and give consent to continue." };
-    }
-
-    if (parsed.data.contactPreference === "EMAIL" && !parsed.data.email) {
-        return { error: "Add an email address to choose email as your preferred contact method." };
-    }
+    if (!validation.ok) return { fieldErrors: validation.errors, values: validation.values };
 
     try {
         await prisma.membershipApplication.create({
             data: {
-                fullName: parsed.data.fullName,
-                phone: parsed.data.phone,
-                email: parsed.data.email || null,
-                workPlace: parsed.data.workPlace,
-                currentAddress: parsed.data.currentAddress,
-                village: parsed.data.village,
-                healthConditions: parsed.data.healthConditions,
-                otherHealthCondition: parsed.data.otherHealthCondition || null,
-                contactPreference: parsed.data.contactPreference,
+                fullName: validation.value.fullName,
+                phone: validation.value.phone,
+                email: validation.value.email || null,
+                workPlace: validation.value.workPlace,
+                currentAddress: validation.value.currentAddress,
+                village: validation.value.village,
+                healthConditions: validation.value.healthConditions,
+                otherHealthCondition: validation.value.otherHealthCondition || null,
+                contactPreference: validation.value.contactPreference as MembershipContactPreference,
                 updatesConsentAt: new Date(),
             },
         });
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-            return { error: "A membership request already exists for this phone number. Please contact the branch to update it." };
+            return { success: MEMBERSHIP_SUCCESS_MESSAGE };
         }
-        throw error;
+        return { formError: "We couldn't send your request. Please try again.", values: validation.values };
     }
 
     revalidatePath("/admin/memberships");
-    return { success: "Your membership request was received. Our team will contact you about enrollment and applicable discounts." };
+    return { success: MEMBERSHIP_SUCCESS_MESSAGE };
 }
 
 export async function reviewMembershipApplication(formData: FormData) {
