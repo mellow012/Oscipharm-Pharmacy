@@ -30,7 +30,7 @@ export function PublicFooter({ branches }: { branches: PublicBranch[] }) {
                     <ul className="divide-y divide-outline-variant border-y border-outline-variant">
                         {branches.map((branch) => (
                             <li key={branch.id} className="flex min-w-0 flex-col justify-between gap-1 py-2 sm:flex-row sm:items-center sm:gap-3">
-                                <Link href={`/catalog?branch=${encodeURIComponent(branch.id)}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                                <Link href={`/catalog?branch=${encodeURIComponent(branch.id)}#products`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                                     <MapPin aria-hidden="true" size={17} className="shrink-0 text-secondary" />
                                     <span className="min-w-0 py-1">
                                         <span className="block break-words font-label-md text-label-md text-on-surface">{branch.name}</span>
