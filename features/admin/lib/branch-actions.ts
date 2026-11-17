@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { can } from "../../../lib/permissions";
 import { authOptions } from "../../../lib/auth";
 import { archiveBranch, createBranch, deactivateBranch, deleteBranch, reactivateBranch, restoreBranch, updateBranch } from "./branch-service";
+import { revalidatePublicCatalog } from "@/features/catalog/lib/public-catalog-cache";
 
 type BranchActionState = { ok: boolean; message: string } | null;
 
@@ -26,6 +27,7 @@ function branchIdFrom(formData: FormData) {
 }
 
 async function revalidateBranchPages() {
+    revalidatePublicCatalog();
     revalidatePath("/", "page");
     revalidatePath("/catalog", "page");
     revalidatePath("/catalog/[categoryId]", "page");

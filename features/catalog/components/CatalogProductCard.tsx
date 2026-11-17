@@ -19,9 +19,6 @@ export type CatalogProduct = {
     hasMultiplePrices: boolean;
     branches: Array<{
         id: string;
-        name: string;
-        location: string;
-        contactNumber: string | null;
         status: PublicAvailabilityStatus;
         pricePerPack: number | null;
     }>;

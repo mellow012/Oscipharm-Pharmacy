@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 import { getPublicAvailability, type AvailabilityBranchInput } from "@/features/catalog/lib/public-availability";
 import { filterPublicBranches } from "@/features/catalog/lib/public-branch-rules";
+import { PUBLIC_CATALOG_CACHE_TAG } from "@/features/catalog/lib/public-catalog-cache";
 
 const activeBranchWhere = { isActive: true, archivedAt: null } as const;
 
@@ -48,7 +50,7 @@ export async function getPublicBranches(): Promise<PublicBranch[]> {
   return filterPublicBranches(branches);
 }
 
-export async function getCatalogBrowserData() {
+async function loadCatalogBrowserData() {
   const [categories, branches] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: "asc" },
@@ -106,9 +108,6 @@ export async function getCatalogBrowserData() {
         hasMultiplePrices: variant.branchPrices.length > 1,
         branches: branches.map((branch) => ({
           id: branch.id,
-          name: branch.name,
-          location: branch.location,
-          contactNumber: branch.contactNumber,
           status: availability.branches.find((item) => item.branchId === branch.id)?.status ?? "out-of-stock",
           pricePerPack: variant.branchPrices.find((price) => price.branchId === branch.id)?.pricePerPack.toNumber() ?? null,
         })),
@@ -119,7 +118,20 @@ export async function getCatalogBrowserData() {
     categories: categories.filter((category) => products.some((product) => product.categoryName === category.name && product.availability !== "out-of-stock")),
     products,
     branches,
-    availabilityUpdatedAt: latestImport?.committedAt ?? null,
+    availabilityUpdatedAt: latestImport?.committedAt?.toISOString() ?? null,
+  };
+}
+
+const getCachedCatalogBrowserData = unstable_cache(loadCatalogBrowserData, ["public-catalog-browser-v1"], {
+  revalidate: 60,
+  tags: [PUBLIC_CATALOG_CACHE_TAG],
+});
+
+export async function getCatalogBrowserData() {
+  const data = await getCachedCatalogBrowserData();
+  return {
+    ...data,
+    availabilityUpdatedAt: data.availabilityUpdatedAt ? new Date(data.availabilityUpdatedAt) : null,
   };
 }
 

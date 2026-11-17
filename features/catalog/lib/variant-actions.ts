@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
 import { getAuthorizedBranchId, type StaffSession } from "@/features/catalog/lib/aronium-actions";
 import { firstVariantInputError, hasDuplicateVariant, looseSaleUnitLinkError, newCatalogNameErrors, variantInputSchema, type VariantFieldErrors, type VariantInput } from "@/features/catalog/lib/variant-validation";
+import { revalidatePublicCatalog } from "@/features/catalog/lib/public-catalog-cache";
 
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
@@ -197,6 +198,7 @@ export async function saveStaffVariant(
         }, TRANSACTION_OPTIONS);
         if (!saved) return { errors: { form: INACTIVE_BRANCH_WRITE_ERROR } };
 
+        revalidatePublicCatalog();
         revalidatePath("/staff/catalog");
         revalidatePath("/catalog");
         revalidatePath("/catalog/[categoryId]", "page");

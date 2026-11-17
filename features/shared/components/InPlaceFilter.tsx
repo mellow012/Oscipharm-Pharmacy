@@ -20,6 +20,7 @@ export function InPlaceFilter({
     submitClassName,
     clearable = false,
     inputAttributes,
+    onValueChange,
 }: {
     name: string;
     label: string;
@@ -32,6 +33,7 @@ export function InPlaceFilter({
     submitClassName?: string;
     clearable?: boolean;
     inputAttributes?: Pick<InputHTMLAttributes<HTMLInputElement>, "enterKeyHint" | "autoComplete" | "autoCorrect" | "spellCheck">;
+    onValueChange?: (value: string) => void;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -51,7 +53,7 @@ export function InPlaceFilter({
     }
 
     useEffect(() => {
-        if (!debounceMs || currentValue === value) return;
+        if (onValueChange || !debounceMs || currentValue === value) return;
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
             const query = buildNextQueryString(searchParams.toString(), name, currentValue);
@@ -61,7 +63,7 @@ export function InPlaceFilter({
         return () => {
             if (timer.current) clearTimeout(timer.current);
         };
-    }, [currentValue, debounceMs, name, pathname, router, searchParams, value]);
+    }, [currentValue, debounceMs, name, onValueChange, pathname, router, searchParams, value]);
 
     return (
         <form method="get" action={pathname} className="flex min-w-0 flex-wrap items-end gap-space-sm">
@@ -80,7 +82,8 @@ export function InPlaceFilter({
                         onChange={(event) => {
                             const nextValue = event.target.value;
                             setCurrentValue(nextValue);
-                            apply(nextValue);
+                            if (onValueChange) onValueChange(nextValue);
+                            else apply(nextValue);
                         }}
                     >
                         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -96,7 +99,11 @@ export function InPlaceFilter({
                             name={name}
                             value={currentValue}
                             placeholder={placeholder}
-                            onChange={(event) => setCurrentValue(event.target.value)}
+                            onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setCurrentValue(nextValue);
+                                onValueChange?.(nextValue);
+                            }}
                         />
                         {clearable && currentValue ? (
                             <button
@@ -104,7 +111,8 @@ export function InPlaceFilter({
                                 aria-label="Clear search"
                                 onClick={() => {
                                     setCurrentValue("");
-                                    apply("");
+                                    if (onValueChange) onValueChange("");
+                                    else apply("");
                                 }}
                                 className="absolute right-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-on-surface-variant hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                             >

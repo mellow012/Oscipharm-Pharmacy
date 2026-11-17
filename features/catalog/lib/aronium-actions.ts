@@ -8,6 +8,7 @@ import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { validateAroniumProductLink } from "@/features/catalog/lib/aronium-link-validation";
 import type { AroniumLinkActionState } from "@/features/catalog/types";
+import { revalidatePublicCatalog } from "@/features/catalog/lib/public-catalog-cache";
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 export type StaffSession = {
@@ -92,6 +93,7 @@ export async function createAroniumProductLink(
         throw error;
     }
 
+    revalidatePublicCatalog();
     revalidatePath("/staff/catalog");
     return { success: "Aronium product code linked." };
 }
@@ -130,6 +132,7 @@ export async function deleteAroniumProductLink(
         throw error;
     }
 
+    revalidatePublicCatalog();
     revalidatePath("/staff/catalog");
     return { success: "Aronium product code removed." };
 }

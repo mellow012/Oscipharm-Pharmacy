@@ -8,6 +8,7 @@ import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isExpiredInMalawi } from "@/lib/timezone";
 import { INACTIVE_BRANCH_WRITE_ERROR, lockActiveBranch } from "@/lib/branch-write-guard";
+import { revalidatePublicCatalog } from "@/features/catalog/lib/public-catalog-cache";
 import type { ActionState } from "@/features/inventory/types";
 import {
     stockCorrectionDelta,
@@ -72,6 +73,7 @@ export async function receiveBatch(_previousState: ActionState, formData: FormDa
     }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
+    revalidatePublicCatalog();
     revalidatePath("/inventory");
     return { success: `Received ${quantityReceived} pack${quantityReceived === 1 ? "" : "s"} of ${variant.brandName}.` };
 }
@@ -121,6 +123,7 @@ export async function updateBranchPrice(_previousState: ActionState, formData: F
     }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
+    revalidatePublicCatalog();
     revalidatePath("/inventory");
     return { success: "Pricing updated." };
 }
@@ -165,6 +168,7 @@ export async function updateBatchExpiry(_previousState: ActionState, formData: F
     }, TRANSACTION_OPTIONS);
     if (!wrote) return { error: INACTIVE_BRANCH_WRITE_ERROR };
 
+    revalidatePublicCatalog();
     revalidatePath("/inventory");
     revalidatePath("/reports");
     return { success: "Expiry date updated." };
@@ -234,6 +238,7 @@ export async function adjustBatchQuantity(_previousState: ActionState, formData:
     if (result === "inactive") return { error: INACTIVE_BRANCH_WRITE_ERROR };
     if (result === "stale") return { error: "Stock changed, reload this batch." };
 
+    revalidatePublicCatalog();
     revalidatePath("/inventory");
     revalidatePath("/staff/catalog");
     return { success: "Stock count corrected." };
