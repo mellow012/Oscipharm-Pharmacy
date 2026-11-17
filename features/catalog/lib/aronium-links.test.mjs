@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateAroniumProductLink } from "./aronium-link-validation.ts";
-import { hasDuplicateName, hasDuplicateVariant, looseSaleUnitLinkError, newCatalogNameErrors, variantInputSchema } from "./variant-validation.ts";
+import { hasDuplicateVariant, looseSaleUnitLinkError, newCatalogNameErrors, variantInputSchema } from "./variant-validation.ts";
 
 const validInput = { aroniumCode: " 003 ", variantId: "variant-1", mode: "PACK" };
 

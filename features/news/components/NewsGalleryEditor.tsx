@@ -44,11 +44,10 @@ async function compressPhoto(file: File): Promise<Blob> {
     }
 }
 
-function ImageEditorRow({ image, index, total, postId, onChanged }: {
+function ImageEditorRow({ image, index, total, onChanged }: {
     image: ImageRow;
     index: number;
     total: number;
-    postId: string;
     onChanged: () => void;
 }) {
     const [altText, setAltText] = useState(image.altText ?? "");
@@ -146,7 +145,7 @@ export function NewsGalleryEditor({ postId, images }: { postId: string; images: 
             {images.length ? (
                 <ul className="mt-3 divide-y divide-border">
                     {[...images].sort((left, right) => left.sortOrder - right.sortOrder).map((image, index, ordered) => (
-                        <ImageEditorRow key={image.id} image={image} index={index} total={ordered.length} postId={postId} onChanged={() => router.refresh()} />
+                        <ImageEditorRow key={image.id} image={image} index={index} total={ordered.length} onChanged={() => router.refresh()} />
                     ))}
                 </ul>
             ) : <p className="mt-3 text-sm text-muted">No photos added.</p>}

@@ -45,7 +45,7 @@ function text(value: unknown): string {
   return String(value).trim();
 }
 
-function parseNumber(value: unknown): number | null {
+export function parseNumber(value: unknown): number | null {
   const raw = text(value);
   if (!raw) {
     return null;
@@ -54,7 +54,7 @@ function parseNumber(value: unknown): number | null {
   const normalized = raw
     .replace(/[$,\s]/g, "")
     .replace(/[()]/g, "-")
-    .replace(/[^0-9.\-]/g, "");
+    .replace(/[^0-9.-]/g, "");
 
   if (!normalized || normalized === "-" || normalized === "-." || normalized === ".") {
     return null;

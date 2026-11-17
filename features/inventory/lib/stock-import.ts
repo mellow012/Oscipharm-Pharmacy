@@ -37,7 +37,7 @@ export function normalizeGroupName(rawValue: string | null | undefined): string 
   return rawValue
     .toLowerCase()
     .replace(/[\t\r\n]+/g, " ")
-    .replace(/[\/&]+/g, " ")
+    .replace(/[/&]+/g, " ")
     .replace(/[^a-z0-9\s]/gi, " ")
     .replace(/\s+/g, " ")
     .trim();

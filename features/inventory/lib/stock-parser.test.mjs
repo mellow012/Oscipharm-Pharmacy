@@ -4,7 +4,21 @@ import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
 
-import { parseStockExport } from "./stock-parser.ts";
+import { parseNumber, parseStockExport } from "./stock-parser.ts";
+
+test("parseNumber keeps negative signs and rejects hyphenated ranges or junk", () => {
+  const legacyPattern = new RegExp(String.raw`[^0-9.\\-]`, "g");
+  const currentPattern = /[^0-9.-]/g;
+  for (const input of ["-12.50", "1-2", "A-100", "not-a-number", "$1,250.50"]) {
+    assert.equal(input.replace(currentPattern, ""), input.replace(legacyPattern, ""));
+  }
+
+  assert.equal(parseNumber("-12.50"), -12.5);
+  assert.equal(parseNumber("1-2"), null);
+  assert.equal(parseNumber("A-100"), -100);
+  assert.equal(parseNumber("not-a-number"), null);
+  assert.equal(parseNumber("$1,250.50"), 1250.5);
+});
 
 test("parseStockExport accepts the layout A fixture", async () => {
   const buffer = fs.readFileSync(path.resolve("features/inventory/lib/__fixtures__/stock-layout-a.xlsx"));

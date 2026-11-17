@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma.ts";
 import { sendMail } from "../../../lib/mail.ts";

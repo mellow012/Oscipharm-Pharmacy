@@ -3,7 +3,6 @@ import test from "node:test";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { requireTestDatabaseUrl } from "../../../scripts/test-database-safety.mjs";
-import { hashToken } from "../../../lib/tokens.ts";
 import { createStaffInvitationService, INVALID_STAFF_INVITATION_MESSAGE } from "./staff-invitation-service.ts";
 import { deactivateBranch } from "./branch-service.ts";
 
@@ -303,7 +302,7 @@ test("pending invitation blocks branch deactivation with count, and create/deact
 
     await prisma.branch.update({ where: { id: branch.id }, data: { isActive: true } });
     const email = `race-create-${Date.now()}@example.test`;
-    const outcomes = await Promise.all([
+    await Promise.all([
       service.createInvitation(admin.id, { email, role: "POS", branchId: branch.id }),
       deactivateBranch(admin.id, branch.id),
     ]);

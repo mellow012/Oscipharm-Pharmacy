@@ -15,6 +15,14 @@ test('normalizeGroupName reduces noisy group text to one canonical key', () => {
   assert.equal(normalizeGroupName('  PANADOL 500mg   '), 'panadol 500mg');
   assert.equal(normalizeGroupName('Panadol\t500 mg'), 'panadol 500 mg');
   assert.equal(normalizeGroupName('Amoxicillin 250mg / Capsules'), 'amoxicillin 250mg capsules');
+  assert.equal(normalizeGroupName('2026/11/17'), '2026 11 17');
+  assert.equal(normalizeGroupName('!!!'), '');
+
+  const legacyPattern = new RegExp(String.raw`[\/&]+`, 'g');
+  const currentPattern = /[/&]+/g;
+  for (const input of ['2026/11/17', 'Pain/Relief & Wellness', 'back\\slash', 'plain text', '!!!']) {
+    assert.equal(input.replace(currentPattern, ' '), input.replace(legacyPattern, ' '));
+  }
 });
 
 test('buildStockImportPreview skips blank rows and keeps valid rows in preview', () => {

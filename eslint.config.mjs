@@ -43,6 +43,12 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    files: ["app/**/page.tsx", "app/**/layout.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   // Disable rules that conflict with Prettier formatting.
   prettier,
 );
