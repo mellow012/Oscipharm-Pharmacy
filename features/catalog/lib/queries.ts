@@ -178,7 +178,7 @@ export async function getPublicVariants(ingredientId: string): Promise<PublicCat
         pricePerPack: variant.branchPrices.find((price) => price.branchId === branch.id)?.pricePerPack.toNumber() ?? null,
       })),
     };
-  });
+  }).filter((variant) => variant.branches.some((branch) => branch.status !== "out-of-stock"));
 }
 
 export async function getPublicProduct(variantId: string): Promise<PublicCatalogVariant | null> {
