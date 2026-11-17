@@ -1,7 +1,9 @@
 import type { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 import { prisma } from "../../../lib/prisma.ts";
 import { eventEffectiveEnd, isUpcomingEvent, orderAll, orderPastEvents, orderUpcomingEvents, type NewsTab } from "./news-feed.ts";
 import { publicAnyNewsWhere, publicNewsWhere } from "./news-rules.ts";
+import { NEWS_CACHE_TAG } from "./news-cache.ts";
 
 const publicInclude = {
     images: {
@@ -12,6 +14,23 @@ const publicInclude = {
 };
 
 type PublicPost = Prisma.NewsGetPayload<{ include: typeof publicInclude }>;
+
+const getCachedLatestPublishedAt = unstable_cache(
+    async () => {
+        const latestPost = await prisma.news.findFirst({
+            where: { status: "PUBLISHED" },
+            orderBy: { publishedAt: "desc" },
+            select: { publishedAt: true },
+        });
+        return latestPost?.publishedAt.toISOString() ?? null;
+    },
+    ["latest-published-news-timestamp"],
+    { tags: [NEWS_CACHE_TAG] },
+);
+
+export function getLatestPublishedAt(): Promise<string | null> {
+    return getCachedLatestPublishedAt();
+}
 
 export function getPublicFeed(tab: "news", now: Date): Promise<{ items: PublicPost[] }>;
 export function getPublicFeed(tab: "events", now: Date): Promise<{ upcoming: PublicPost[]; past: PublicPost[] }>;

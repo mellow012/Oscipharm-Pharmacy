@@ -1,11 +1,12 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { authOptions } from "../../../lib/auth.ts";
 import { createStorage } from "../../../lib/supabase-storage.ts";
 import { createNewsPost, deleteNewsPost, getNewsPostForActor, publishNewsPost, unpublishNewsPost, updateNewsPost } from "./news-service.ts";
 import type { NewsActionResult, NewsInputPayload } from "../types.ts";
+import { NEWS_CACHE_TAG } from "./news-cache.ts";
 
 async function getActorId(): Promise<string | NewsActionResult> {
     const session = await getServerSession(authOptions);
@@ -27,6 +28,7 @@ export async function createNewsPostAction(input: NewsInputPayload): Promise<New
     if (isActionFailure(actorId)) return actorId;
     const result = toActionResult(await createNewsPost(actorId, input));
     if (result.ok) {
+        updateTag(NEWS_CACHE_TAG);
         revalidatePath("/staff/news");
         revalidatePath("/news");
         revalidatePath(`/news/${result.slug}`);
@@ -54,6 +56,7 @@ export async function deleteNewsPostAction(postId: string): Promise<NewsActionRe
     const storagePaths = post?.images.map((image) => image.storagePath).filter((path): path is string => Boolean(path)) ?? [];
     const result = await deleteNewsPost(actorId, postId);
     if (!result.ok) return result;
+    updateTag(NEWS_CACHE_TAG);
     const storage = createStorage();
     for (const path of storagePaths) {
         try {
@@ -73,6 +76,7 @@ export async function publishNewsPostAction(postId: string): Promise<NewsActionR
     if (isActionFailure(actorId)) return actorId;
     const result = toActionResult(await publishNewsPost(actorId, postId));
     if (result.ok) {
+        updateTag(NEWS_CACHE_TAG);
         revalidatePath("/staff/news");
         revalidatePath(`/staff/news/${postId}/preview`);
         revalidatePath("/news");
@@ -86,6 +90,7 @@ export async function unpublishNewsPostAction(postId: string): Promise<NewsActio
     if (isActionFailure(actorId)) return actorId;
     const result = toActionResult(await unpublishNewsPost(actorId, postId));
     if (result.ok) {
+        updateTag(NEWS_CACHE_TAG);
         revalidatePath("/staff/news");
         revalidatePath(`/staff/news/${postId}/preview`);
         revalidatePath("/news");
