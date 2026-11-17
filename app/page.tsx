@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, MapPinned, Search, UserRound } from "lucide-react";
+import { MapPinned, Search, UserRound } from "lucide-react";
 import { ProductBrowser } from "@/features/catalog/components/ProductBrowser";
 import { getCatalogBrowserData } from "@/features/catalog/lib/queries";
 import { PublicFooter } from "@/features/marketing/components/PublicFooter";
@@ -29,14 +29,6 @@ export default async function HomePage() {
                         <p className="mt-4 max-w-lg text-body-lg text-on-surface-variant">
                             Everyday medicines, wellness essentials and community updates from your local OsciPharm network.
                         </p>
-                        <div className="mt-6 flex flex-wrap gap-3">
-                            <Link href="/catalog#products" className="inline-flex min-h-11 items-center gap-2 bg-primary px-5 font-label-md text-label-md text-primary-fg transition hover:bg-ink">
-                                Browse the catalog <ArrowRight aria-hidden="true" size={16} />
-                            </Link>
-                            <Link href="/membership" className="inline-flex min-h-11 items-center gap-2 border border-outline-variant bg-surface-container-lowest px-5 font-label-md text-label-md text-on-surface transition hover:border-primary hover:text-primary">
-                                Request membership
-                            </Link>
-                        </div>
                     </div>
 
                     <div className="order-2 flex min-h-[220px] items-center justify-center overflow-hidden bg-[#edf7f0] px-3 py-4 md:min-h-full md:px-4 md:py-6">
