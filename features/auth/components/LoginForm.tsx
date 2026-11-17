@@ -3,12 +3,23 @@
 import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
+import { AuthErrorSummary } from "@/features/auth/components/AuthErrorSummary";
+import { PasswordField } from "@/features/auth/components/PasswordField";
+import { FormField, FormInput } from "@/features/shared/components/FormField";
 
 export function LoginForm() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    function handleInvalid(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const field = event.target as HTMLInputElement;
+        const message = field.validity.valueMissing ? "This field is required." : "Enter a valid email address.";
+        setFieldErrors((current) => ({ ...current, [field.id]: message }));
+    }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -33,55 +44,19 @@ export function LoginForm() {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-                <label htmlFor="email" className="mb-2 block text-sm font-medium text-fg">
-                    Email
-                </label>
-                <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    className="w-full border border-border bg-surface px-4 py-3 text-fg outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-            </div>
-            <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-fg">
-                    Password
-                </label>
-                <div className="flex border border-border bg-surface focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-                    <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        required
-                        className="min-w-0 flex-1 bg-transparent px-4 py-3 text-fg outline-none"
-                    />
-                    <button
-                        type="button"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showPassword}
-                        onClick={() => setShowPassword((visible) => !visible)}
-                        className="px-4 text-sm font-medium text-primary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                        {showPassword ? "Hide" : "Show"}
-                    </button>
-                </div>
-            </div>
-            {error ? (
-                <p role="alert" className="border-l-4 border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                    {error}
-                </p>
-            ) : null}
+        <form onSubmit={handleSubmit} onInvalidCapture={handleInvalid} className="space-y-5">
+            <AuthErrorSummary message={error} fieldErrors={fieldErrors} />
+            <FormField id="email" label="Email" required helperText="Use the email address linked to your staff account." error={fieldErrors.email}>
+                {(props) => <FormInput {...props} name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="off" spellCheck={false} className={`${props.className} min-h-11 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`} onChange={() => setFieldErrors((current) => ({ ...current, email: "" }))} />}
+            </FormField>
+            <PasswordField id="password" label="Password" required error={fieldErrors.password} onValueChange={() => setFieldErrors((current) => ({ ...current, password: "" }))} />
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-primary px-4 py-3 font-semibold text-primary-fg transition hover:bg-ink disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-primary px-4 py-3 font-label-md text-label-md font-semibold text-on-primary transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-60"
             >
                 {isSubmitting ? "Signing in..." : "Sign in"}
+                <ArrowRight aria-hidden="true" size={17} />
             </button>
         </form>
     );

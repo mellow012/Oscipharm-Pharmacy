@@ -1,18 +1,15 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { AuthPageShell } from "@/features/auth/components/AuthPageShell";
 import { ForgotPasswordForm } from "@/features/auth/components/ForgotPasswordForm";
 
 export default function ForgotPasswordPage() {
     return (
-        <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-6 py-12">
-            <section className="w-full border border-border bg-surface p-8 shadow-sm">
-                <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-warn">OsciPharm staff</p>
-                <h1 className="mb-2 text-4xl text-ink">Forgot password</h1>
-                <p className="mb-8 text-muted">Enter your email and we’ll send a secure link to reset your password.</p>
-                <ForgotPasswordForm />
-                <Link href="/login" className="mt-6 block text-center text-sm text-muted underline decoration-warn underline-offset-4 hover:text-primary">
-                    Back to sign in
-                </Link>
-            </section>
-        </main>
+        <AuthPageShell title="Forgot password" description="Enter your email and we’ll send a secure link to reset your password.">
+            <ForgotPasswordForm />
+            <Link href="/login" className="mt-5 inline-flex min-h-11 items-center gap-2 font-label-md text-label-md text-primary underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <ArrowLeft aria-hidden="true" size={16} />Back to sign in
+            </Link>
+        </AuthPageShell>
     );
 }

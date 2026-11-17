@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { ArrowRight, ShieldAlert } from "lucide-react";
+import { AuthPageShell } from "@/features/auth/components/AuthPageShell";
+import { NoticeBanner } from "@/features/shared/components/NoticeBanner";
 
 export default function UnauthorizedPage() {
     return (
-        <main className="flex min-h-screen items-center justify-center px-6 py-12">
-            <section className="w-full max-w-xl border border-border bg-surface p-8 sm:p-12">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-warn">Access restricted</p>
-                <h1 className="mt-4 text-5xl leading-none text-ink">You cannot open this workspace.</h1>
-                <p className="mt-5 max-w-md text-lg leading-8 text-muted">Your account does not have permission to view this area. Return to your staff home to continue.</p>
-                <Link href="/staff" className="mt-8 inline-flex bg-primary px-5 py-3 font-semibold text-primary-fg transition hover:bg-ink">Back to staff home</Link>
-            </section>
-        </main>
+        <AuthPageShell title="Access restricted" description="Your account does not have permission to view this area." eyebrow="Account access">
+            <div className="space-y-5">
+                <NoticeBanner tone="warning" title="You don’t have access"><span className="inline-flex items-start gap-2"><ShieldAlert aria-hidden="true" size={18} className="mt-0.5 shrink-0" />Return to your staff home or OsciPharm’s public site.</span></NoticeBanner>
+                <Link href="/staff" className="inline-flex min-h-12 items-center gap-2 bg-primary px-4 font-label-md text-label-md font-semibold text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Back to staff home <ArrowRight aria-hidden="true" size={17} /></Link>
+            </div>
+        </AuthPageShell>
     );
 }

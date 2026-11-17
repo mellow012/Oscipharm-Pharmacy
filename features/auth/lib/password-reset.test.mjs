@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateToken, hashToken } from "../../../lib/tokens.ts";
 import { isValidNewPassword } from "../../../lib/password.ts";
+import { getNewPasswordRules } from "../../../lib/password-rules.ts";
 import { isSessionStale } from "../../../lib/session-stale.ts";
 import {
   buildPasswordResetUrl,
@@ -39,6 +40,8 @@ test("password validation enforces ten characters and a 72-byte UTF-8 maximum", 
   assert.equal(isValidNewPassword("1234567890"), true);
   assert.equal(isValidNewPassword("é".repeat(36)), true);
   assert.equal(isValidNewPassword("é".repeat(37)), false);
+  assert.deepEqual(getNewPasswordRules("123456789"), { minimumLength: false, maximumBytes: true, valid: false });
+  assert.deepEqual(getNewPasswordRules("é".repeat(37)), { minimumLength: true, maximumBytes: false, valid: false });
 });
 
 test("reset link uses only the configured app URL and token path", () => {
